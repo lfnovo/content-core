@@ -1,0 +1,1 @@
+Also use uv as the package manager: uv run, uv sync, uv add.

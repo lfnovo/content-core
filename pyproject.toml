@@ -1,0 +1,60 @@
+[project]
+name = "content-core"
+version = "0.1.0"
+description = "Extract what matters from any media source"
+readme = "README.md"
+authors = [
+    { name = "LUIS NOVO", email = "lfnovo@gmail.com" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "aiohttp>=3.11.16",
+    "bs4>=0.0.2",
+    "esperanto>=1.2.0",
+    "google-genai>=1.10.0",
+    "jinja2>=3.1.6",
+    "langdetect>=1.0.9",
+    "loguru>=0.7.3",
+    "openai>=1.73.0",
+    "openpyxl>=3.1.5",
+    "pandas>=2.2.3",
+    "pydub>=0.25.1",
+    "pymupdf>=1.25.5",
+    "python-docx>=1.1.2",
+    "python-dotenv>=1.1.0",
+    "python-magic>=0.4.27",
+    "python-pptx>=1.0.2",
+    "youtube-transcript-api>=1.0.3",
+    "langgraph>=0.3.29",
+    "dicttoxml>=1.7.16",
+    "validators>=0.34.0",
+]
+
+[project.scripts]
+ccore = "content_core:ccore"
+cclean = "content_core:cclean"
+csum = "content_core:csum"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[build-system]
+requires = ["hatchling", "pip"]
+build-backend = "hatchling.build"
+
+[tool.setuptools]
+package-dir = {"content_core" = "src/content_core"}
+
+[dependency-groups]
+dev = [
+    "ipykernel>=4.0.1",
+    "ipywidgets>=4.0.0",
+    "pyperclip>=1.9.0",
+    "pytest>=7.2.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
