@@ -215,8 +215,10 @@ make lint
 make help
 ```
 
-## Contributing
-Contributions are welcome! Please follow standard practices (fork, feature branch, pull request).
-
 ## License
-This project is licensed under the MIT License - see the LICENSE file for details.
+
+This project is licensed under the [MIT License](LICENSE). See the [LICENSE](LICENSE) file for details.
+
+## Contributing
+
+Contributions are welcome! Please see our [Contributing Guide](CONTRIBUTING.md) for more details on how to get started.
