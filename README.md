@@ -125,7 +125,7 @@ csum --context "in bullet points" "AI is transforming industries."
 # Summarize piped content
 cat article.txt | csum --context "one sentence"
 
-# Summarize content from a URL
+# Summarize content from URL
 csum https://example.com
 
 # Summarize a file's content
