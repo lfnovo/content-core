@@ -156,4 +156,5 @@ async def extract_youtube_transcript(state: ProcessSourceState):
     return {
         "content": formatter.format_transcript(transcript),
         "title": title,
+        "metadata": {"video_id": video_id, "transcript": transcript.to_raw_data()},
     }
