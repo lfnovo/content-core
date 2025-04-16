@@ -354,7 +354,7 @@ wheels = [
 
 [[package]]
 name = "content-core"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -390,7 +390,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiohttp", specifier = ">=3.11.16" },
+    { name = "aiohttp", specifier = ">=3.11" },
     { name = "bs4", specifier = ">=0.0.2" },
     { name = "dicttoxml", specifier = ">=1.7.16" },
     { name = "esperanto", specifier = ">=1.2.0" },
