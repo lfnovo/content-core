@@ -10,13 +10,27 @@ from typing import Any, Dict, Optional, Union
 from dotenv import load_dotenv
 from jinja2 import Environment, FileSystemLoader, Template
 from langchain_core.prompts import ChatPromptTemplate
+from loguru import logger
 from pydantic import BaseModel
 
 load_dotenv()
 
-prompt_path = "/Users/luisnovo/dev/projetos/content-core/prompts"
+prompt_path_default = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "prompts"
+)
+prompt_path_custom = os.getenv("PROMPT_PATH")
 
-env = Environment(loader=FileSystemLoader(prompt_path))
+logger.debug(
+    f"Pasta de prompts personalizada: {prompt_path_custom if prompt_path_custom else 'Não definida'}"
+)
+logger.debug(f"Pasta de prompts padrão: {prompt_path_default}")
+
+env_custom = (
+    Environment(loader=FileSystemLoader(prompt_path_custom))
+    if prompt_path_custom and os.path.exists(prompt_path_custom)
+    else None
+)
+env_default = Environment(loader=FileSystemLoader(prompt_path_default))
 
 
 @dataclass
@@ -57,7 +71,33 @@ class Prompter:
             ValueError: If neither prompt_template nor prompt_text is provided.
         """
         if self.prompt_template:
-            self.template = env.get_template(f"{self.prompt_template}.jinja")
+            # Primeiro tenta carregar da pasta personalizada, se disponível
+            if env_custom:
+                try:
+                    self.template = env_custom.get_template(
+                        f"{self.prompt_template}.jinja"
+                    )
+                    logger.debug(
+                        f"Template {self.prompt_template} carregado da pasta personalizada"
+                    )
+                    return
+                except Exception as e:
+                    logger.debug(
+                        f"Template {self.prompt_template} não encontrado na pasta personalizada: {e}"
+                    )
+
+            # Se não encontrou na personalizada ou não há pasta personalizada, tenta a padrão
+            try:
+                self.template = env_default.get_template(
+                    f"{self.prompt_template}.jinja"
+                )
+                logger.debug(
+                    f"Template {self.prompt_template} carregado da pasta padrão"
+                )
+            except Exception as e:
+                raise ValueError(
+                    f"Template {self.prompt_template} não encontrado na pasta padrão: {e}"
+                )
         elif self.prompt_text:
             self.template = Template(self.prompt_text)
         else:
@@ -105,11 +145,13 @@ class Prompter:
         """
         # Convert Pydantic model to dict if necessary
         data_dict = data.model_dump() if isinstance(data, BaseModel) else data
-        data_dict["current_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Create a new mutable dictionary with the original data
+        render_data = dict(data_dict)
+        render_data["current_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         if self.parser:
-            data_dict["format_instructions"] = self.parser.get_format_instructions()
+            render_data["format_instructions"] = self.parser.get_format_instructions()
         assert self.template, "Prompter template is not defined"
-        assert isinstance(self.template, Template), (
-            "Prompter template is not a Jinja2 Template"
-        )
-        return self.template.render(data_dict)
+        assert isinstance(
+            self.template, Template
+        ), "Prompter template is not a Jinja2 Template"
+        return self.template.render(render_data)

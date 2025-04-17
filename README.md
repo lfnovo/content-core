@@ -14,7 +14,7 @@ The primary goal of Content Core is to simplify the process of ingesting content
     *   Direct text strings.
     *   Web URLs (using robust extraction methods).
     *   Local files (including automatic transcription for video/audio files and parsing for text-based formats).
-*   **Intelligent Processing:** Applies appropriate extraction techniques based on the source type.
+*   **Intelligent Processing:** Applies appropriate extraction techniques based on the source type. See the [Processors Documentation](./docs/processors.md) for detailed information on how different content types are handled.
 *   **Content Cleaning (Optional):** Likely integrates with LLMs (via `prompter.py` and Jinja templates) to refine and clean the extracted content.
 *   **Asynchronous:** Built with `asyncio` for efficient I/O operations.
 
@@ -190,6 +190,20 @@ Example `.env`:
 OPENAI_API_KEY=your-key-here
 GOOGLE_API_KEY=your-key-here
 ```
+
+### Custom Prompt Templates
+
+Content Core allows you to define custom prompt templates for content processing. By default, the library uses built-in prompts located in the `prompts` directory. However, you can create your own prompt templates and store them in a dedicated directory. To specify the location of your custom prompts, set the `PROMPT_PATH` environment variable in your `.env` file or system environment.
+
+Example `.env` with custom prompt path:
+
+```plaintext
+OPENAI_API_KEY=your-key-here
+GOOGLE_API_KEY=your-key-here
+PROMPT_PATH=/path/to/your/custom/prompts
+```
+
+When a prompt template is requested, Content Core will first look in the custom directory specified by `PROMPT_PATH` (if set and exists). If the template is not found there, it will fall back to the default built-in prompts. This allows you to override specific prompts while still using the default ones for others.
 
 ## Development
 
