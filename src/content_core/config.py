@@ -1,37 +1,25 @@
-from esperanto import AIFactory
-from esperanto.providers.stt import SpeechToTextModel
+import os
+import pkgutil
 
-SPEECH_TO_TEXT_MODEL: SpeechToTextModel = AIFactory.create_speech_to_text(
-    "openai", "whisper-1"
-)
+import yaml
 
-DEFAULT_MODEL = AIFactory.create_language(
-    "openai",
-    "gpt-4o-mini",
-    config={
-        "temperature": 0.5,
-        "top_p": 1,
-        "max_tokens": 2000,
-    },
-)
 
-CLEANUP_MODEL = AIFactory.create_language(
-    "openai",
-    "gpt-4o-mini",
-    config={
-        "temperature": 0,
-        "max_tokens": 8000,
-        "output_format": "json",
-        # "stream": True, # TODO: handle streaming
-    },
-)  # Fix deprecation
+def load_config():
+    config_path = os.environ.get("CCORE_MODEL_CONFIG_PATH")
+    if config_path and os.path.exists(config_path):
+        try:
+            with open(config_path, "r") as file:
+                return yaml.safe_load(file)
+        except Exception as e:
+            print(f"Erro ao carregar o arquivo de configuração de {config_path}: {e}")
+            print("Usando configurações padrão internas.")
 
-SUMMARY_MODEL = AIFactory.create_language(
-    "openai",
-    "gpt-4o-mini",
-    config={
-        "temperature": 0,
-        "top_p": 1,
-        "max_tokens": 2000,
-    },
-)
+    default_config_data = pkgutil.get_data("content_core", "models_config.yaml")
+    if default_config_data:
+        return yaml.safe_load(default_config_data)
+    return {}
+
+
+CONFIG = load_config()
+
+CONFIG = load_config()

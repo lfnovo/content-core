@@ -132,6 +132,10 @@ csum https://example.com
 csum document.txt
 ```
 
+## Documentation
+
+For more information on how to use the Content Core library, including details on AI model configuration and customization, refer to our [Usage Documentation](docs/usage.md).
+
 ## Using with Langchain
 
 For users integrating with the [Langchain](https://python.langchain.com/) framework, `content-core` exposes a set of compatible tools. These tools, located in the `src/content_core/tools` directory, allow you to leverage `content-core` extraction, cleaning, and summarization capabilities directly within your Langchain agents and chains.

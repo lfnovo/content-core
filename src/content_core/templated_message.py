@@ -4,7 +4,7 @@ from esperanto import LanguageModel
 from esperanto.common_types import Message
 from pydantic import BaseModel, Field
 
-from content_core.config import DEFAULT_MODEL
+from content_core.models import ModelFactory
 from content_core.prompter import Prompter
 
 
@@ -28,7 +28,7 @@ async def templated_message(
     input: TemplatedMessageInput, model: Optional[LanguageModel] = None
 ) -> str:
     if not model:
-        model = DEFAULT_MODEL
+        model = ModelFactory.get_model('default_model')
 
     msgs = []
     if input.system_prompt_template or input.system_prompt_text:

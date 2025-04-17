@@ -1,0 +1,27 @@
+speech_to_text:
+  provider: openai
+  model_name: whisper-1
+
+default_model:
+  provider: openai
+  model_name: gpt-4o-mini
+  config:
+    temperature: 0.5
+    top_p: 1
+    max_tokens: 2000
+
+cleanup_model:
+  provider: openai
+  model_name: gpt-4o-mini
+  config:
+    temperature: 0
+    max_tokens: 8000
+    output_format: json
+
+summary_model:
+  provider: openai
+  model_name: gpt-4o-mini
+  config:
+    temperature: 0
+    top_p: 1
+    max_tokens: 2000
