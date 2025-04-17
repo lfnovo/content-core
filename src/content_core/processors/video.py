@@ -4,9 +4,8 @@ import os
 import subprocess
 from functools import partial
 
-from loguru import logger
-
 from content_core.common import ProcessSourceState
+from content_core.logging import logger
 
 
 async def extract_audio_from_video(input_file, output_file, stream_index):

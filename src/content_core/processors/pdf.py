@@ -3,11 +3,9 @@ import re
 import unicodedata
 
 import fitz  # type: ignore
-from loguru import logger
 
-from content_core.common import (
-    ProcessSourceState,
-)
+from content_core.common import ProcessSourceState
+from content_core.logging import logger
 
 # todo: find tables - https://pymupdf.readthedocs.io/en/latest/the-basics.html#extracting-tables-from-a-page
 # todo: what else can we do to make the text more readable?

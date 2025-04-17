@@ -10,8 +10,9 @@ from typing import Any, Dict, Optional, Union
 from dotenv import load_dotenv
 from jinja2 import Environment, FileSystemLoader, Template
 from langchain_core.prompts import ChatPromptTemplate
-from loguru import logger
 from pydantic import BaseModel
+
+from content_core.logging import logger
 
 load_dotenv()
 
@@ -154,4 +155,5 @@ class Prompter:
         assert isinstance(
             self.template, Template
         ), "Prompter template is not a Jinja2 Template"
+        return self.template.render(render_data)
         return self.template.render(render_data)

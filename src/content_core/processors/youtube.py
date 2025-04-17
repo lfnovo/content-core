@@ -3,12 +3,12 @@ import ssl
 
 import aiohttp
 from bs4 import BeautifulSoup
-from loguru import logger
 from youtube_transcript_api import YouTubeTranscriptApi  # type: ignore
 from youtube_transcript_api.formatters import TextFormatter  # type: ignore
 
 from content_core.common import ProcessSourceState
 from content_core.common.exceptions import NoTranscriptFound
+from content_core.logging import logger
 
 ssl._create_default_https_context = ssl._create_unverified_context
 

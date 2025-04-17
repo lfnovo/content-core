@@ -2,11 +2,12 @@ import asyncio
 import os
 from functools import partial
 from math import ceil
-from content_core.models import ModelFactory
-from loguru import logger
+
 from pydub import AudioSegment
 
 from content_core.common import ProcessSourceState
+from content_core.logging import logger
+from content_core.models import ModelFactory
 
 # todo: remove reference to model_manager
 # future: parallelize the transcription process
@@ -79,7 +80,7 @@ async def extract_audio(data: ProcessSourceState):
         audio_files = await split_audio(input_audio_path)
 
         # Transcribe all segments concurrently
-        speech_to_text_model = ModelFactory.get_model('speech_to_text')
+        speech_to_text_model = ModelFactory.get_model("speech_to_text")
         transcribe_tasks = [
             transcribe_audio_segment(audio_file, speech_to_text_model)
             for audio_file in audio_files

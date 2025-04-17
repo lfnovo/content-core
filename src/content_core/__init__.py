@@ -7,12 +7,12 @@ from xml.etree import ElementTree as ET
 
 from dicttoxml import dicttoxml  # type: ignore
 from dotenv import load_dotenv
-from loguru import logger
 
 from content_core.common import ProcessSourceInput
 from content_core.content.cleanup import cleanup_content
 from content_core.content.extraction import extract_content
 from content_core.content.summary import summarize
+from content_core.logging import configure_logging, logger
 
 # Exposing functions for direct access when importing content_core as cc
 extract = extract_content
@@ -20,9 +20,8 @@ clean = cleanup_content
 
 load_dotenv()
 
-# Configure loguru logger
-logger.remove()  # Remove default handler
-logger.add(sys.stderr, level="INFO")  # Default to INFO level
+# Configure loguru logger using centralized configuration
+configure_logging(debug=False)
 
 
 def parse_content_format(content: str) -> str:
@@ -98,10 +97,9 @@ async def ccore_main():
 
     args = parser.parse_args()
 
-    # Adjust logging level based on debug flag
+    # Adjust logging level based on debug flag using centralized configuration
+    configure_logging(debug=args.debug)
     if args.debug:
-        logger.remove()
-        logger.add(sys.stderr, level="DEBUG")
         logger.debug("Debug logging enabled")
 
     content = get_content(args, parser)
@@ -140,10 +138,9 @@ async def cclean_main():
 
     args = parser.parse_args()
 
-    # Adjust logging level based on debug flag
+    # Adjust logging level based on debug flag using centralized configuration
+    configure_logging(debug=args.debug)
     if args.debug:
-        logger.remove()
-        logger.add(sys.stderr, level="DEBUG")
         logger.debug("Debug logging enabled")
 
     content = get_content(args, parser)
@@ -180,10 +177,9 @@ async def csum_main():
 
     args = parser.parse_args()
 
-    # Adjust logging level based on debug flag
+    # Adjust logging level based on debug flag using centralized configuration
+    configure_logging(debug=args.debug)
     if args.debug:
-        logger.remove()
-        logger.add(sys.stderr, level="DEBUG")
         logger.debug("Debug logging enabled")
 
     content = get_content(args, parser)

@@ -3,9 +3,9 @@ from urllib.parse import urlparse
 
 import aiohttp
 from bs4 import BeautifulSoup, Comment
-from loguru import logger
 
 from content_core.common import ProcessSourceState
+from content_core.logging import logger
 
 # future: better extraction methods
 # https://github.com/buriy/python-readability

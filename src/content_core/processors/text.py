@@ -1,8 +1,7 @@
 import asyncio
 
-from loguru import logger
-
 from content_core.common import ProcessSourceState
+from content_core.logging import logger
 
 
 async def extract_txt(state: ProcessSourceState):

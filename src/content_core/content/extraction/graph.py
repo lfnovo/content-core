@@ -3,13 +3,13 @@ from typing import Any, Dict, Optional
 
 import magic
 from langgraph.graph import END, START, StateGraph
-from loguru import logger
 
 from content_core.common import (
     ProcessSourceInput,
     ProcessSourceState,
     UnsupportedTypeException,
 )
+from content_core.logging import logger
 from content_core.processors.audio import extract_audio  # type: ignore
 from content_core.processors.office import (
     SUPPORTED_OFFICE_TYPES,

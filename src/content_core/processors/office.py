@@ -2,11 +2,11 @@ import asyncio
 from functools import partial
 
 from docx import Document  # type: ignore
-from loguru import logger
 from openpyxl import load_workbook  # type: ignore
 from pptx import Presentation  # type: ignore
 
 from content_core.common import ProcessSourceState
+from content_core.logging import logger
 
 SUPPORTED_OFFICE_TYPES = [
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
