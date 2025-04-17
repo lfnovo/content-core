@@ -1,6 +1,6 @@
 [project]
 name = "content-core"
-version = "0.2.0"
+version = "0.3.0"
 description = "Extract what matters from any media source"
 readme = "README.md"
 authors = [
