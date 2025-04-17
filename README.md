@@ -132,6 +132,23 @@ csum https://example.com
 csum document.txt
 ```
 
+## Quick Start
+
+You can quickly integrate `content-core` into your Python projects to extract, clean, and summarize content from various sources.
+
+```python
+import content_core as cc
+
+# Extract content from a URL, file, or text
+result = await cc.extract("https://example.com/article")
+
+# Clean messy content
+cleaned_text = await cc.clean("...messy text with [brackets] and extra spaces...")
+
+# Summarize content with optional context
+summary = await cc.summarize_content("long article text", context="explain to a child")
+```
+
 ## Documentation
 
 For more information on how to use the Content Core library, including details on AI model configuration and customization, refer to our [Usage Documentation](docs/usage.md).

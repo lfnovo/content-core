@@ -2,6 +2,10 @@ import os
 import pkgutil
 
 import yaml
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 def load_config():
@@ -19,7 +23,5 @@ def load_config():
         return yaml.safe_load(default_config_data)
     return {}
 
-
-CONFIG = load_config()
 
 CONFIG = load_config()

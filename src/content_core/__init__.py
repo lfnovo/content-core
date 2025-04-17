@@ -14,6 +14,10 @@ from content_core.content.cleanup import cleanup_content
 from content_core.content.extraction import extract_content
 from content_core.content.summary import summarize
 
+# Exposing functions for direct access when importing content_core as cc
+extract = extract_content
+clean = cleanup_content
+
 load_dotenv()
 
 # Configure loguru logger
