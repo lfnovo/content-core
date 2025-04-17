@@ -1,8 +1,9 @@
 [project]
 name = "content-core"
-version = "0.3.0"
+version = "0.3.1"
 description = "Extract what matters from any media source"
 readme = "README.md"
+homepage = "https://github.com/lfnovo/content-core"
 authors = [
     { name = "LUIS NOVO", email = "lfnovo@gmail.com" }
 ]
