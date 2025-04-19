@@ -20,10 +20,12 @@ from content_core.processors.text import extract_txt
 from content_core.processors.url import extract_url, url_provider
 from content_core.processors.video import extract_best_audio_from_video
 from content_core.processors.youtube import extract_youtube_transcript
+from content_core.processors.docling import extract_with_docling, DOCLING_SUPPORTED  # type: ignore
 
 import aiohttp
 import tempfile
 from urllib.parse import urlparse
+from content_core.config import CONFIG  # type: ignore
 
 
 async def source_identification(state: ProcessSourceState) -> Dict[str, str]:
@@ -110,6 +112,17 @@ async def download_remote_file(state: ProcessSourceState) -> Dict[str, Any]:
     return {"file_path": tmp, "identified_type": mime}
 
 
+async def file_type_router_docling(state: ProcessSourceState) -> str:
+    """
+    Route to Docling if enabled and supported; otherwise use legacy file type edge.
+    """
+    # allow per-execution override of engine via state.engine
+    engine = state.engine or CONFIG.get("extraction", {}).get("engine", "legacy")
+    if engine == "docling" and state.identified_type in DOCLING_SUPPORTED:
+        return "extract_docling"
+    return await file_type_edge(state)
+
+
 # Create workflow
 workflow = StateGraph(
     ProcessSourceState, input=ProcessSourceInput, output=ProcessSourceState
@@ -128,6 +141,7 @@ workflow.add_node("extract_audio", extract_audio)
 workflow.add_node("extract_youtube_transcript", extract_youtube_transcript)
 workflow.add_node("delete_file", delete_file)
 workflow.add_node("download_remote_file", download_remote_file)
+workflow.add_node("extract_docling", extract_with_docling)
 
 # Add edges
 workflow.add_edge(START, "source")
@@ -142,7 +156,7 @@ workflow.add_conditional_edges(
 )
 workflow.add_conditional_edges(
     "file_type",
-    file_type_edge,
+    file_type_router_docling,
 )
 workflow.add_conditional_edges(
     "url_provider",

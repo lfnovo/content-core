@@ -1,6 +1,6 @@
 [project]
 name = "content-core"
-version = "0.4.0"
+version = "0.5.0"
 description = "Extract what matters from any media source"
 readme = "README.md"
 homepage = "https://github.com/lfnovo/content-core"
@@ -30,6 +30,9 @@ dependencies = [
     "dicttoxml>=1.7.16",
     "validators>=0.34.0",
 ]
+
+[project.optional-dependencies]
+docling = ["docling[ocr]", "Pillow", "pandas", "asciidoc"]
 
 [project.scripts]
 ccore = "content_core:ccore"

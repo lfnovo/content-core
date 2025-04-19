@@ -76,6 +76,60 @@ To simplify setup, we suggest copying the provided sample files:
 
 This will allow you to quickly start with customized settings without needing to create the files from scratch.
 
+### Docling Engine
+
+Content Core supports an optional Docling engine for advanced document parsing. To enable:
+
+#### In YAML config
+Add under the `extraction` section:
+```yaml
+extraction:
+  engine: docling        # legacy (default) or docling
+  docling:
+    output_format: html  # markdown | html | json
+```
+
+#### Programmatically in Python
+```python
+from content_core.config import set_extraction_engine, set_docling_output_format
+
+# toggle to Docling
+set_extraction_engine("docling")
+
+# pick format
+set_docling_output_format("json")
+```
+
+#### Per-Execution Overrides
+You can override the extraction engine and Docling output format on a per-call basis by including `engine` and `output_format` in your input:
+
+```python
+from content_core.content.extraction import extract_content
+
+# override engine and format for this document
+result = await extract_content({
+    "file_path": "document.pdf",
+    "engine": "docling",
+    "output_format": "html"
+})
+print(result.content)
+```
+
+Or using `ProcessSourceInput`:
+
+```python
+from content_core.common.state import ProcessSourceInput
+from content_core.content.extraction import extract_content
+
+input = ProcessSourceInput(
+    file_path="document.pdf",
+    engine="docling",
+    output_format="json"
+)
+result = await extract_content(input)
+print(result.content)
+```
+
 ## Support
 
 If you have questions or encounter issues while using the library, open an issue in the repository or contact the support team.

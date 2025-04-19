@@ -25,8 +25,10 @@ The primary goal of Content Core is to simplify the process of ingesting content
 Install Content Core using `pip`:
 
 ```bash
-# Install the package
+# Install the package (without Docling)
 pip install content-core
+# Install with Docling support
+pip install content-core[docling]
 ```
 
 Alternatively, if you’re developing locally:
@@ -195,11 +197,57 @@ async def main():
     md_data = await extract_content({"file_path": "path/to/your/document.md"})
     print(md_data)
 
+    # Per-execution override with Docling
+    doc_data = await extract_content({
+        "file_path": "path/to/your/document.pdf",
+        "engine": "docling",
+        "output_format": "html"
+    })
+    print(doc_data)
+
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
 (See `src/content_core/notebooks/run.ipynb` for more detailed examples.)
+
+## Docling Integration
+
+Content Core supports an optional Docling-based extraction engine for rich document formats (PDF, DOCX, PPTX, XLSX, Markdown, AsciiDoc, HTML, CSV, Images).
+
+### Installation
+
+```bash
+# Install with Docling support
+pip install content-core[docling]
+```
+
+### Enabling Docling
+
+#### Via configuration file
+
+In your `cc_config.yaml` or custom config, set:
+```yaml
+extraction:
+  engine: docling       # 'legacy' (default) or 'docling'
+  docling:
+    output_format: markdown  # markdown | html | json
+```
+
+#### Programmatically in Python
+
+```python
+from content_core.config import set_extraction_engine, set_docling_output_format
+
+# switch engine to Docling
+set_extraction_engine("docling")
+
+# choose output format: 'markdown', 'html', or 'json'
+set_docling_output_format("html")
+
+# now use ccore.extract or ccore.ccore
+result = await cc.extract("document.pdf")
+```
 
 ## Configuration
 

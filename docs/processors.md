@@ -14,11 +14,11 @@ Content Core uses a modular approach to process content from different sources. 
 - **Returned Data**: The input text as-is, wrapped in a structured format compatible with Content Core's output schema.
 - **Location**: `src/content_core/processors/text.py`
 
-### 2. **Web Processor**
+### 2. **Web (URL) Processor**
 - **Purpose**: Extracts content from web URLs, focusing on meaningful text while ignoring boilerplate (ads, navigation, etc.).
 - **Supported Input**: URLs (web pages).
 - **Returned Data**: Extracted text content from the web page, often in a cleaned format.
-- **Location**: `src/content_core/processors/web.py`
+- **Location**: `src/content_core/processors/url.py`
 
 ### 3. **File Processor**
 - **Purpose**: Processes local files of various types, extracting content based on file format.
@@ -35,10 +35,33 @@ Content Core uses a modular approach to process content from different sources. 
 - **Returned Data**: Transcribed text from the media content.
 - **Location**: `src/content_core/processors/transcription.py`
 
+### 5. **Docling Processor**
+- **Purpose**: Use Docling library for rich document parsing (PDF, DOCX, XLSX, PPTX, Markdown, AsciiDoc, HTML, CSV, images).
+- **Supported Input**: PDF, DOCX, XLSX, PPTX, Markdown, AsciiDoc, HTML, CSV, Images (PNG, JPEG, TIFF, BMP).
+- **Returned Data**: Content converted to configured format (markdown, html, json).
+- **Location**: `src/content_core/processors/docling.py`
+- **Configuration**: Activate the Docling engine in `cc_config.yaml` or custom config:
+  ```yaml
+  extraction:
+    engine: docling       # 'legacy' (default) or 'docling'
+    docling:
+      output_format: markdown  # markdown | html | json
+  ```
+- **Programmatic Toggle**: Use helper functions in Python:
+  ```python
+  from content_core.config import set_extraction_engine, set_docling_output_format
+
+  # switch engine to Docling
+  set_extraction_engine("docling")
+
+  # choose output format
+  set_docling_output_format("html")
+  ```
+
 ## How Processors Work
 
 Content Core automatically selects the appropriate processor based on the input type:
-- If a URL is provided, the Web Processor is used.
+- If a URL is provided, the Web (URL) Processor is used.
 - If a file path is provided, the File Processor determines the file type and delegates to specialized handlers (like the Media Transcription Processor for audio/video).
 - If raw text is provided, the Text Processor handles it directly.
 
