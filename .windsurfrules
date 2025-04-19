@@ -4,10 +4,10 @@ All documentation (code or readmes) must be in english.
 Whenever I ask you to tag and release, make sure to run `make test` as part of the process. 
 
 The full release process is: 
-- Run `make test` to make sure everything is working
+- Run `make test` to make sure everything is working (if we changed any code or import)
 - Update version on pyproject.toml
 - Run `uv sync` to update the lock file
 - Commit all that's needed
-- Merge to main
+- Merge to main (if in a branch)
 - Tag the release
 - Push to GitHub

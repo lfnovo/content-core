@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup, Comment
 
 from content_core.common import ProcessSourceState
 from content_core.logging import logger
+from content_core.processors.pdf import SUPPORTED_FITZ_TYPES
 
 # future: better extraction methods
 # https://github.com/buriy/python-readability
@@ -20,12 +21,20 @@ async def url_provider(state: ProcessSourceState):
     url = state.url
     if url:
         if "youtube.com" in url or "youtu.be" in url:
-            return_dict["identified_type"] = (
-                "youtube"  # future: playlists, channels in the future
-            )
+            return_dict["identified_type"] = "youtube"
         else:
-            return_dict["identified_type"] = "article"
-            # future: article providers in the future
+            # remote URL: check content-type to catch PDFs
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.head(url, timeout=10, allow_redirects=True) as resp:
+                        mime = resp.headers.get("content-type", "").split(";", 1)[0]
+            except Exception as e:
+                logger.debug(f"HEAD check failed for {url}: {e}")
+                mime = "article"
+            if mime in SUPPORTED_FITZ_TYPES:
+                return_dict["identified_type"] = mime
+            else:
+                return_dict["identified_type"] = "article"
     return return_dict
 
 

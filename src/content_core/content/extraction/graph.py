@@ -21,6 +21,10 @@ from content_core.processors.url import extract_url, url_provider
 from content_core.processors.video import extract_best_audio_from_video
 from content_core.processors.youtube import extract_youtube_transcript
 
+import aiohttp
+import tempfile
+from urllib.parse import urlparse
+
 
 async def source_identification(state: ProcessSourceState) -> Dict[str, str]:
     """
@@ -91,6 +95,21 @@ async def source_type_router(x: ProcessSourceState) -> Optional[str]:
     return x.source_type
 
 
+async def download_remote_file(state: ProcessSourceState) -> Dict[str, Any]:
+    url = state.url
+    assert url, "No URL provided"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            resp.raise_for_status()
+            mime = resp.headers.get("content-type", "").split(";", 1)[0]
+            suffix = os.path.splitext(urlparse(url).path)[1] if urlparse(url).path else ""
+            fd, tmp = tempfile.mkstemp(suffix=suffix)
+            os.close(fd)
+            with open(tmp, "wb") as f:
+                f.write(await resp.read())
+    return {"file_path": tmp, "identified_type": mime}
+
+
 # Create workflow
 workflow = StateGraph(
     ProcessSourceState, input=ProcessSourceInput, output=ProcessSourceState
@@ -108,6 +127,7 @@ workflow.add_node("extract_best_audio_from_video", extract_best_audio_from_video
 workflow.add_node("extract_audio", extract_audio)
 workflow.add_node("extract_youtube_transcript", extract_youtube_transcript)
 workflow.add_node("delete_file", delete_file)
+workflow.add_node("download_remote_file", download_remote_file)
 
 # Add edges
 workflow.add_edge(START, "source")
@@ -127,7 +147,7 @@ workflow.add_conditional_edges(
 workflow.add_conditional_edges(
     "url_provider",
     url_type_router,
-    {"article": "extract_url", "youtube": "extract_youtube_transcript"},
+    {**{m: "download_remote_file" for m in SUPPORTED_FITZ_TYPES}, "article": "extract_url", "youtube": "extract_youtube_transcript"},
 )
 workflow.add_edge("url_provider", END)
 workflow.add_edge("file_type", END)
@@ -140,6 +160,7 @@ workflow.add_edge("extract_office_content", "delete_file")
 workflow.add_edge("extract_best_audio_from_video", "extract_audio")
 workflow.add_edge("extract_audio", "delete_file")
 workflow.add_edge("delete_file", END)
+workflow.add_edge("download_remote_file", "file_type")
 
 # Compile graph
 graph = workflow.compile()

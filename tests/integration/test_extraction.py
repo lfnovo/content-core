@@ -200,3 +200,13 @@ async def test_extract_content_from_xlsx(fixture_path):
     )
     assert result.title is not None  # Attempt to extract title/metadata
     assert len(result.content) > 0  # Check that some content was extracted
+
+
+@pytest.mark.asyncio
+async def test_extract_content_from_pdf_url():
+    """Tests extracting content from a remote PDF URL."""
+    url = "https://arxiv.org/pdf/2408.09869"
+    result = await extract_content({"url": url})
+    assert result.source_type == "url"
+    assert result.identified_type == "application/pdf"
+    assert len(result.content) > 100  # Expect substantial extracted text
