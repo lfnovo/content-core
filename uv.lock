@@ -24,6 +24,20 @@ resolution-markers = [
 ]
 
 [[package]]
+name = "ai-prompter"
+version = "0.2.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "jinja2" },
+    { name = "pip" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/39/ff/cf13c31b88c06e11a1ffeed505601c167293b23d3e2e4e02adac93cc9300/ai_prompter-0.2.3.tar.gz", hash = "sha256:40f55c18f87df250a13f84d0cf7a4e8b31815a01f27666039386d6592849694b", size = 72955 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5f/11/9e3712b8393dbef152258c68617baec343040c3d08b372d77b57e51d8e5d/ai_prompter-0.2.3-py3-none-any.whl", hash = "sha256:e8c0becbb3c8bdff399e372830e2c0a3cc3292e02d67921e2b255871329ee477", size = 7345 },
+]
+
+[[package]]
 name = "aiohappyeyeballs"
 version = "2.6.1"
 source = { registry = "https://pypi.org/simple" }
@@ -391,9 +405,10 @@ wheels = [
 
 [[package]]
 name = "content-core"
-version = "0.5.0"
+version = "0.5.1"
 source = { editable = "." }
 dependencies = [
+    { name = "ai-prompter" },
     { name = "aiohttp" },
     { name = "bs4" },
     { name = "dicttoxml" },
@@ -435,6 +450,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "ai-prompter", specifier = ">=0.2.3" },
     { name = "aiohttp", specifier = ">=3.11" },
     { name = "asciidoc", marker = "extra == 'docling'" },
     { name = "bs4", specifier = ">=0.0.2" },
@@ -2237,6 +2253,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f6/20/5c0a0aa83b213b7a07ec01e71a3d6ea2cf4ad1d2c686cc0168173b6089e7/pillow-11.2.1-pp311-pypy311_pp73-manylinux_2_28_aarch64.whl", hash = "sha256:036e53f4170e270ddb8797d4c590e6dd14d28e15c7da375c18978045f7e6c37b", size = 3527165 },
     { url = "https://files.pythonhosted.org/packages/58/0e/2abab98a72202d91146abc839e10c14f7cf36166f12838ea0c4db3ca6ecb/pillow-11.2.1-pp311-pypy311_pp73-manylinux_2_28_x86_64.whl", hash = "sha256:14f73f7c291279bd65fda51ee87affd7c1e097709f7fdd0188957a16c264601f", size = 3571586 },
     { url = "https://files.pythonhosted.org/packages/21/2c/5e05f58658cf49b6667762cca03d6e7d85cededde2caf2ab37b81f80e574/pillow-11.2.1-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:208653868d5c9ecc2b327f9b9ef34e0e42a4cdd172c2988fd81d62d2bc9bc044", size = 2674751 },
+]
+
+[[package]]
+name = "pip"
+version = "25.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/70/53/b309b4a497b09655cb7e07088966881a57d082f48ac3cb54ea729fd2c6cf/pip-25.0.1.tar.gz", hash = "sha256:88f96547ea48b940a3a385494e181e29fb8637898f88d88737c5049780f196ea", size = 1950850 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c9/bc/b7db44f5f39f9d0494071bddae6880eb645970366d0a200022a1a93d57f5/pip-25.0.1-py3-none-any.whl", hash = "sha256:c46efd13b6aa8279f33f2864459c8ce587ea6a1a59ee20de055868d8f7688f7f", size = 1841526 },
 ]
 
 [[package]]

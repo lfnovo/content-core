@@ -5,8 +5,11 @@ import os
 import sys
 from xml.etree import ElementTree as ET
 
-from dicttoxml import dicttoxml  # type: ignore
 from dotenv import load_dotenv
+
+load_dotenv()
+
+from dicttoxml import dicttoxml  # type: ignore
 
 from content_core.common import ProcessSourceInput
 from content_core.content.cleanup import cleanup_content
@@ -18,7 +21,6 @@ from content_core.logging import configure_logging, logger
 extract = extract_content
 clean = cleanup_content
 
-load_dotenv()
 
 # Configure loguru logger using centralized configuration
 configure_logging(debug=False)
@@ -210,5 +212,7 @@ def csum():
     asyncio.run(csum_main())
 
 
+if __name__ == "__main__":
+    ccore()
 if __name__ == "__main__":
     ccore()
