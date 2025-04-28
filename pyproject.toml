@@ -1,6 +1,6 @@
 [project]
 name = "content-core"
-version = "0.5.1"
+version = "0.6.0"
 description = "Extract what matters from any media source"
 readme = "README.md"
 homepage = "https://github.com/lfnovo/content-core"
@@ -19,7 +19,6 @@ dependencies = [
     "openai>=1.73.0",
     "openpyxl>=3.1.5",
     "pandas>=2.2.3",
-    "pydub>=0.25.1",
     "pymupdf>=1.25.5",
     "python-docx>=1.1.2",
     "python-dotenv>=1.1.0",
@@ -30,6 +29,7 @@ dependencies = [
     "dicttoxml>=1.7.16",
     "validators>=0.34.0",
     "ai-prompter>=0.2.3",
+    "moviepy>=2.1.2",
 ]
 
 [project.optional-dependencies]

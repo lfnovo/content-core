@@ -1,6 +1,9 @@
 import os
+import tempfile
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 
+import aiohttp
 import magic
 from langgraph.graph import END, START, StateGraph
 
@@ -9,8 +12,13 @@ from content_core.common import (
     ProcessSourceState,
     UnsupportedTypeException,
 )
+from content_core.config import CONFIG  # type: ignore
 from content_core.logging import logger
-from content_core.processors.audio import extract_audio  # type: ignore
+from content_core.processors.audio import extract_audio_data  # type: ignore
+from content_core.processors.docling import (
+    DOCLING_SUPPORTED,  # type: ignore
+    extract_with_docling,
+)
 from content_core.processors.office import (
     SUPPORTED_OFFICE_TYPES,
     extract_office_content,
@@ -20,12 +28,6 @@ from content_core.processors.text import extract_txt
 from content_core.processors.url import extract_url, url_provider
 from content_core.processors.video import extract_best_audio_from_video
 from content_core.processors.youtube import extract_youtube_transcript
-from content_core.processors.docling import extract_with_docling, DOCLING_SUPPORTED  # type: ignore
-
-import aiohttp
-import tempfile
-from urllib.parse import urlparse
-from content_core.config import CONFIG  # type: ignore
 
 
 async def source_identification(state: ProcessSourceState) -> Dict[str, str]:
@@ -69,7 +71,7 @@ async def file_type_edge(data: ProcessSourceState) -> str:
     elif identified_type.startswith("video"):
         return "extract_best_audio_from_video"
     elif identified_type.startswith("audio"):
-        return "extract_audio"
+        return "extract_audio_data"
     else:
         raise UnsupportedTypeException(f"Unsupported file type: {data.identified_type}")
 
@@ -104,7 +106,9 @@ async def download_remote_file(state: ProcessSourceState) -> Dict[str, Any]:
         async with session.get(url) as resp:
             resp.raise_for_status()
             mime = resp.headers.get("content-type", "").split(";", 1)[0]
-            suffix = os.path.splitext(urlparse(url).path)[1] if urlparse(url).path else ""
+            suffix = (
+                os.path.splitext(urlparse(url).path)[1] if urlparse(url).path else ""
+            )
             fd, tmp = tempfile.mkstemp(suffix=suffix)
             os.close(fd)
             with open(tmp, "wb") as f:
@@ -137,7 +141,7 @@ workflow.add_node("extract_pdf", extract_pdf)
 workflow.add_node("extract_url", extract_url)
 workflow.add_node("extract_office_content", extract_office_content)
 workflow.add_node("extract_best_audio_from_video", extract_best_audio_from_video)
-workflow.add_node("extract_audio", extract_audio)
+workflow.add_node("extract_audio_data", extract_audio_data)
 workflow.add_node("extract_youtube_transcript", extract_youtube_transcript)
 workflow.add_node("delete_file", delete_file)
 workflow.add_node("download_remote_file", download_remote_file)
@@ -161,7 +165,11 @@ workflow.add_conditional_edges(
 workflow.add_conditional_edges(
     "url_provider",
     url_type_router,
-    {**{m: "download_remote_file" for m in SUPPORTED_FITZ_TYPES}, "article": "extract_url", "youtube": "extract_youtube_transcript"},
+    {
+        **{m: "download_remote_file" for m in SUPPORTED_FITZ_TYPES},
+        "article": "extract_url",
+        "youtube": "extract_youtube_transcript",
+    },
 )
 workflow.add_edge("url_provider", END)
 workflow.add_edge("file_type", END)
@@ -171,13 +179,15 @@ workflow.add_edge("extract_youtube_transcript", END)
 
 workflow.add_edge("extract_pdf", "delete_file")
 workflow.add_edge("extract_office_content", "delete_file")
-workflow.add_edge("extract_best_audio_from_video", "extract_audio")
-workflow.add_edge("extract_audio", "delete_file")
+workflow.add_edge("extract_best_audio_from_video", "extract_audio_data")
+workflow.add_edge("extract_audio_data", "delete_file")
 workflow.add_edge("delete_file", END)
 workflow.add_edge("download_remote_file", "file_type")
 
 # Compile graph
 graph = workflow.compile()
 
+# Compile graph
+graph = workflow.compile()
 # Compile graph
 graph = workflow.compile()
