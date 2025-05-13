@@ -1,6 +1,6 @@
 [project]
 name = "content-core"
-version = "0.6.0"
+version = "0.7.0"
 description = "Extract what matters from any media source"
 readme = "README.md"
 homepage = "https://github.com/lfnovo/content-core"
@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 dependencies = [
     "aiohttp>=3.11",
     "bs4>=0.0.2",
-    "esperanto>=1.2.0",
+    "esperanto[openai]>=1.2.0",
     "jinja2>=3.1.6",
     "langdetect>=1.0.9",
     "loguru>=0.7.3",
@@ -31,7 +31,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-docling = ["docling[ocr]", "Pillow", "pandas", "asciidoc"]
+docling = ["docling", "Pillow", "pandas", "asciidoc"]
 
 [project.scripts]
 ccore = "content_core:ccore"
@@ -52,6 +52,7 @@ package-dir = {"content_core" = "src/content_core"}
 dev = [
     "ipykernel>=4.0.1",
     "ipywidgets>=4.0.0",
+    "openai>=1.78.1",
     "pyperclip>=1.9.0",
     "pytest>=7.2.0",
     "pytest-asyncio>=0.21.0",

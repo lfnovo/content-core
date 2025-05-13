@@ -1,7 +1,9 @@
 import re
 from urllib.parse import urlparse
+from io import BytesIO
 
 import aiohttp
+import docx
 from bs4 import BeautifulSoup, Comment
 
 from content_core.common import ProcessSourceState
@@ -12,6 +14,49 @@ from content_core.processors.pdf import SUPPORTED_FITZ_TYPES
 # https://github.com/buriy/python-readability
 # also try readability: from readability import Document
 
+DOCX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+async def _extract_docx_content(docx_bytes: bytes, url: str):
+    """
+    Extract content from DOCX file bytes.
+    """
+    try:
+        logger.debug(f"Attempting to parse DOCX from URL: {url} with python-docx")
+        doc = docx.Document(BytesIO(docx_bytes))
+        content_parts = [p.text for p in doc.paragraphs if p.text]
+        full_content = "\n\n".join(content_parts)
+        
+        # Try to get a title from document properties or first heading
+        title = doc.core_properties.title
+        if not title and doc.paragraphs:
+            # Look for a potential title in the first few paragraphs (e.g., if styled as heading)
+            for p in doc.paragraphs[:5]: # Check first 5 paragraphs
+                if p.style.name.startswith('Heading'):
+                    title = p.text
+                    break
+            if not title: # Fallback to first line if no heading found
+                 title = doc.paragraphs[0].text.strip() if doc.paragraphs[0].text.strip() else None
+
+        # If no title found, use filename from URL
+        if not title:
+            title = urlparse(url).path.split('/')[-1]
+
+        logger.info(f"Successfully extracted content from DOCX: {url}, Title: {title}")
+        return {
+            "title": title,
+            "content": full_content,
+            "domain": urlparse(url).netloc,
+            "url": url,
+        }
+    except Exception as e:
+        logger.error(f"Failed to process DOCX content from {url}: {e}")
+        # Fallback or re-raise, depending on desired error handling
+        return {
+            "title": f"Error Processing DOCX: {urlparse(url).path.split('/')[-1]}",
+            "content": f"Failed to extract content from DOCX: {e}",
+            "domain": urlparse(url).netloc,
+            "url": url,
+        }
 
 async def url_provider(state: ProcessSourceState):
     """
@@ -54,6 +99,13 @@ async def extract_url_bs4(url: str):
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, headers=headers, timeout=10) as response:
                     response.raise_for_status()
+                    # Check content type for DOCX
+                    if response.content_type == DOCX_MIME_TYPE:
+                        logger.debug(f"Detected DOCX content type for {url}")
+                        docx_bytes = await response.read()
+                        return await _extract_docx_content(docx_bytes, url)
+                    
+                    # If not DOCX, proceed as HTML
                     html_content = await response.text()
 
         soup = BeautifulSoup(html_content, "html.parser")
