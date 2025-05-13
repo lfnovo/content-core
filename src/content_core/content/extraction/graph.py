@@ -15,10 +15,8 @@ from content_core.common import (
 from content_core.config import CONFIG  # type: ignore
 from content_core.logging import logger
 from content_core.processors.audio import extract_audio_data  # type: ignore
-from content_core.processors.docling import (
-    DOCLING_SUPPORTED,  # type: ignore
-    extract_with_docling,
-)
+from content_core.processors.docling import DOCLING_SUPPORTED  # type: ignore
+from content_core.processors.docling import extract_with_docling
 from content_core.processors.office import (
     SUPPORTED_OFFICE_TYPES,
     extract_office_content,
@@ -184,10 +182,5 @@ workflow.add_edge("extract_audio_data", "delete_file")
 workflow.add_edge("delete_file", END)
 workflow.add_edge("download_remote_file", "file_type")
 
-# Compile graph
-graph = workflow.compile()
-
-# Compile graph
-graph = workflow.compile()
 # Compile graph
 graph = workflow.compile()
