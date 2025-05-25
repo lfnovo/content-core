@@ -13,8 +13,13 @@ class ProcessSourceState(BaseModel):
     identified_provider: Optional[str] = ""
     metadata: Optional[dict] = Field(default_factory=lambda: {})
     content: Optional[str] = ""
-    engine: Optional[str] = Field(default=None, description="Override extraction engine: 'legacy' or 'docling'")
-    output_format: Optional[str] = Field(default=None, description="Override Docling output format: 'markdown', 'html', or 'json'")
+    engine: Optional[str] = Field(
+        default=None, description="Override extraction engine: 'legacy' or 'docling'"
+    )
+    output_format: Optional[str] = Field(
+        default=None,
+        description="Override Docling output format: 'markdown', 'html', or 'json'",
+    )
 
 
 class ProcessSourceInput(BaseModel):
@@ -27,6 +32,8 @@ class ProcessSourceInput(BaseModel):
 
 class ProcessSourceOutput(BaseModel):
     title: Optional[str] = ""
+    file_path: Optional[str] = ""
+    url: Optional[str] = ""
     source_type: Optional[str] = ""
     identified_type: Optional[str] = ""
     identified_provider: Optional[str] = ""
