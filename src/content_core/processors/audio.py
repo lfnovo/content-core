@@ -1,9 +1,10 @@
 import asyncio
+import math
 import os
 import tempfile
-import math
 import traceback
 from functools import partial
+
 from moviepy import AudioFileClip
 
 from content_core.common import ProcessSourceState
@@ -64,7 +65,9 @@ async def split_audio(input_file, segment_length_minutes=15, output_prefix=None)
     )
 
 
-def extract_audio(input_file: str, output_file: str, start_time: float = None, end_time: float = None) -> None:
+def extract_audio(
+    input_file: str, output_file: str, start_time: float = None, end_time: float = None
+) -> None:
     """
     Extract audio from a video or audio file and save it as an MP3 file.
     If start_time and end_time are provided, only that segment of audio is extracted.
@@ -78,17 +81,17 @@ def extract_audio(input_file: str, output_file: str, start_time: float = None, e
     try:
         # Load the file as an AudioFileClip
         audio_clip = AudioFileClip(input_file)
-        
-        # If start_time and end_time are provided, trim the audio
+
+        # If start_time and/or end_time are provided, trim the audio using subclipped
         if start_time is not None and end_time is not None:
-            audio_clip = audio_clip.cutout(0, start_time).cutout(end_time - start_time, audio_clip.duration)
+            audio_clip = audio_clip.subclipped(start_time, end_time)
         elif start_time is not None:
-            audio_clip = audio_clip.cutout(0, start_time)
+            audio_clip = audio_clip.subclipped(start_time)
         elif end_time is not None:
-            audio_clip = audio_clip.cutout(end_time, audio_clip.duration)
+            audio_clip = audio_clip.subclipped(0, end_time)
 
         # Export the audio as MP3
-        audio_clip.write_audiofile(output_file, codec='mp3')
+        audio_clip.write_audiofile(output_file, codec="mp3")
         audio_clip.close()
     except Exception as e:
         logger.error(f"Error extracting audio: {str(e)}")
@@ -117,7 +120,9 @@ async def extract_audio_data(data: ProcessSourceState):
         output_files = []
 
         if duration_s > segment_length_s:
-            logger.info(f"Audio is longer than 10 minutes ({duration_s}s), splitting into {math.ceil(duration_s / segment_length_s)} segments")
+            logger.info(
+                f"Audio is longer than 10 minutes ({duration_s}s), splitting into {math.ceil(duration_s / segment_length_s)} segments"
+            )
             for i in range(math.ceil(duration_s / segment_length_s)):
                 start_time = i * segment_length_s
                 end_time = min((i + 1) * segment_length_s, audio.duration)
@@ -134,15 +139,18 @@ async def extract_audio_data(data: ProcessSourceState):
 
         # Transcribe audio files
         from content_core.models import ModelFactory
+
         speech_to_text_model = ModelFactory.get_model("speech_to_text")
         transcriptions = []
         for audio_file in output_files:
-            transcription = await transcribe_audio_segment(audio_file, speech_to_text_model)
+            transcription = await transcribe_audio_segment(
+                audio_file, speech_to_text_model
+            )
             transcriptions.append(transcription)
 
         return {
             "metadata": {"audio_files": output_files},
-            "content": " ".join(transcriptions)
+            "content": " ".join(transcriptions),
         }
     except Exception as e:
         logger.error(f"Error processing audio: {str(e)}")
