@@ -6,6 +6,8 @@
 
 ## Overview
 
+> **Note:** As of v0.8, the default extraction engine is `'auto'`. Content Core will automatically select the best extraction method based on your environment and available API keys, with a smart fallback order for both URLs and files. For files/documents, `'auto'` now tries Docling first, then falls back to simple extraction. You can override the engine if needed, but `'auto'` is recommended for most users.
+
 The primary goal of Content Core is to simplify the process of ingesting content from diverse origins. Whether you have raw text, a URL pointing to an article, or a local file like a video or markdown document, Content Core aims to extract the meaningful content for further use.
 
 ## Key Features
@@ -15,6 +17,10 @@ The primary goal of Content Core is to simplify the process of ingesting content
     *   Web URLs (using robust extraction methods).
     *   Local files (including automatic transcription for video/audio files and parsing for text-based formats).
 *   **Intelligent Processing:** Applies appropriate extraction techniques based on the source type. See the [Processors Documentation](./docs/processors.md) for detailed information on how different content types are handled.
+*   **Smart Engine Selection:** By default, Content Core uses the `'auto'` engine, which:
+    * For URLs: Uses Firecrawl if `FIRECRAWL_API_KEY` is set, else tries Jina. Jina might fail because of rate limits, which can be fixed by adding `JINA_API_KEY`. If Jina failes, BeautifulSoup is used as a fallback.
+    * For files: Tries Docling extraction first (for robust document parsing), then falls back to simple extraction if needed.
+    * You can override this by specifying an engine, but `'auto'` is recommended for most users.
 *   **Content Cleaning (Optional):** Likely integrates with LLMs (via `prompter.py` and Jinja templates) to refine and clean the extracted content.
 *   **Asynchronous:** Built with `asyncio` for efficient I/O operations.
 
@@ -185,15 +191,15 @@ async def main():
     text_data = await extract_content({"content": "This is my sample text content."})
     print(text_data)
 
-    # Extract from a URL
+    # Extract from a URL (uses 'auto' engine by default)
     url_data = await extract_content({"url": "https://www.example.com"})
     print(url_data)
 
-    # Extract from a local video file (gets transcript)
+    # Extract from a local video file (gets transcript, engine='auto' by default)
     video_data = await extract_content({"file_path": "path/to/your/video.mp4"})
     print(video_data)
 
-    # Extract from a local markdown file
+    # Extract from a local markdown file (engine='auto' by default)
     md_data = await extract_content({"file_path": "path/to/your/document.md"})
     print(md_data)
 

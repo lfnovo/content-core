@@ -1,5 +1,7 @@
 # Using the Content Core Library
 
+> **Note:** As of vNEXT, the default extraction engine is `'auto'`. Content Core will automatically select the best extraction method based on your environment and available API keys, with a smart fallback order for both URLs and files. For files/documents, `'auto'` now tries Docling first, then falls back to simple extraction. You can override the engine if needed, but `'auto'` is recommended for most users.
+
 This documentation explains how to configure and use the **Content Core** library in your projects. The library allows customization of AI model settings through a YAML file and environment variables.
 
 ## Environment Variable for Configuration
@@ -76,20 +78,28 @@ To simplify setup, we suggest copying the provided sample files:
 
 This will allow you to quickly start with customized settings without needing to create the files from scratch.
 
-### Docling Engine
+### Extraction Engine Selection
 
-Content Core supports an optional Docling engine for advanced document parsing. To enable:
+By default, Content Core uses the `'auto'` engine for all extraction tasks. The logic is as follows:
+- **For URLs**: Uses Firecrawl if `FIRECRAWL_API_KEY` is set, else Jina if `JINA_API_KEY` is set, else falls back to BeautifulSoup.
+- **For files**: Tries Docling extraction first (for robust document parsing), then falls back to simple extraction if needed.
 
-#### In YAML config
+You can override this behavior by specifying an engine in your config or function call, but `'auto'` is recommended for most users.
+
+#### Docling Engine
+
+Content Core supports an optional Docling engine for advanced document parsing. To enable Docling explicitly:
+
+##### In YAML config
 Add under the `extraction` section:
 ```yaml
 extraction:
-  engine: docling        # legacy (default) or docling
+  engine: docling        # auto (default), docling, or simple
   docling:
     output_format: html  # markdown | html | json
 ```
 
-#### Programmatically in Python
+##### Programmatically in Python
 ```python
 from content_core.config import set_extraction_engine, set_docling_output_format
 

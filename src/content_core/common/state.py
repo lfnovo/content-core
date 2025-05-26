@@ -2,6 +2,9 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from content_core.common.types import Engine
+from content_core.common.types import Engine
+
 
 class ProcessSourceState(BaseModel):
     file_path: Optional[str] = ""
@@ -13,8 +16,9 @@ class ProcessSourceState(BaseModel):
     identified_provider: Optional[str] = ""
     metadata: Optional[dict] = Field(default_factory=lambda: {})
     content: Optional[str] = ""
-    engine: Optional[str] = Field(
-        default=None, description="Override extraction engine: 'legacy' or 'docling'"
+    engine: Optional[Engine] = Field(
+        default=None,
+        description="Override extraction engine: 'auto', 'simple', 'legacy', 'firecrawl', 'jina', or 'docling'",
     )
     output_format: Optional[str] = Field(
         default=None,

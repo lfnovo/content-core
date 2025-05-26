@@ -1,20 +1,21 @@
-import re
-from urllib.parse import urlparse
+import os
 from io import BytesIO
+from urllib.parse import urlparse
 
 import aiohttp
 import docx
-from bs4 import BeautifulSoup, Comment
+from bs4 import BeautifulSoup
+from readability import Document
 
 from content_core.common import ProcessSourceState
+from content_core.common.types import warn_if_deprecated_engine
 from content_core.logging import logger
 from content_core.processors.pdf import SUPPORTED_FITZ_TYPES
 
-# future: better extraction methods
-# https://github.com/buriy/python-readability
-# also try readability: from readability import Document
+DOCX_MIME_TYPE = (
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+)
 
-DOCX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 async def _extract_docx_content(docx_bytes: bytes, url: str):
     """
@@ -25,21 +26,25 @@ async def _extract_docx_content(docx_bytes: bytes, url: str):
         doc = docx.Document(BytesIO(docx_bytes))
         content_parts = [p.text for p in doc.paragraphs if p.text]
         full_content = "\n\n".join(content_parts)
-        
+
         # Try to get a title from document properties or first heading
         title = doc.core_properties.title
         if not title and doc.paragraphs:
             # Look for a potential title in the first few paragraphs (e.g., if styled as heading)
-            for p in doc.paragraphs[:5]: # Check first 5 paragraphs
-                if p.style.name.startswith('Heading'):
+            for p in doc.paragraphs[:5]:  # Check first 5 paragraphs
+                if p.style.name.startswith("Heading"):
                     title = p.text
                     break
-            if not title: # Fallback to first line if no heading found
-                 title = doc.paragraphs[0].text.strip() if doc.paragraphs[0].text.strip() else None
+            if not title:  # Fallback to first line if no heading found
+                title = (
+                    doc.paragraphs[0].text.strip()
+                    if doc.paragraphs[0].text.strip()
+                    else None
+                )
 
         # If no title found, use filename from URL
         if not title:
-            title = urlparse(url).path.split('/')[-1]
+            title = urlparse(url).path.split("/")[-1]
 
         logger.info(f"Successfully extracted content from DOCX: {url}, Title: {title}")
         return {
@@ -58,6 +63,7 @@ async def _extract_docx_content(docx_bytes: bytes, url: str):
             "url": url,
         }
 
+
 async def url_provider(state: ProcessSourceState):
     """
     Identify the provider
@@ -71,7 +77,9 @@ async def url_provider(state: ProcessSourceState):
             # remote URL: check content-type to catch PDFs
             try:
                 async with aiohttp.ClientSession() as session:
-                    async with session.head(url, timeout=10, allow_redirects=True) as resp:
+                    async with session.head(
+                        url, timeout=10, allow_redirects=True
+                    ) as resp:
                         mime = resp.headers.get("content-type", "").split(";", 1)[0]
             except Exception as e:
                 logger.debug(f"HEAD check failed for {url}: {e}")
@@ -83,142 +91,82 @@ async def url_provider(state: ProcessSourceState):
     return return_dict
 
 
-async def extract_url_bs4(url: str):
+async def extract_url_bs4(url: str) -> dict:
     """
-    Get the title and content of a URL using bs4
+    Get the title and content of a URL using readability with a fallback to BeautifulSoup.
+
+    Args:
+        url (str): The URL of the webpage to extract content from.
+
+    Returns:
+        dict: A dictionary containing the 'title' and 'content' of the webpage.
     """
-    try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        }
+    async with aiohttp.ClientSession() as session:
+        try:
+            # Fetch the webpage content
+            async with session.get(url, timeout=10) as response:
+                if response.status != 200:
+                    raise Exception(f"HTTP error: {response.status}")
+                html = await response.text()
 
-        # If URL is actually HTML content
-        if url.startswith("<!DOCTYPE html>") or url.startswith("<html"):
-            html_content = url
-        else:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers, timeout=10) as response:
-                    response.raise_for_status()
-                    # Check content type for DOCX
-                    if response.content_type == DOCX_MIME_TYPE:
-                        logger.debug(f"Detected DOCX content type for {url}")
-                        docx_bytes = await response.read()
-                        return await _extract_docx_content(docx_bytes, url)
-                    
-                    # If not DOCX, proceed as HTML
-                    html_content = await response.text()
+            # Try extracting with readability
+            try:
+                doc = Document(html)
+                title = doc.title() or "No title found"
+                # Extract content as plain text by parsing the cleaned HTML
+                soup = BeautifulSoup(doc.summary(), "lxml")
+                content = soup.get_text(separator=" ", strip=True)
+                if not content.strip():
+                    raise ValueError("No content extracted by readability")
+            except Exception as e:
+                print(f"Readability failed: {e}")
+                # Fallback to BeautifulSoup
+                soup = BeautifulSoup(html, "lxml")
+                # Extract title
+                title_tag = (
+                    soup.find("title")
+                    or soup.find("h1")
+                    or soup.find("meta", property="og:title")
+                )
+                title = (
+                    title_tag.get_text(strip=True) if title_tag else "No title found"
+                )
+                # Extract content from common content tags
+                content_tags = soup.select(
+                    'article, .content, .post, main, [role="main"], div[class*="content"], div[class*="article"]'
+                )
+                content = (
+                    " ".join(
+                        tag.get_text(separator=" ", strip=True) for tag in content_tags
+                    )
+                    if content_tags
+                    else soup.get_text(separator=" ", strip=True)
+                )
+                content = content.strip() or "No content found"
 
-        soup = BeautifulSoup(html_content, "html.parser")
+            return {
+                "title": title,
+                "content": content,
+            }
 
-        # Remove unwanted elements
-        for element in soup.find_all(
-            ["script", "style", "nav", "footer", "iframe", "noscript", "ad"]
-        ):
-            element.decompose()
-
-        # Remove comments
-        for comment in soup.find_all(string=lambda text: isinstance(text, Comment)):
-            comment.extract()
-
-        # Get title
-        title = None
-        title_tags = [
-            soup.find("meta", property="og:title"),
-            soup.find("meta", property="twitter:title"),
-            soup.find("title"),
-            soup.find("h1"),
-        ]
-
-        for tag in title_tags:
-            if tag:
-                if tag.string:
-                    title = tag.string
-                elif tag.get("content"):
-                    title = tag.get("content")
-                break
-
-        # Clean up title
-        if title:
-            title = " ".join(title.split())
-            title = re.sub(r"\s*\|.*$", "", title)
-            title = re.sub(r"\s*-.*$", "", title)
-
-        # Get content
-        content = []
-
-        # Look for main article content
-        main_content = None
-        content_tags = [
-            soup.find("article"),
-            soup.find("main"),
-            soup.find(class_=re.compile(r"article|post|content|entry|document")),
-            soup.find(id=re.compile(r"article|post|content|entry|main")),
-        ]
-
-        for tag in content_tags:
-            if tag:
-                main_content = tag
-                break
-
-        if not main_content:
-            main_content = soup
-
-        # Process content
-        for element in main_content.find_all(
-            ["p", "h1", "h2", "h3", "h4", "h5", "h6", "pre", "div"]
-        ):
-            # Handle code blocks
-            if element.name == "pre" or "highlight" in element.get("class", []):
-                code_text = element.get_text().strip()
-                if code_text:
-                    content.append("\n```\n" + code_text + "\n```\n")
-                continue
-
-            # Handle regular text
-            text = element.get_text().strip()
-            if text:
-                # Skip if text matches common patterns for navigation/footer
-                if re.search(
-                    r"copyright|all rights reserved|privacy policy|terms of use",
-                    text.lower(),
-                ):
-                    continue
-
-                content.append(text)
-
-        # Join content with proper spacing
-        final_content = "\n\n".join(content)
-
-        # Clean up content
-        final_content = re.sub(
-            r"\n\s*\n\s*\n", "\n\n", final_content
-        )  # Remove extra newlines
-        final_content = re.sub(r" +", " ", final_content)  # Normalize whitespace
-        final_content = final_content.strip()
-
-        return {
-            "title": title,
-            "content": final_content,
-            "domain": urlparse(url).netloc
-            if not url.startswith("<!DOCTYPE html>")
-            else None,
-            "url": url if not url.startswith("<!DOCTYPE html>") else None,
-        }
-
-    except aiohttp.ClientError as e:
-        logger.error(f"Failed to fetch URL {url}: {e}")
-        return None
-    except Exception as e:
-        logger.error(f"Failed to process content: {e}")
-        return None
+        except Exception as e:
+            print(f"Error processing URL {url}: {e}")
+            return {
+                "title": "Error",
+                "content": f"Failed to extract content: {str(e)}",
+            }
 
 
 async def extract_url_jina(url: str):
     """
-    Get the content of a URL using Jina
+    Get the content of a URL using Jina. Uses Bearer token if JINA_API_KEY is set.
     """
+    headers = {}
+    api_key = os.environ.get("JINA_API_KEY")
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
     async with aiohttp.ClientSession() as session:
-        async with session.get(f"https://r.jina.ai/{url}") as response:
+        async with session.get(f"https://r.jina.ai/{url}", headers=headers) as response:
             text = await response.text()
             if text.startswith("Title:") and "\n" in text:
                 title_end = text.index("\n")
@@ -235,17 +183,65 @@ async def extract_url_jina(url: str):
                 return {"content": text}
 
 
+async def extract_url_firecrawl(url: str):
+    """
+    Get the content of a URL using Firecrawl.
+    Returns {"title": ..., "content": ...} or None on failure.
+    """
+    try:
+        from firecrawl import AsyncFirecrawlApp
+
+        app = AsyncFirecrawlApp(api_key=os.environ.get("FIRECRAWL_API_KEY"))
+        scrape_result = await app.scrape_url(url, formats=["markdown", "html"])
+        return {
+            "title": scrape_result.metadata["title"] or scrape_result.title,
+            "content": scrape_result.markdown,
+        }
+
+    except Exception as e:
+        logger.error(f"Firecrawl extraction error for URL: {url}: {e}")
+        return None
+
+
 async def extract_url(state: ProcessSourceState):
+    """
+    Extract content from a URL using the engine specified in the state.
+    Supported engines: 'auto', 'simple', 'legacy' (deprecated), 'firecrawl', 'jina'.
+    """
     assert state.url, "No URL provided"
     url = state.url
+    engine = state.engine or "auto"
+    warn_if_deprecated_engine(engine)
     try:
-        result = await extract_url_bs4(url)
-        if not result or not result.get("content"):
-            logger.debug(
-                f"BS4 extraction failed for url {url}, falling back to Jina extractor"
-            )
-            result = await extract_url_jina(url)
-        return result
+        if engine == "auto":
+            if os.environ.get("FIRECRAWL_API_KEY"):
+                logger.debug(
+                    "Engine 'auto' selected: using Firecrawl (FIRECRAWL_API_KEY detected)"
+                )
+                return await extract_url_firecrawl(url)
+            else:
+                try:
+                    logger.debug("Trying to use Jina to extract URL")
+                    return await extract_url_jina(url)
+                except Exception as e:
+                    logger.error(f"Jina extraction error for URL: {url}: {e}")
+                    logger.debug("Falling back to BeautifulSoup")
+                    return await extract_url_bs4(url)
+        elif engine == "simple" or engine == "legacy":
+            # 'legacy' is deprecated alias for 'simple'
+            return await extract_url_bs4(url)
+        elif engine == "firecrawl":
+            return await extract_url_firecrawl(url)
+        elif engine == "jina":
+            return await extract_url_jina(url)
+        elif engine == "docling":
+            from content_core.processors.docling import extract_with_docling
+
+            state.url = url
+            result_state = await extract_with_docling(state)
+            return {"title": None, "content": result_state.content}
+        else:
+            raise ValueError(f"Unknown engine: {engine}")
     except Exception as e:
         logger.error(f"URL extraction failed for URL: {url}")
         logger.exception(e)

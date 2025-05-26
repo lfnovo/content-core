@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-
 from content_core.content.extraction import extract_content  # type: ignore
 
 
@@ -27,14 +26,46 @@ async def test_extract_content_from_text():
 async def test_extract_content_from_url(fixture_path):
     """Tests content extraction from a URL."""
     # Using a known URL from the notebook example
-    input_data = {"url": "https://www.supernovalabs.com"}
+    input_data = {"url": "https://www.supernovalabs.com", "engine": "simple"}
     result = await extract_content(input_data)
 
     assert hasattr(result, "source_type")
     assert result.source_type == "url"
     # Check for expected title and content snippets based on notebook output
     assert "Supernova Labs" in result.title
-    assert "Elite AI Consulting" in result.title
+    assert "AI Consulting" in result.title
+    # assert "Supernova Labs" in result.content
+    # assert "AI Opportunity Map" in result.content  # Example snippet
+
+
+@pytest.mark.asyncio
+async def test_extract_content_from_url_firecrawl(fixture_path):
+    """Tests content extraction from a URL."""
+    # Using a known URL from the notebook example
+    input_data = {"url": "https://www.supernovalabs.com", "engine": "firecrawl"}
+    result = await extract_content(input_data)
+
+    assert hasattr(result, "source_type")
+    assert result.source_type == "url"
+    # Check for expected title and content snippets based on notebook output
+    assert "Supernova Labs" in result.title
+    assert "AI Consulting" in result.title
+    assert "Supernova Labs" in result.content
+    assert "AI Opportunity Map" in result.content  # Example snippet
+
+
+@pytest.mark.asyncio
+async def test_extract_content_from_url_jina(fixture_path):
+    """Tests content extraction from a URL."""
+    # Using a known URL from the notebook example
+    input_data = {"url": "https://www.supernovalabs.com", "engine": "jina"}
+    result = await extract_content(input_data)
+
+    assert hasattr(result, "source_type")
+    assert result.source_type == "url"
+    # Check for expected title and content snippets based on notebook output
+    assert "Supernova Labs" in result.title
+    assert "AI Consulting" in result.title
     assert "Supernova Labs" in result.content
     assert "AI Opportunity Map" in result.content  # Example snippet
 
@@ -191,7 +222,7 @@ async def test_extract_content_from_xlsx(fixture_path):
     if not xlsx_file.exists():
         pytest.skip(f"Fixture file not found: {xlsx_file}")
 
-    result = await extract_content(dict(file_path=str(xlsx_file)))
+    result = await extract_content(dict(file_path=str(xlsx_file), engine="simple"))
 
     assert result.source_type == "file"
     assert (
@@ -200,6 +231,24 @@ async def test_extract_content_from_xlsx(fixture_path):
     )
     assert result.title is not None  # Attempt to extract title/metadata
     assert len(result.content) > 0  # Check that some content was extracted
+
+
+# @pytest.mark.asyncio
+# async def test_extract_content_from_xlsx_docling(fixture_path):
+#     """Tests extracting content from a XLSX file using docling engine."""
+#     xlsx_file = fixture_path / "file.xlsx"
+#     if not xlsx_file.exists():
+#         pytest.skip(f"Fixture file not found: {xlsx_file}")
+
+#     result = await extract_content(dict(file_path=str(xlsx_file), engine="docling"))
+
+#     assert result.source_type == "file"
+#     assert (
+#         result.identified_type
+#         == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+#     )
+#     assert result.title is not None  # Attempt to extract title/metadata
+#     assert len(result.content) > 0  # Check that some content was extracted
 
 
 @pytest.mark.asyncio

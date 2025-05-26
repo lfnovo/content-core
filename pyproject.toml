@@ -1,6 +1,6 @@
 [project]
 name = "content-core"
-version = "0.7.2"
+version = "0.8.0"
 description = "Extract what matters from any media source"
 readme = "README.md"
 homepage = "https://github.com/lfnovo/content-core"
@@ -28,6 +28,9 @@ dependencies = [
     "validators>=0.34.0",
     "ai-prompter>=0.2.3",
     "moviepy>=2.1.2",
+    "readability-lxml>=0.8.4.1",
+    "firecrawl>=2.7.0",
+    "firecrawl-py>=2.7.0",
 ]
 
 [project.optional-dependencies]
