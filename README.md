@@ -33,8 +33,6 @@ Install Content Core using `pip`:
 ```bash
 # Install the package (without Docling)
 pip install content-core
-# Install with Docling support
-pip install content-core[docling]
 ```
 
 Alternatively, if you’re developing locally:
@@ -221,14 +219,10 @@ if __name__ == "__main__":
 
 Content Core supports an optional Docling-based extraction engine for rich document formats (PDF, DOCX, PPTX, XLSX, Markdown, AsciiDoc, HTML, CSV, Images).
 
-### Installation
-
-```bash
-# Install with Docling support
-pip install content-core[docling]
-```
 
 ### Enabling Docling
+
+Docling is not the default engine when parsing documents. If you don't want to use it, you need to set engine to "simple". 
 
 #### Via configuration file
 

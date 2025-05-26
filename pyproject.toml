@@ -1,6 +1,6 @@
 [project]
 name = "content-core"
-version = "0.8.0"
+version = "0.8.1"
 description = "Extract what matters from any media source"
 readme = "README.md"
 homepage = "https://github.com/lfnovo/content-core"
@@ -29,12 +29,11 @@ dependencies = [
     "ai-prompter>=0.2.3",
     "moviepy>=2.1.2",
     "readability-lxml>=0.8.4.1",
-    "firecrawl>=2.7.0",
     "firecrawl-py>=2.7.0",
+    "docling>=2.34.0",
+    "pillow>=10.4.0",
+    "asciidoc>=10.2.1",
 ]
-
-[project.optional-dependencies]
-docling = ["docling", "Pillow", "pandas", "asciidoc"]
 
 [project.scripts]
 ccore = "content_core:ccore"

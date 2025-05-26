@@ -410,15 +410,16 @@ wheels = [
 
 [[package]]
 name = "content-core"
-version = "0.8.0"
+version = "0.8.1"
 source = { editable = "." }
 dependencies = [
     { name = "ai-prompter" },
     { name = "aiohttp" },
+    { name = "asciidoc" },
     { name = "bs4" },
     { name = "dicttoxml" },
+    { name = "docling" },
     { name = "esperanto", extra = ["openai"] },
-    { name = "firecrawl" },
     { name = "firecrawl-py" },
     { name = "jinja2" },
     { name = "langdetect" },
@@ -427,6 +428,7 @@ dependencies = [
     { name = "moviepy" },
     { name = "openpyxl" },
     { name = "pandas" },
+    { name = "pillow" },
     { name = "pymupdf" },
     { name = "python-docx" },
     { name = "python-dotenv" },
@@ -435,14 +437,6 @@ dependencies = [
     { name = "readability-lxml" },
     { name = "validators" },
     { name = "youtube-transcript-api" },
-]
-
-[package.optional-dependencies]
-docling = [
-    { name = "asciidoc" },
-    { name = "docling" },
-    { name = "pandas" },
-    { name = "pillow" },
 ]
 
 [package.dev-dependencies]
@@ -459,12 +453,11 @@ dev = [
 requires-dist = [
     { name = "ai-prompter", specifier = ">=0.2.3" },
     { name = "aiohttp", specifier = ">=3.11" },
-    { name = "asciidoc", marker = "extra == 'docling'" },
+    { name = "asciidoc", specifier = ">=10.2.1" },
     { name = "bs4", specifier = ">=0.0.2" },
     { name = "dicttoxml", specifier = ">=1.7.16" },
-    { name = "docling", marker = "extra == 'docling'" },
+    { name = "docling", specifier = ">=2.34.0" },
     { name = "esperanto", extras = ["openai"], specifier = ">=1.2.0" },
-    { name = "firecrawl", specifier = ">=2.7.0" },
     { name = "firecrawl-py", specifier = ">=2.7.0" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "langdetect", specifier = ">=1.0.9" },
@@ -473,8 +466,7 @@ requires-dist = [
     { name = "moviepy", specifier = ">=2.1.2" },
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pandas", specifier = ">=2.2.3" },
-    { name = "pandas", marker = "extra == 'docling'" },
-    { name = "pillow", marker = "extra == 'docling'" },
+    { name = "pillow", specifier = ">=10.4.0" },
     { name = "pymupdf", specifier = ">=1.25.5" },
     { name = "python-docx", specifier = ">=1.1.2" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
@@ -788,23 +780,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/bb/29/745f7d30d47fe0f251d3ad3dc2978a23141917661998763bebb6da007eb1/filetype-1.2.0.tar.gz", hash = "sha256:66b56cd6474bf41d8c54660347d37afcc3f7d1970648de365c102ef77548aadb", size = 998020 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/18/79/1b8fa1bb3568781e84c9200f951c735f3f157429f44be0495da55894d620/filetype-1.2.0-py2.py3-none-any.whl", hash = "sha256:7ce71b6880181241cf7ac8697a2f1eb6a8bd9b429f7ad6d27b8db9ba5f1c2d25", size = 19970 },
-]
-
-[[package]]
-name = "firecrawl"
-version = "2.7.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "aiohttp" },
-    { name = "nest-asyncio" },
-    { name = "pydantic" },
-    { name = "python-dotenv" },
-    { name = "requests" },
-    { name = "websockets" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f9/61/291b74aa0e6e8641779b6c606077e9c90a2446513ce4be480ebdaf22a521/firecrawl-2.7.0.tar.gz", hash = "sha256:c612c38ceec056d3ef058fcdda1bea1d3f6bb556e859dd9c2b690a7c1514a57b", size = 37821 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/48/38/12115a9c793c15ec88ee8512d748ad15ed48490dbc00169f6bec15f444f8/firecrawl-2.7.0-py3-none-any.whl", hash = "sha256:cf01d629eb4513756218fd4170e5a34d1a5994cb73f6fa7fa6828e7f6ba95fb7", size = 37674 },
 ]
 
 [[package]]
