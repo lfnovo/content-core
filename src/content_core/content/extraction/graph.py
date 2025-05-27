@@ -2,7 +2,6 @@ import os
 import tempfile
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
-from content_core.common.types import warn_if_deprecated_engine
 
 import aiohttp
 import magic
@@ -13,11 +12,14 @@ from content_core.common import (
     ProcessSourceState,
     UnsupportedTypeException,
 )
+from content_core.common.types import warn_if_deprecated_engine
 from content_core.config import CONFIG  # type: ignore
 from content_core.logging import logger
 from content_core.processors.audio import extract_audio_data  # type: ignore
-from content_core.processors.docling import DOCLING_SUPPORTED  # type: ignore
-from content_core.processors.docling import extract_with_docling
+from content_core.processors.docling import (
+    DOCLING_SUPPORTED,  # type: ignore
+    extract_with_docling,
+)
 from content_core.processors.office import (
     SUPPORTED_OFFICE_TYPES,
     extract_office_content,
@@ -60,6 +62,7 @@ async def file_type(state: ProcessSourceState) -> Dict[str, Any]:
 async def file_type_edge(data: ProcessSourceState) -> str:
     assert data.identified_type, "Type not identified"
     identified_type = data.identified_type
+    logger.debug(f"Identified type: {identified_type}")
 
     if identified_type == "text/plain":
         return "extract_txt"
@@ -91,16 +94,19 @@ async def delete_file(data: ProcessSourceState) -> Dict[str, Any]:
 
 
 async def url_type_router(x: ProcessSourceState) -> Optional[str]:
+    assert x.identified_type, "Type not identified"
     return x.identified_type
 
 
 async def source_type_router(x: ProcessSourceState) -> Optional[str]:
+    assert x.source_type, "Source type not identified"
     return x.source_type
 
 
 async def download_remote_file(state: ProcessSourceState) -> Dict[str, Any]:
     url = state.url
     assert url, "No URL provided"
+    logger.debug(f"Downloading remote file: {url}")
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
             resp.raise_for_status()
@@ -115,7 +121,6 @@ async def download_remote_file(state: ProcessSourceState) -> Dict[str, Any]:
     return {"file_path": tmp, "identified_type": mime}
 
 
-
 async def file_type_router_docling(state: ProcessSourceState) -> str:
     """
     Route to Docling if enabled and supported; otherwise use simple file type edge.
@@ -125,18 +130,25 @@ async def file_type_router_docling(state: ProcessSourceState) -> str:
     engine = state.engine or CONFIG.get("extraction", {}).get("engine", "auto")
     warn_if_deprecated_engine(engine)
     if engine == "auto":
+        logger.debug("Using auto engine")
         # Try docling first; if it fails or is not supported, fallback to simple
         if state.identified_type in DOCLING_SUPPORTED:
             try:
+                logger.debug("Trying docling extraction")
                 return "extract_docling"
             except Exception as e:
-                logger.warning(f"Docling extraction failed in 'auto' mode, falling back to simple: {e}")
+                logger.warning(
+                    f"Docling extraction failed in 'auto' mode, falling back to simple: {e}"
+                )
         # Fallback to simple
+        logger.debug("Falling back to simple extraction")
         return await file_type_edge(state)
 
     if engine == "docling" and state.identified_type in DOCLING_SUPPORTED:
+        logger.debug("Using docling engine")
         return "extract_docling"
     # For 'simple' and 'legacy', use the default file type edge
+    logger.debug("Using simple engine")
     return await file_type_edge(state)
 
 
@@ -179,7 +191,12 @@ workflow.add_conditional_edges(
     "url_provider",
     url_type_router,
     {
-        **{m: "download_remote_file" for m in SUPPORTED_FITZ_TYPES},
+        **{
+            m: "download_remote_file"
+            for m in list(SUPPORTED_FITZ_TYPES)
+            + list(SUPPORTED_OFFICE_TYPES)
+            + list(DOCLING_SUPPORTED)
+        },
         "article": "extract_url",
         "youtube": "extract_youtube_transcript",
     },
@@ -197,5 +214,4 @@ workflow.add_edge("extract_audio_data", "delete_file")
 workflow.add_edge("delete_file", END)
 workflow.add_edge("download_remote_file", "file_type")
 
-# Compile graph
 graph = workflow.compile()

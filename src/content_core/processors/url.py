@@ -1,67 +1,15 @@
 import os
-from io import BytesIO
-from urllib.parse import urlparse
 
 import aiohttp
-import docx
 from bs4 import BeautifulSoup
 from readability import Document
 
 from content_core.common import ProcessSourceState
 from content_core.common.types import warn_if_deprecated_engine
 from content_core.logging import logger
+from content_core.processors.docling import DOCLING_SUPPORTED
+from content_core.processors.office import SUPPORTED_OFFICE_TYPES
 from content_core.processors.pdf import SUPPORTED_FITZ_TYPES
-
-DOCX_MIME_TYPE = (
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-)
-
-
-async def _extract_docx_content(docx_bytes: bytes, url: str):
-    """
-    Extract content from DOCX file bytes.
-    """
-    try:
-        logger.debug(f"Attempting to parse DOCX from URL: {url} with python-docx")
-        doc = docx.Document(BytesIO(docx_bytes))
-        content_parts = [p.text for p in doc.paragraphs if p.text]
-        full_content = "\n\n".join(content_parts)
-
-        # Try to get a title from document properties or first heading
-        title = doc.core_properties.title
-        if not title and doc.paragraphs:
-            # Look for a potential title in the first few paragraphs (e.g., if styled as heading)
-            for p in doc.paragraphs[:5]:  # Check first 5 paragraphs
-                if p.style.name.startswith("Heading"):
-                    title = p.text
-                    break
-            if not title:  # Fallback to first line if no heading found
-                title = (
-                    doc.paragraphs[0].text.strip()
-                    if doc.paragraphs[0].text.strip()
-                    else None
-                )
-
-        # If no title found, use filename from URL
-        if not title:
-            title = urlparse(url).path.split("/")[-1]
-
-        logger.info(f"Successfully extracted content from DOCX: {url}, Title: {title}")
-        return {
-            "title": title,
-            "content": full_content,
-            "domain": urlparse(url).netloc,
-            "url": url,
-        }
-    except Exception as e:
-        logger.error(f"Failed to process DOCX content from {url}: {e}")
-        # Fallback or re-raise, depending on desired error handling
-        return {
-            "title": f"Error Processing DOCX: {urlparse(url).path.split('/')[-1]}",
-            "content": f"Failed to extract content from DOCX: {e}",
-            "domain": urlparse(url).netloc,
-            "url": url,
-        }
 
 
 async def url_provider(state: ProcessSourceState):
@@ -81,12 +29,19 @@ async def url_provider(state: ProcessSourceState):
                         url, timeout=10, allow_redirects=True
                     ) as resp:
                         mime = resp.headers.get("content-type", "").split(";", 1)[0]
+                        logger.debug(f"MIME type for {url}: {mime}")
             except Exception as e:
-                logger.debug(f"HEAD check failed for {url}: {e}")
+                logger.warning(f"HEAD check failed for {url}: {e}")
                 mime = "article"
-            if mime in SUPPORTED_FITZ_TYPES:
+            if (
+                mime in DOCLING_SUPPORTED
+                or mime in SUPPORTED_FITZ_TYPES
+                or mime in SUPPORTED_OFFICE_TYPES
+            ):
+                logger.warning(f"Identified type for {url}: {mime}")
                 return_dict["identified_type"] = mime
             else:
+                logger.warning(f"Identified type for {url}: article")
                 return_dict["identified_type"] = "article"
     return return_dict
 
