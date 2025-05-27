@@ -8,6 +8,7 @@ from youtube_transcript_api.formatters import TextFormatter  # type: ignore
 
 from content_core.common import ProcessSourceState
 from content_core.common.exceptions import NoTranscriptFound
+from content_core.config import CONFIG
 from content_core.logging import logger
 
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -137,10 +138,11 @@ async def extract_youtube_transcript(state: ProcessSourceState):
     Parse the text file and print its content.
     """
 
-    languages = ["en", "es", "pt"]
-    # languages = CONFIG.get("youtube_transcripts", {}).get(
-    #     "preferred_languages", ["en", "es", "pt"]
-    # )
+    assert state.url, "No URL provided"
+    logger.warning(f"Extracting transcript from URL: {state.url}")
+    languages = CONFIG.get("youtube_transcripts", {}).get(
+        "preferred_languages", ["en", "es", "pt"]
+    )
 
     video_id = await _extract_youtube_id(state.url)
     transcript = await get_best_transcript(video_id, languages)
@@ -152,9 +154,24 @@ async def extract_youtube_transcript(state: ProcessSourceState):
     except Exception as e:
         logger.critical(f"Failed to get video title for video_id: {video_id}")
         logger.exception(e)
-        title = None
+        title = ""
+
+    try:
+        formatted_content = formatter.format_transcript(transcript)
+    except Exception as e:
+        logger.critical(f"Failed to format transcript for video_id: {video_id}")
+        logger.exception(e)
+        formatted_content = ""
+
+    try:
+        transcript_raw = transcript.to_raw_data()
+    except Exception as e:
+        logger.critical(f"Failed to get raw transcript for video_id: {video_id}")
+        logger.exception(e)
+        transcript_raw = ""
+
     return {
-        "content": formatter.format_transcript(transcript),
+        "content": formatted_content,
         "title": title,
-        "metadata": {"video_id": video_id, "transcript": transcript.to_raw_data()},
+        "metadata": {"video_id": video_id, "transcript": transcript_raw},
     }

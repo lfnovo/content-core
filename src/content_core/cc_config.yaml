@@ -33,3 +33,7 @@ extraction:
   engine: legacy  # change to 'docling' to enable Docling engine
   docling:
     output_format: markdown  # markdown | html | json
+
+youtube_transcripts:
+  preferred_languages: ["en", "es", "pt"]
+  
