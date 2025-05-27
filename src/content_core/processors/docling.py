@@ -26,7 +26,7 @@ DOCLING_SUPPORTED = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     "text/markdown",
-    "text/plain",
+    # "text/plain", #docling currently not supporting txt
     "text/x-markdown",
     "text/csv",
     "text/html",
