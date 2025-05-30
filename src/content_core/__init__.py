@@ -113,7 +113,7 @@ async def ccore_main():
         if args.format == "xml":
             result = dicttoxml(
                 result.model_dump(), custom_root="result", attr_type=False
-            )
+            ).decode('utf-8')
         elif args.format == "json":
             result = result.model_dump_json()
         else:  # text
