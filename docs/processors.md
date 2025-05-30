@@ -21,11 +21,11 @@ Content Core uses a modular approach to process content from different sources. 
 - **Supported Input**: URLs (web pages).
 - **Returned Data**: Extracted text content from the web page, often in a cleaned format.
 - **Location**: `src/content_core/processors/url.py`
-- **Default Engine (`auto`) Logic**:
+- **Default URL Engine (`auto`) Logic**:
     - If `FIRECRAWL_API_KEY` is set, uses Firecrawl for extraction.
     - Else it tries Jina until it fails because of rate limits (unless `JINA_API_KEY` is set).
     - Else, falls back to BeautifulSoup-based extraction.
-    - You can explicitly specify an engine (`'firecrawl'`, `'jina'`, `'simple'`, etc.), but `'auto'` is now the default and recommended for most users.
+    - You can explicitly specify a URL engine (`'firecrawl'`, `'jina'`, `'simple'`), but `'auto'` is now the default and recommended for most users.
 
 ### 3. **File Processor**
 - **Purpose**: Processes local files of various types, extracting content based on file format.
@@ -47,23 +47,27 @@ Content Core uses a modular approach to process content from different sources. 
 - **Supported Input**: PDF, DOCX, XLSX, PPTX, Markdown, AsciiDoc, HTML, CSV, Images (PNG, JPEG, TIFF, BMP).
 - **Returned Data**: Content converted to configured format (markdown, html, json).
 - **Location**: `src/content_core/processors/docling.py`
-- **Default Engine (`auto`) Logic for Files/Documents**:
+- **Default Document Engine (`auto`) Logic for Files/Documents**:
     - Tries the `'docling'` extraction method first (robust document parsing for supported types).
     - If `'docling'` fails or is not supported, automatically falls back to simple extraction (fast, lightweight for supported types).
-    - You can explicitly specify `'docling'`, `'simple'`, or `'legacy'` as the engine, but `'auto'` is now the default and recommended for most users.
+    - You can explicitly specify `'docling'` or `'simple'` as the document engine, but `'auto'` is now the default and recommended for most users.
 - **Configuration**: Activate the Docling engine in `cc_config.yaml` or custom config:
   ```yaml
   extraction:
-    engine: docling       # 'auto' (default), 'docling', or 'simple'
+    document_engine: docling  # 'auto' (default), 'simple', or 'docling'
+    url_engine: auto          # 'auto' (default), 'simple', 'firecrawl', or 'jina'
     docling:
       output_format: markdown  # markdown | html | json
   ```
 - **Programmatic Toggle**: Use helper functions in Python:
   ```python
-  from content_core.config import set_extraction_engine, set_docling_output_format
+  from content_core.config import set_document_engine, set_url_engine, set_docling_output_format
 
-  # switch engine to Docling
-  set_extraction_engine("docling")
+  # switch document engine to Docling
+  set_document_engine("docling")
+  
+  # switch URL engine to Firecrawl
+  set_url_engine("firecrawl")
 
   # choose output format
   set_docling_output_format("html")

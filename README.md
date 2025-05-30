@@ -201,11 +201,17 @@ async def main():
     md_data = await extract_content({"file_path": "path/to/your/document.md"})
     print(md_data)
 
-    # Per-execution override with Docling
+    # Per-execution override with Docling for documents
     doc_data = await extract_content({
         "file_path": "path/to/your/document.pdf",
-        "engine": "docling",
+        "document_engine": "docling",
         "output_format": "html"
+    })
+    
+    # Per-execution override with Firecrawl for URLs
+    url_data = await extract_content({
+        "url": "https://www.example.com",
+        "url_engine": "firecrawl"
     })
     print(doc_data)
 
@@ -229,7 +235,8 @@ Docling is not the default engine when parsing documents. If you don't want to u
 In your `cc_config.yaml` or custom config, set:
 ```yaml
 extraction:
-  engine: docling       # 'legacy' (default) or 'docling'
+  document_engine: docling  # 'auto' (default), 'simple', or 'docling'
+  url_engine: auto          # 'auto' (default), 'simple', 'firecrawl', or 'jina'
   docling:
     output_format: markdown  # markdown | html | json
 ```
@@ -237,10 +244,13 @@ extraction:
 #### Programmatically in Python
 
 ```python
-from content_core.config import set_extraction_engine, set_docling_output_format
+from content_core.config import set_document_engine, set_url_engine, set_docling_output_format
 
-# switch engine to Docling
-set_extraction_engine("docling")
+# switch document engine to Docling
+set_document_engine("docling")
+
+# switch URL engine to Firecrawl
+set_url_engine("firecrawl")
 
 # choose output format: 'markdown', 'html', or 'json'
 set_docling_output_format("html")

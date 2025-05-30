@@ -80,11 +80,11 @@ This will allow you to quickly start with customized settings without needing to
 
 ### Extraction Engine Selection
 
-By default, Content Core uses the `'auto'` engine for all extraction tasks. The logic is as follows:
-- **For URLs**: Uses Firecrawl if `FIRECRAWL_API_KEY` is set, else Jina if `JINA_API_KEY` is set, else falls back to BeautifulSoup.
-- **For files**: Tries Docling extraction first (for robust document parsing), then falls back to simple extraction if needed.
+By default, Content Core uses the `'auto'` engine for both document and URL extraction tasks. The logic is as follows:
+- **For URLs** (`url_engine`): Uses Firecrawl if `FIRECRAWL_API_KEY` is set, else Jina if `JINA_API_KEY` is set, else falls back to BeautifulSoup.
+- **For files** (`document_engine`): Tries Docling extraction first (for robust document parsing), then falls back to simple extraction if needed.
 
-You can override this behavior by specifying an engine in your config or function call, but `'auto'` is recommended for most users.
+You can override this behavior by specifying separate engines for documents and URLs in your config or function call, but `'auto'` is recommended for most users.
 
 #### Docling Engine
 
@@ -94,33 +94,44 @@ Content Core supports an optional Docling engine for advanced document parsing. 
 Add under the `extraction` section:
 ```yaml
 extraction:
-  engine: docling        # auto (default), docling, or simple
+  document_engine: docling  # auto (default), simple, or docling
+  url_engine: auto          # auto (default), simple, firecrawl, or jina
   docling:
-    output_format: html  # markdown | html | json
+    output_format: html     # markdown | html | json
 ```
 
 ##### Programmatically in Python
 ```python
-from content_core.config import set_extraction_engine, set_docling_output_format
+from content_core.config import set_document_engine, set_url_engine, set_docling_output_format
 
-# toggle to Docling
-set_extraction_engine("docling")
+# toggle document engine to Docling
+set_document_engine("docling")
+
+# toggle URL engine to Firecrawl
+set_url_engine("firecrawl")
 
 # pick format
 set_docling_output_format("json")
 ```
 
 #### Per-Execution Overrides
-You can override the extraction engine and Docling output format on a per-call basis by including `engine` and `output_format` in your input:
+You can override the extraction engines and Docling output format on a per-call basis by including `document_engine`, `url_engine` and `output_format` in your input:
 
 ```python
 from content_core.content.extraction import extract_content
 
-# override engine and format for this document
+# override document engine and format for this document
 result = await extract_content({
     "file_path": "document.pdf",
-    "engine": "docling",
+    "document_engine": "docling",
     "output_format": "html"
+})
+print(result.content)
+
+# override URL engine for this URL
+result = await extract_content({
+    "url": "https://example.com",
+    "url_engine": "firecrawl"
 })
 print(result.content)
 ```
@@ -133,7 +144,7 @@ from content_core.content.extraction import extract_content
 
 input = ProcessSourceInput(
     file_path="document.pdf",
-    engine="docling",
+    document_engine="docling",
     output_format="json"
 )
 result = await extract_content(input)
