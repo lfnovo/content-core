@@ -2,8 +2,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from content_core.common.types import Engine
-from content_core.common.types import Engine
+from content_core.common.types import DocumentEngine, UrlEngine
 
 
 class ProcessSourceState(BaseModel):
@@ -16,9 +15,13 @@ class ProcessSourceState(BaseModel):
     identified_provider: Optional[str] = ""
     metadata: Optional[dict] = Field(default_factory=lambda: {})
     content: Optional[str] = ""
-    engine: Optional[Engine] = Field(
+    document_engine: Optional[DocumentEngine] = Field(
         default=None,
-        description="Override extraction engine: 'auto', 'simple', 'legacy', 'firecrawl', 'jina', or 'docling'",
+        description="Override document extraction engine: 'auto', 'simple', or 'docling'",
+    )
+    url_engine: Optional[UrlEngine] = Field(
+        default=None,
+        description="Override URL extraction engine: 'auto', 'simple', 'firecrawl', 'jina', or 'docling'",
     )
     output_format: Optional[str] = Field(
         default=None,
@@ -30,7 +33,8 @@ class ProcessSourceInput(BaseModel):
     content: Optional[str] = ""
     file_path: Optional[str] = ""
     url: Optional[str] = ""
-    engine: Optional[str] = None
+    document_engine: Optional[str] = None
+    url_engine: Optional[str] = None
     output_format: Optional[str] = None
 
 

@@ -12,7 +12,6 @@ from content_core.common import (
     ProcessSourceState,
     UnsupportedTypeException,
 )
-from content_core.common.types import warn_if_deprecated_engine
 from content_core.config import CONFIG  # type: ignore
 from content_core.logging import logger
 from content_core.processors.audio import extract_audio_data  # type: ignore
@@ -124,11 +123,10 @@ async def download_remote_file(state: ProcessSourceState) -> Dict[str, Any]:
 async def file_type_router_docling(state: ProcessSourceState) -> str:
     """
     Route to Docling if enabled and supported; otherwise use simple file type edge.
-    Supports 'auto', 'docling', 'simple', and 'legacy' (deprecated, alias for simple).
-    'auto' tries simple first, then falls back to docling if simple fails.
+    Supports 'auto', 'docling', and 'simple'.
+    'auto' tries docling first, then falls back to simple if docling fails.
     """
-    engine = state.engine or CONFIG.get("extraction", {}).get("engine", "auto")
-    warn_if_deprecated_engine(engine)
+    engine = state.document_engine or CONFIG.get("extraction", {}).get("document_engine", "auto")
     if engine == "auto":
         logger.debug("Using auto engine")
         # Try docling first; if it fails or is not supported, fallback to simple
@@ -147,7 +145,7 @@ async def file_type_router_docling(state: ProcessSourceState) -> str:
     if engine == "docling" and state.identified_type in DOCLING_SUPPORTED:
         logger.debug("Using docling engine")
         return "extract_docling"
-    # For 'simple' and 'legacy', use the default file type edge
+    # For 'simple', use the default file type edge
     logger.debug("Using simple engine")
     return await file_type_edge(state)
 
@@ -196,8 +194,10 @@ workflow.add_conditional_edges(
             for m in list(SUPPORTED_FITZ_TYPES)
             + list(SUPPORTED_OFFICE_TYPES)
             + list(DOCLING_SUPPORTED)
+            if m not in ["text/html"]  # Exclude HTML from file download, treat as web content
         },
         "article": "extract_url",
+        "text/html": "extract_url",  # Route HTML content to URL extraction
         "youtube": "extract_youtube_transcript",
     },
 )

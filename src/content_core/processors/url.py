@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 from readability import Document
 
 from content_core.common import ProcessSourceState
-from content_core.common.types import warn_if_deprecated_engine
+from content_core.config import CONFIG
 from content_core.logging import logger
 from content_core.processors.docling import DOCLING_SUPPORTED
 from content_core.processors.office import SUPPORTED_OFFICE_TYPES
@@ -160,13 +160,12 @@ async def extract_url_firecrawl(url: str):
 
 async def extract_url(state: ProcessSourceState):
     """
-    Extract content from a URL using the engine specified in the state.
-    Supported engines: 'auto', 'simple', 'legacy' (deprecated), 'firecrawl', 'jina'.
+    Extract content from a URL using the url_engine specified in the state.
+    Supported engines: 'auto', 'simple', 'firecrawl', 'jina'.
     """
     assert state.url, "No URL provided"
     url = state.url
-    engine = state.engine or "auto"
-    warn_if_deprecated_engine(engine)
+    engine = state.url_engine or CONFIG.get("extraction", {}).get("url_engine", "auto")
     try:
         if engine == "auto":
             if os.environ.get("FIRECRAWL_API_KEY"):
@@ -182,19 +181,12 @@ async def extract_url(state: ProcessSourceState):
                     logger.error(f"Jina extraction error for URL: {url}: {e}")
                     logger.debug("Falling back to BeautifulSoup")
                     return await extract_url_bs4(url)
-        elif engine == "simple" or engine == "legacy":
-            # 'legacy' is deprecated alias for 'simple'
+        elif engine == "simple":
             return await extract_url_bs4(url)
         elif engine == "firecrawl":
             return await extract_url_firecrawl(url)
         elif engine == "jina":
             return await extract_url_jina(url)
-        elif engine == "docling":
-            from content_core.processors.docling import extract_with_docling
-
-            state.url = url
-            result_state = await extract_with_docling(state)
-            return {"title": None, "content": result_state.content}
         else:
             raise ValueError(f"Unknown engine: {engine}")
     except Exception as e:

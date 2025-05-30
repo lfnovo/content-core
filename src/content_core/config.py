@@ -35,9 +35,13 @@ def load_config():
 CONFIG = load_config()
 
 # Programmatic config overrides: use in notebooks or scripts
-def set_extraction_engine(engine: str):
-    """Override the extraction engine ('legacy' or 'docling')."""
-    CONFIG.setdefault("extraction", {})["engine"] = engine
+def set_document_engine(engine: str):
+    """Override the document extraction engine ('auto', 'simple', or 'docling')."""
+    CONFIG.setdefault("extraction", {})["document_engine"] = engine
+
+def set_url_engine(engine: str):
+    """Override the URL extraction engine ('auto', 'simple', 'firecrawl', 'jina', or 'docling')."""
+    CONFIG.setdefault("extraction", {})["url_engine"] = engine
 
 def set_docling_output_format(fmt: str):
     """Override Docling output_format ('markdown', 'html', or 'json')."""

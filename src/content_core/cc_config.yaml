@@ -30,7 +30,8 @@ summary_model:
     max_tokens: 2000
 
 extraction:
-  engine: legacy  # change to 'docling' to enable Docling engine
+  document_engine: auto  # auto | simple | docling - for files/documents
+  url_engine: auto  # auto | simple | firecrawl | jina | docling - for URLs
   docling:
     output_format: markdown  # markdown | html | json
 
