@@ -26,7 +26,7 @@ async def test_extract_content_from_text():
 async def test_extract_content_from_url(fixture_path):
     """Tests content extraction from a URL."""
     # Using a known URL from the notebook example
-    input_data = {"url": "https://www.supernovalabs.com", "engine": "simple"}
+    input_data = {"url": "https://www.supernovalabs.com", "url_engine": "simple"}
     result = await extract_content(input_data)
 
     assert hasattr(result, "source_type")
@@ -41,8 +41,13 @@ async def test_extract_content_from_url(fixture_path):
 @pytest.mark.asyncio
 async def test_extract_content_from_url_firecrawl(fixture_path):
     """Tests content extraction from a URL."""
+    try:
+        import firecrawl
+    except ImportError:
+        pytest.skip("Firecrawl not installed")
+    
     # Using a known URL from the notebook example
-    input_data = {"url": "https://www.supernovalabs.com", "engine": "firecrawl"}
+    input_data = {"url": "https://www.supernovalabs.com", "url_engine": "firecrawl"}
     result = await extract_content(input_data)
 
     assert hasattr(result, "source_type")
@@ -58,7 +63,7 @@ async def test_extract_content_from_url_firecrawl(fixture_path):
 async def test_extract_content_from_url_jina(fixture_path):
     """Tests content extraction from a URL."""
     # Using a known URL from the notebook example
-    input_data = {"url": "https://www.supernovalabs.com", "engine": "jina"}
+    input_data = {"url": "https://www.supernovalabs.com", "url_engine": "jina"}
     result = await extract_content(input_data)
 
     assert hasattr(result, "source_type")
@@ -222,7 +227,7 @@ async def test_extract_content_from_xlsx(fixture_path):
     if not xlsx_file.exists():
         pytest.skip(f"Fixture file not found: {xlsx_file}")
 
-    result = await extract_content(dict(file_path=str(xlsx_file), engine="simple"))
+    result = await extract_content(dict(file_path=str(xlsx_file), document_engine="simple"))
 
     assert result.source_type == "file"
     assert (
@@ -240,7 +245,7 @@ async def test_extract_content_from_xlsx(fixture_path):
 #     if not xlsx_file.exists():
 #         pytest.skip(f"Fixture file not found: {xlsx_file}")
 
-#     result = await extract_content(dict(file_path=str(xlsx_file), engine="docling"))
+#     result = await extract_content(dict(file_path=str(xlsx_file), document_engine="docling"))
 
 #     assert result.source_type == "file"
 #     assert (
