@@ -1,6 +1,6 @@
 [project]
 name = "content-core"
-version = "1.0.1"
+version = "1.0.2"
 description = "Extract what matters from any media source"
 readme = "README.md"
 homepage = "https://github.com/lfnovo/content-core"
@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 dependencies = [
     "aiohttp>=3.11",
     "bs4>=0.0.2",
-    "esperanto[openai]>=1.2.0",
+    "esperanto>=1.2.0",
     "jinja2>=3.1.6",
     "langdetect>=1.0.9",
     "loguru>=0.7.3",
@@ -33,6 +33,8 @@ dependencies = [
     "docling>=2.34.0",
     "pillow>=10.4.0",
     "asciidoc>=10.2.1",
+    "python-magic-bin==0.4.14; sys_platform == 'win32'",
+
 ]
 
 [project.scripts]
