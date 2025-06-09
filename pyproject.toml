@@ -1,6 +1,6 @@
 [project]
 name = "content-core"
-version = "1.0.0"
+version = "1.0.1"
 description = "Extract what matters from any media source"
 readme = "README.md"
 homepage = "https://github.com/lfnovo/content-core"
