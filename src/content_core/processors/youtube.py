@@ -1,4 +1,3 @@
-import asyncio
 import re
 import ssl
 
@@ -69,86 +68,95 @@ async def _extract_youtube_id(url):
 
 
 async def get_best_transcript(video_id, preferred_langs=["en", "es", "pt"]):
-    max_attempts = 5
-    for attempt in range(max_attempts):
+    try:
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+
+        # First try: Manual transcripts in preferred languages
+        manual_transcripts = []
         try:
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            for transcript in transcript_list:
+                if not transcript.is_generated and not transcript.is_translatable:
+                    manual_transcripts.append(transcript)
 
-            # First try: Manual transcripts in preferred languages
-            manual_transcripts = []
-            try:
-                for transcript in transcript_list:
-                    if not transcript.is_generated and not transcript.is_translatable:
-                        manual_transcripts.append(transcript)
+            if manual_transcripts:
+                # Sort based on preferred language order
+                for lang in preferred_langs:
+                    for transcript in manual_transcripts:
+                        if transcript.language_code == lang:
+                            return transcript.fetch()
+                # If no preferred language found, return first manual transcript
+                return manual_transcripts[0].fetch()
+        except NoTranscriptFound:
+            pass
 
-                if manual_transcripts:
-                    # Sort based on preferred language order
-                    for lang in preferred_langs:
-                        for transcript in manual_transcripts:
-                            if transcript.language_code == lang:
-                                return transcript.fetch()
-                    # If no preferred language found, return first manual transcript
-                    return manual_transcripts[0].fetch()
-            except NoTranscriptFound:
-                pass
+        # Second try: Auto-generated transcripts in preferred languages
+        generated_transcripts = []
+        try:
+            for transcript in transcript_list:
+                if transcript.is_generated and not transcript.is_translatable:
+                    generated_transcripts.append(transcript)
 
-            # Second try: Auto-generated transcripts in preferred languages
-            generated_transcripts = []
-            try:
-                for transcript in transcript_list:
-                    if transcript.is_generated and not transcript.is_translatable:
-                        generated_transcripts.append(transcript)
+            if generated_transcripts:
+                # Sort based on preferred language order
+                for lang in preferred_langs:
+                    for transcript in generated_transcripts:
+                        if transcript.language_code == lang:
+                            return transcript.fetch()
+                # If no preferred language found, return first generated transcript
+                return generated_transcripts[0].fetch()
+        except NoTranscriptFound:
+            pass
 
-                if generated_transcripts:
-                    # Sort based on preferred language order
-                    for lang in preferred_langs:
-                        for transcript in generated_transcripts:
-                            if transcript.language_code == lang:
-                                return transcript.fetch()
-                    # If no preferred language found, return first generated transcript
-                    return generated_transcripts[0].fetch()
-            except NoTranscriptFound:
-                pass
+        # Last try: Translated transcripts in preferred languages
+        translated_transcripts = []
+        try:
+            for transcript in transcript_list:
+                if transcript.is_translatable:
+                    translated_transcripts.append(transcript)
 
-            # Last try: Translated transcripts in preferred languages
-            translated_transcripts = []
-            try:
-                for transcript in transcript_list:
-                    if transcript.is_translatable:
-                        translated_transcripts.append(transcript)
+            if translated_transcripts:
+                # Sort based on preferred language order
+                for lang in preferred_langs:
+                    for transcript in translated_transcripts:
+                        if transcript.language_code == lang:
+                            return transcript.fetch()
+                # If no preferred language found, return translation to first preferred language
+                translation = translated_transcripts[0].translate(preferred_langs[0])
+                return translation.fetch()
+        except NoTranscriptFound:
+            pass
 
-                if translated_transcripts:
-                    # Sort based on preferred language order
-                    for lang in preferred_langs:
-                        for transcript in translated_transcripts:
-                            if transcript.language_code == lang:
-                                return transcript.fetch()
-                    # If no preferred language found, return translation to first preferred language
-                    translation = translated_transcripts[0].translate(
-                        preferred_langs[0]
-                    )
-                    return translation.fetch()
-            except NoTranscriptFound:
-                pass
+        raise Exception("No suitable transcript found")
 
-            raise Exception("No suitable transcript found")
+    except Exception as e:
+        logger.error(f"Failed to get transcript for video {video_id}: {e}")
+        return None
 
-        except Exception as e:
-            if e.__class__.__name__ == "ParserError":
-                logger.warning(
-                    f"ParserError on attempt {attempt+1}/5 for video {video_id}. Retrying..."
-                )
-                if attempt == max_attempts - 1:
-                    logger.error(
-                        f"Failed to get transcript for video {video_id} after {max_attempts} attempts due to repeated ParserError."
-                    )
-                    return None
-                await asyncio.sleep(2)
-                continue
-            else:
-                logger.error(f"Failed to get transcript for video {video_id}: {e}")
-                return None
-    return None
+
+def extract_transcript_pytubefix(url, languages=["en", "es", "pt"]):
+    from pytubefix import YouTube
+
+    yt = YouTube(url)
+    print(yt.captions)
+
+    # Try to get captions in the preferred languages
+    if yt.captions:
+        for lang in languages:
+            if lang in yt.captions:
+                caption = yt.captions[lang]
+                break
+            elif f"a.{lang}" in yt.captions:
+                caption = yt.captions[f"a.{lang}"]
+                break
+        else:  # No preferred language found, use the first available
+            caption_key = next(iter(yt.captions))
+            caption = yt.captions[caption_key]
+
+        srt_captions = caption.generate_srt_captions()
+        txt_captions = caption.generate_txt_captions()
+        return txt_captions, srt_captions
+
+    return None, None
 
 
 async def extract_youtube_transcript(state: ProcessSourceState):
@@ -162,11 +170,10 @@ async def extract_youtube_transcript(state: ProcessSourceState):
         "preferred_languages", ["en", "es", "pt"]
     )
 
+    # quick fix since transcripts api is not working for now
+    engine = "pytubefix"
     video_id = await _extract_youtube_id(state.url)
-    transcript = await get_best_transcript(video_id, languages)
 
-    logger.debug(f"Found transcript: {transcript}")
-    formatter = TextFormatter()
     try:
         title = await get_video_title(video_id)
     except Exception as e:
@@ -174,19 +181,29 @@ async def extract_youtube_transcript(state: ProcessSourceState):
         logger.exception(e)
         title = ""
 
-    try:
-        formatted_content = formatter.format_transcript(transcript)
-    except Exception as e:
-        logger.critical(f"Failed to format transcript for video_id: {video_id}")
-        logger.exception(e)
-        formatted_content = ""
+    if engine == "pytubefix":
+        formatted_content, transcript_raw = extract_transcript_pytubefix(
+            state.url, languages
+        )
+    if engine == "transcripts-api":
+        transcript = await get_best_transcript(video_id, languages)
 
-    try:
-        transcript_raw = transcript.to_raw_data()
-    except Exception as e:
-        logger.critical(f"Failed to get raw transcript for video_id: {video_id}")
-        logger.exception(e)
-        transcript_raw = ""
+        logger.debug(f"Found transcript: {transcript}")
+        formatter = TextFormatter()
+
+        try:
+            formatted_content = formatter.format_transcript(transcript)
+        except Exception as e:
+            logger.critical(f"Failed to format transcript for video_id: {video_id}")
+            logger.exception(e)
+            formatted_content = ""
+
+        try:
+            transcript_raw = transcript.to_raw_data()
+        except Exception as e:
+            logger.critical(f"Failed to get raw transcript for video_id: {video_id}")
+            logger.exception(e)
+            transcript_raw = ""
 
     return {
         "content": formatted_content,
