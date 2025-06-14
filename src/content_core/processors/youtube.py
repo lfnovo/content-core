@@ -3,13 +3,12 @@ import ssl
 
 import aiohttp
 from bs4 import BeautifulSoup
-from youtube_transcript_api import YouTubeTranscriptApi  # type: ignore
-from youtube_transcript_api.formatters import TextFormatter  # type: ignore
-
 from content_core.common import ProcessSourceState
 from content_core.common.exceptions import NoTranscriptFound
 from content_core.config import CONFIG
 from content_core.logging import logger
+from youtube_transcript_api import YouTubeTranscriptApi  # type: ignore
+from youtube_transcript_api.formatters import TextFormatter  # type: ignore
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
@@ -137,7 +136,7 @@ def extract_transcript_pytubefix(url, languages=["en", "es", "pt"]):
     from pytubefix import YouTube
 
     yt = YouTube(url)
-    print(yt.captions)
+    logger.debug(f"Captions: {yt.captions}")
 
     # Try to get captions in the preferred languages
     if yt.captions:
@@ -149,12 +148,20 @@ def extract_transcript_pytubefix(url, languages=["en", "es", "pt"]):
                 caption = yt.captions[f"a.{lang}"]
                 break
         else:  # No preferred language found, use the first available
-            caption_key = next(iter(yt.captions))
-            caption = yt.captions[caption_key]
-
-        srt_captions = caption.generate_srt_captions()
-        txt_captions = caption.generate_txt_captions()
-        return txt_captions, srt_captions
+            caption_key = list(yt.captions.keys())[0]
+            caption = yt.captions[caption_key.code]
+        try:
+            srt_captions = caption.generate_srt_captions()
+            txt_captions = caption.generate_txt_captions()
+            return txt_captions, srt_captions
+        except KeyError as e:
+            logger.error(f"KeyError while generating captions for {caption}: {e}")
+            return None, None
+        except Exception as e:
+            logger.error(
+                f"Unexpected error while generating captions for {caption}: {e}"
+            )
+            return None, None
 
     return None, None
 
