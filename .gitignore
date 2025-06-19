@@ -23,3 +23,5 @@ WIP/
 *.ignore
 .windsurfrules
 CLAUDE.md
+
+node_modules/
