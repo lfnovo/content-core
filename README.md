@@ -23,6 +23,7 @@ The primary goal of Content Core is to simplify the process of ingesting content
     * You can override this by specifying an engine, but `'auto'` is recommended for most users.
 *   **Content Cleaning (Optional):** Likely integrates with LLMs (via `prompter.py` and Jinja templates) to refine and clean the extracted content.
 *   **MCP Server:** Includes a Model Context Protocol (MCP) server for seamless integration with Claude Desktop and other MCP-compatible applications.
+*   **macOS Services:** Right-click context menu integration for Finder (extract and summarize files directly).
 *   **Asynchronous:** Built with `asyncio` for efficient I/O operations.
 
 ## Getting Started
@@ -206,6 +207,49 @@ Add to your `claude_desktop_config.json`:
 ```
 
 For detailed setup instructions, configuration options, and usage examples, see our [MCP Documentation](docs/mcp.md).
+
+## macOS Services Integration
+
+Content Core provides powerful right-click integration with macOS Finder, allowing you to extract and summarize content from any file without installation. Choose between clipboard or TextEdit output for maximum flexibility.
+
+### Available Services
+
+Create **4 convenient services** for different workflows:
+
+- **Extract Content → Clipboard** - Quick copy for immediate pasting
+- **Extract Content → TextEdit** - Review before using  
+- **Summarize Content → Clipboard** - Quick summary copying
+- **Summarize Content → TextEdit** - Formatted summary with headers
+
+### Quick Setup
+
+1. **Install uv** (if not already installed):
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+
+2. **Create services manually** using Automator (5 minutes setup)
+
+### Usage
+
+**Right-click any supported file** in Finder → **Services** → Choose your option:
+
+- **PDFs, Word docs** - Instant text extraction
+- **Videos, audio files** - Automatic transcription  
+- **Images** - OCR text recognition
+- **Web content** - Clean text extraction
+- **Multiple files** - Batch processing support
+
+### Features
+
+- **Zero-install processing**: Uses `uvx` for isolated execution
+- **Multiple output options**: Clipboard or TextEdit display
+- **System notifications**: Visual feedback on completion
+- **Wide format support**: 20+ file types supported
+- **Batch processing**: Handle multiple files at once
+- **Keyboard shortcuts**: Assignable hotkeys for power users
+
+For complete setup instructions with copy-paste scripts, see [macOS Services Documentation](docs/macos.md).
 
 ## Using with Langchain
 
