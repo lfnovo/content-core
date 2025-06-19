@@ -1,6 +1,6 @@
 [project]
 name = "content-core"
-version = "1.0.4"
+version = "1.1.0"
 description = "Extract what matters from any media source"
 readme = "README.md"
 homepage = "https://github.com/lfnovo/content-core"
@@ -37,10 +37,14 @@ dependencies = [
     "pytubefix>=9.1.1",
 ]
 
+[project.optional-dependencies]
+mcp = ["fastmcp>=0.5.0"]
+
 [project.scripts]
 ccore = "content_core:ccore"
 cclean = "content_core:cclean"
 csum = "content_core:csum"
+content-core-mcp = "content_core.mcp.server:main"
 
 [tool.hatch.metadata]
 allow-direct-references = true
@@ -51,6 +55,8 @@ build-backend = "hatchling.build"
 
 [tool.setuptools]
 package-dir = {"content_core" = "src/content_core"}
+
+[tool.uv.sources]
 
 [dependency-groups]
 dev = [

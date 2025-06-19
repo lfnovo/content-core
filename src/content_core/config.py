@@ -1,6 +1,5 @@
 import os
 import pkgutil
-import os  # needed for load_config env/path checks
 import yaml
 from dotenv import load_dotenv
 
