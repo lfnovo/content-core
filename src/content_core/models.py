@@ -1,5 +1,4 @@
 from esperanto import AIFactory
-from esperanto.providers.stt import SpeechToTextModel
 from .config import CONFIG
 
 class ModelFactory:

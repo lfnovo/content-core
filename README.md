@@ -22,6 +22,7 @@ The primary goal of Content Core is to simplify the process of ingesting content
     * For files: Tries Docling extraction first (for robust document parsing), then falls back to simple extraction if needed.
     * You can override this by specifying an engine, but `'auto'` is recommended for most users.
 *   **Content Cleaning (Optional):** Likely integrates with LLMs (via `prompter.py` and Jinja templates) to refine and clean the extracted content.
+*   **MCP Server:** Includes a Model Context Protocol (MCP) server for seamless integration with Claude Desktop and other MCP-compatible applications.
 *   **Asynchronous:** Built with `asyncio` for efficient I/O operations.
 
 ## Getting Started
@@ -31,8 +32,11 @@ The primary goal of Content Core is to simplify the process of ingesting content
 Install Content Core using `pip`:
 
 ```bash
-# Install the package (without Docling)
+# Install the package
 pip install content-core
+
+# Install with MCP server support
+pip install content-core[mcp]
 ```
 
 Alternatively, if you’re developing locally:
@@ -158,6 +162,38 @@ summary = await cc.summarize_content("long article text", context="explain to a 
 ## Documentation
 
 For more information on how to use the Content Core library, including details on AI model configuration and customization, refer to our [Usage Documentation](docs/usage.md).
+
+## MCP Server Integration
+
+Content Core includes a Model Context Protocol (MCP) server that enables seamless integration with Claude Desktop and other MCP-compatible applications. The MCP server exposes Content Core's powerful extraction capabilities through a standardized protocol.
+
+### Quick Setup with Claude Desktop
+
+```bash
+# Install with MCP support
+pip install content-core[mcp]
+
+# Or use directly with uvx (no installation required)
+uvx --from "content-core[mcp]" content-core-mcp
+```
+
+Add to your `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "content-core": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "content-core[mcp]",
+        "content-core-mcp"
+      ]
+    }
+  }
+}
+```
+
+For detailed setup instructions, configuration options, and usage examples, see our [MCP Documentation](docs/mcp.md).
 
 ## Using with Langchain
 

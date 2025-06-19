@@ -1,4 +1,4 @@
-.PHONY: tag test build-docs ruff
+.PHONY: tag test build-docs ruff mcp-server
 
 tag:
 	@version=$$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/'); \
@@ -14,3 +14,6 @@ build-docs:
 
 ruff:
 	ruff check . --fix
+
+mcp-server:
+	uv run content-core-mcp
