@@ -1,10 +1,10 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
-  "name": "content-core",
+  "name": "raycast-content-core",
   "title": "Content Core",
   "description": "Extract content from URLs, documents, videos, and audio files using Content Core's intelligent auto-engine",
-  "icon": "📄",
-  "author": "lfnovo",
+  "icon": "command-icon.png",
+  "author": "luis_novo",
   "license": "MIT",
   "keywords": [
     "content",
@@ -50,54 +50,54 @@
   ],
   "commands": [
     {
-      "name": "extract-url",
-      "title": "Extract Content from URL",
-      "description": "Extract clean text content from any web page or URL",
+      "name": "extract-content",
+      "title": "Extract Content",
+      "description": "Extract content from URLs, files, documents, videos, and audio",
       "mode": "view",
       "keywords": [
-        "url",
-        "web",
         "extract",
         "content",
-        "article"
-      ]
-    },
-    {
-      "name": "extract-file",
-      "title": "Extract Content from File",
-      "description": "Extract text from PDFs, documents, videos, audio, images and more",
-      "mode": "view",
-      "keywords": [
+        "url",
         "file",
         "pdf",
         "document",
         "video",
-        "audio",
-        "extract"
+        "audio"
       ]
     },
     {
-      "name": "summarize-url",
-      "title": "Summarize URL Content",
-      "description": "Get an AI-powered summary of any web page content",
+      "name": "summarize-content",
+      "title": "Summarize Content",
+      "description": "Generate AI-powered summaries from URLs, files, and documents",
       "mode": "view",
       "keywords": [
         "summarize",
+        "summary",
+        "ai",
         "url",
-        "summary",
-        "ai"
+        "file",
+        "document"
       ]
     },
     {
-      "name": "summarize-file",
-      "title": "Summarize File Content",
-      "description": "Generate intelligent summaries of documents, videos, and more",
-      "mode": "view",
+      "name": "quick-extract",
+      "title": "Quick Extract",
+      "description": "Extract content from URL or file path directly to clipboard",
+      "mode": "no-view",
+      "arguments": [
+        {
+          "name": "source",
+          "placeholder": "URL or file path to extract",
+          "type": "text",
+          "required": true
+        }
+      ],
       "keywords": [
-        "summarize",
-        "file",
-        "summary",
-        "ai"
+        "quick",
+        "extract",
+        "clipboard",
+        "url",
+        "file"
       ]
     }
   ],

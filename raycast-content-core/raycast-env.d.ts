@@ -20,24 +20,23 @@ type ExtensionPreferences = {
 declare type Preferences = ExtensionPreferences
 
 declare namespace Preferences {
-  /** Preferences accessible in the `extract-url` command */
-  export type ExtractUrl = ExtensionPreferences & {}
-  /** Preferences accessible in the `extract-file` command */
-  export type ExtractFile = ExtensionPreferences & {}
-  /** Preferences accessible in the `summarize-url` command */
-  export type SummarizeUrl = ExtensionPreferences & {}
-  /** Preferences accessible in the `summarize-file` command */
-  export type SummarizeFile = ExtensionPreferences & {}
+  /** Preferences accessible in the `extract-content` command */
+  export type ExtractContent = ExtensionPreferences & {}
+  /** Preferences accessible in the `summarize-content` command */
+  export type SummarizeContent = ExtensionPreferences & {}
+  /** Preferences accessible in the `quick-extract` command */
+  export type QuickExtract = ExtensionPreferences & {}
 }
 
 declare namespace Arguments {
-  /** Arguments passed to the `extract-url` command */
-  export type ExtractUrl = {}
-  /** Arguments passed to the `extract-file` command */
-  export type ExtractFile = {}
-  /** Arguments passed to the `summarize-url` command */
-  export type SummarizeUrl = {}
-  /** Arguments passed to the `summarize-file` command */
-  export type SummarizeFile = {}
+  /** Arguments passed to the `extract-content` command */
+  export type ExtractContent = {}
+  /** Arguments passed to the `summarize-content` command */
+  export type SummarizeContent = {}
+  /** Arguments passed to the `quick-extract` command */
+  export type QuickExtract = {
+  /** URL or file path to extract */
+  "source": string
+}
 }
 

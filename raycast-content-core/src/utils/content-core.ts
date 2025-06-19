@@ -9,19 +9,25 @@ import { ContentResult, ProcessingOptions, ApiPreferences } from "./types";
 function getUvxPath(): string | null {
   const paths = [
     "/opt/homebrew/bin/uvx",
-    "/usr/local/bin/uvx", 
+    "/usr/local/bin/uvx",
     "/Users/" + process.env.USER + "/.cargo/bin/uvx",
-    "/Users/" + process.env.USER + "/.local/bin/uvx"
+    "/Users/" + process.env.USER + "/.local/bin/uvx",
   ];
-  
+
   // First try with full PATH
   try {
-    const result = execSync("which uvx", { 
+    const result = execSync("which uvx", {
       encoding: "utf8",
       env: {
         ...process.env,
-        PATH: "/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin:/Users/" + process.env.USER + "/.cargo/bin:/Users/" + process.env.USER + "/.local/bin:" + (process.env.PATH || "")
-      }
+        PATH:
+          "/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin:/Users/" +
+          process.env.USER +
+          "/.cargo/bin:/Users/" +
+          process.env.USER +
+          "/.local/bin:" +
+          (process.env.PATH || ""),
+      },
     });
     return result.trim();
   } catch {
@@ -52,7 +58,13 @@ function setupEnvironment(): Record<string, string> {
   const preferences = getPreferenceValues<ApiPreferences>();
   const env: Record<string, string> = {
     ...process.env,
-    PATH: "/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin:/Users/" + process.env.USER + "/.cargo/bin:/Users/" + process.env.USER + "/.local/bin:" + (process.env.PATH || ""),
+    PATH:
+      "/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin:/Users/" +
+      process.env.USER +
+      "/.cargo/bin:/Users/" +
+      process.env.USER +
+      "/.local/bin:" +
+      (process.env.PATH || ""),
   };
 
   if (preferences.openaiApiKey) {
@@ -83,7 +95,10 @@ export function isValidUrl(string: string): boolean {
 /**
  * Validate file exists and is accessible
  */
-export function validateFile(filePath: string): { valid: boolean; error?: string } {
+export function validateFile(filePath: string): {
+  valid: boolean;
+  error?: string;
+} {
   if (!filePath.trim()) {
     return { valid: false, error: "File path is required" };
   }
@@ -98,7 +113,9 @@ export function validateFile(filePath: string): { valid: boolean; error?: string
 /**
  * Extract content using Content Core
  */
-export async function extractContent(options: ProcessingOptions): Promise<ContentResult> {
+export async function extractContent(
+  options: ProcessingOptions,
+): Promise<ContentResult> {
   const { source, sourceType, format = "text" } = options;
 
   // Validate input
@@ -124,11 +141,13 @@ export async function extractContent(options: ProcessingOptions): Promise<Conten
   try {
     const env = setupEnvironment();
     const uvxPath = getUvxPath();
-    
+
     if (!uvxPath) {
-      throw new Error("uvx not found. Please install uv first: curl -LsSf https://astral.sh/uv/install.sh | sh");
+      throw new Error(
+        "uvx not found. Please install uv first: curl -LsSf https://astral.sh/uv/install.sh | sh",
+      );
     }
-    
+
     const formatFlag = format !== "text" ? ` --format ${format}` : "";
     const command = `"${uvxPath}" --from "content-core" ccore "${source}"${formatFlag}`;
 
@@ -164,7 +183,8 @@ export async function extractContent(options: ProcessingOptions): Promise<Conten
       },
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error occurred";
 
     await showToast({
       style: Toast.Style.Failure,
@@ -187,7 +207,9 @@ export async function extractContent(options: ProcessingOptions): Promise<Conten
 /**
  * Summarize content using Content Core
  */
-export async function summarizeContent(options: ProcessingOptions): Promise<ContentResult> {
+export async function summarizeContent(
+  options: ProcessingOptions,
+): Promise<ContentResult> {
   const { source, sourceType, context } = options;
 
   // Validate input
@@ -213,11 +235,13 @@ export async function summarizeContent(options: ProcessingOptions): Promise<Cont
   try {
     const env = setupEnvironment();
     const uvxPath = getUvxPath();
-    
+
     if (!uvxPath) {
-      throw new Error("uvx not found. Please install uv first: curl -LsSf https://astral.sh/uv/install.sh | sh");
+      throw new Error(
+        "uvx not found. Please install uv first: curl -LsSf https://astral.sh/uv/install.sh | sh",
+      );
     }
-    
+
     const contextFlag = context ? ` --context "${context}"` : "";
     const command = `"${uvxPath}" --from "content-core" csum "${source}"${contextFlag}`;
 
@@ -253,7 +277,8 @@ export async function summarizeContent(options: ProcessingOptions): Promise<Cont
       },
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error occurred";
 
     await showToast({
       style: Toast.Style.Failure,
@@ -288,7 +313,7 @@ export function getSupportedExtensions(): string[] {
     ".csv",
     ".html",
     ".epub",
-    
+
     // Media
     ".mp4",
     ".avi",
@@ -298,7 +323,7 @@ export function getSupportedExtensions(): string[] {
     ".wav",
     ".m4a",
     ".flac",
-    
+
     // Images
     ".jpg",
     ".jpeg",
@@ -306,7 +331,7 @@ export function getSupportedExtensions(): string[] {
     ".tiff",
     ".bmp",
     ".webp",
-    
+
     // Archives
     ".zip",
     ".tar",
