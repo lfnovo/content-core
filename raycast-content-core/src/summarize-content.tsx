@@ -157,7 +157,6 @@ function SummarizeContentForm() {
     );
   }
 
-
   function getContextIcon(context: string): string {
     switch (context) {
       case "bullet points":

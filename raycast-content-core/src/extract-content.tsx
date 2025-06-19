@@ -102,7 +102,6 @@ function ExtractContentForm() {
     push(<ResultsView result={result} sourceType={sourceType} />);
   }
 
-
   function getSourceTypeIcon(): string {
     switch (detectedType) {
       case "url":
