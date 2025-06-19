@@ -2,29 +2,69 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Content Core** is a versatile Python library designed to extract and process content from various sources, providing a unified interface for handling text, web pages, and local files.
+**Content Core** is a powerful, AI-powered content extraction and processing platform that transforms any source into clean, structured content. Extract text from websites, transcribe videos, process documents, and generate AI summaries—all through a unified interface with multiple integration options.
 
-## Overview
+## 🚀 What You Can Do
 
-> **Note:** As of v0.8, the default extraction engine is `'auto'`. Content Core will automatically select the best extraction method based on your environment and available API keys, with a smart fallback order for both URLs and files. For files/documents, `'auto'` now tries Docling first, then falls back to simple extraction. You can override the engine if needed, but `'auto'` is recommended for most users.
+**Extract content from anywhere:**
+- 📄 **Documents** - PDF, Word, PowerPoint, Excel, Markdown, HTML, EPUB
+- 🎥 **Media** - Videos (MP4, AVI, MOV) with automatic transcription  
+- 🎵 **Audio** - MP3, WAV, M4A with speech-to-text conversion
+- 🌐 **Web** - Any URL with intelligent content extraction
+- 🖼️ **Images** - JPG, PNG, TIFF with OCR text recognition
+- 📦 **Archives** - ZIP, TAR, GZ with content analysis
 
-The primary goal of Content Core is to simplify the process of ingesting content from diverse origins. Whether you have raw text, a URL pointing to an article, or a local file like a video or markdown document, Content Core aims to extract the meaningful content for further use.
+**Process with AI:**
+- ✨ **Clean & format** extracted content automatically
+- 📝 **Generate summaries** with customizable styles (bullet points, executive summary, etc.)
+- 🎯 **Context-aware processing** - explain to a child, technical summary, action items
+- 🔄 **Smart engine selection** - automatically chooses the best extraction method
 
-## Key Features
+## 🛠️ Multiple Ways to Use
 
-*   **Multi-Source Extraction:** Handles content from:
-    *   Direct text strings.
-    *   Web URLs (using robust extraction methods).
-    *   Local files (including automatic transcription for video/audio files and parsing for text-based formats).
-*   **Intelligent Processing:** Applies appropriate extraction techniques based on the source type. See the [Processors Documentation](./docs/processors.md) for detailed information on how different content types are handled.
-*   **Smart Engine Selection:** By default, Content Core uses the `'auto'` engine, which:
-    * For URLs: Uses Firecrawl if `FIRECRAWL_API_KEY` is set, else tries Jina. Jina might fail because of rate limits, which can be fixed by adding `JINA_API_KEY`. If Jina failes, BeautifulSoup is used as a fallback.
-    * For files: Tries Docling extraction first (for robust document parsing), then falls back to simple extraction if needed.
-    * You can override this by specifying an engine, but `'auto'` is recommended for most users.
-*   **Content Cleaning (Optional):** Likely integrates with LLMs (via `prompter.py` and Jinja templates) to refine and clean the extracted content.
-*   **MCP Server:** Includes a Model Context Protocol (MCP) server for seamless integration with Claude Desktop and other MCP-compatible applications.
-*   **macOS Services:** Right-click context menu integration for Finder (extract and summarize files directly).
-*   **Asynchronous:** Built with `asyncio` for efficient I/O operations.
+### 🖥️ Command Line (Zero Install)
+```bash
+# Extract content from any source
+uvx --from "content-core" ccore https://example.com
+uvx --from "content-core" ccore document.pdf
+
+# Generate AI summaries  
+uvx --from "content-core" csum video.mp4 --context "bullet points"
+```
+
+### 🤖 Claude Desktop Integration
+One-click setup with Model Context Protocol (MCP) - extract content directly in Claude conversations.
+
+### 🔍 Raycast Extension  
+Smart auto-detection commands:
+- **Extract Content** - Full interface with format options
+- **Summarize Content** - 9 summary styles available
+- **Quick Extract** - Instant clipboard extraction
+
+### 🖱️ macOS Right-Click Integration
+Right-click any file in Finder → Services → Extract or Summarize content instantly.
+
+### 🐍 Python Library
+```python
+import content_core as cc
+
+# Extract from any source
+result = await cc.extract("https://example.com/article")
+summary = await cc.summarize_content(result, context="explain to a child")
+```
+
+## ⚡ Key Features
+
+*   **🎯 Intelligent Auto-Detection:** Automatically selects the best extraction method based on content type and available services
+*   **🔧 Smart Engine Selection:** 
+    * **URLs:** Firecrawl → Jina → BeautifulSoup fallback chain
+    * **Documents:** Docling → Simple extraction fallback  
+    * **Media:** OpenAI Whisper transcription
+    * **Images:** OCR with multiple engine support
+*   **🌍 Multiple Integrations:** CLI, Python library, MCP server, Raycast extension, macOS Services
+*   **⚡ Zero-Install Options:** Use `uvx` for instant access without installation
+*   **🧠 AI-Powered Processing:** LLM integration for content cleaning and summarization
+*   **🔄 Asynchronous:** Built with `asyncio` for efficient processing
 
 ## Getting Started
 
@@ -250,6 +290,50 @@ Create **4 convenient services** for different workflows:
 - **Keyboard shortcuts**: Assignable hotkeys for power users
 
 For complete setup instructions with copy-paste scripts, see [macOS Services Documentation](docs/macos.md).
+
+## Raycast Extension
+
+Content Core provides a powerful Raycast extension with smart auto-detection that handles both URLs and file paths seamlessly. Extract and summarize content directly from your Raycast interface without switching applications.
+
+### Quick Setup
+
+**From Raycast Store** (coming soon):
+1. Open Raycast and search for "Content Core"
+2. Install the extension by `luis_novo`
+3. Configure API keys in preferences
+
+**Manual Installation**:
+1. Download the extension from the repository
+2. Open Raycast → "Import Extension"
+3. Select the `raycast-content-core` folder
+
+### Commands
+
+**🔍 Extract Content** - Smart URL/file detection with full interface
+- Auto-detects URLs vs file paths in real-time
+- Multiple output formats (Text, JSON, XML)
+- Drag & drop support for files
+- Rich results view with metadata
+
+**📝 Summarize Content** - AI-powered summaries with customizable styles  
+- 9 different summary styles (bullet points, executive summary, etc.)
+- Auto-detects source type with visual feedback
+- One-click snippet creation and quicklinks
+
+**⚡ Quick Extract** - Instant extraction to clipboard
+- Type → Tab → Paste source → Enter
+- No UI, works directly from command bar
+- Perfect for quick workflows
+
+### Features
+
+- **Smart Auto-Detection**: Instantly recognizes URLs vs file paths
+- **Zero Installation**: Uses `uvx` for Content Core execution
+- **Rich Integration**: Keyboard shortcuts, clipboard actions, Raycast snippets
+- **All File Types**: Documents, videos, audio, images, archives
+- **Visual Feedback**: Real-time type detection with icons
+
+For detailed setup, configuration, and usage examples, see [Raycast Extension Documentation](docs/raycast.md).
 
 ## Using with Langchain
 
