@@ -13,7 +13,7 @@ The [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) is an open 
 - **Rich metadata**: Returns detailed information about extraction process and content
 - **Structured JSON responses**: Consistent format with success/error handling
 - **Wide format support**: Handles web pages, PDFs, Word docs, videos, audio files, and more
-- **Zero-install option**: Run with `uvx` without local installation
+- **Zero-install option**: Run MCP server and CLI tools with `uvx` without local installation
 
 ## Installation
 
@@ -30,8 +30,13 @@ content-core-mcp
 ### Option 2: Use with uvx (Recommended for production)
 
 ```bash
-# Run directly without installation
+# Run MCP server directly without installation
 uvx --from "content-core[mcp]" content-core-mcp
+
+# Also works for CLI tools
+uvx --from "content-core" ccore https://example.com
+uvx --from "content-core" cclean "messy text"
+uvx --from "content-core" csum "long content" --context "bullet points"
 ```
 
 ## Claude Desktop Setup

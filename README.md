@@ -55,6 +55,18 @@ uv sync
 Content Core provides three CLI commands for extracting, cleaning, and summarizing content: 
 ccore, cclean, and csum. These commands support input from text, URLs, files, or piped data (e.g., via cat file | command).
 
+**Zero-install usage with uvx:**
+```bash
+# Extract content
+uvx --from "content-core" ccore https://example.com
+
+# Clean content  
+uvx --from "content-core" cclean "messy content"
+
+# Summarize content
+uvx --from "content-core" csum "long text" --context "bullet points"
+```
+
 #### ccore - Extract Content
 
 Extracts content from text, URLs, or files, with optional formatting.
