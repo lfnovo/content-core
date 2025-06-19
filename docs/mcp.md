@@ -81,7 +81,14 @@ Add Content Core to your Claude Desktop configuration file:
 
 ### With Environment Variables
 
-If you need to pass API keys or other configuration:
+For optimal functionality, you'll need to configure API keys. Here's what each key does:
+
+**Required:**
+- `OPENAI_API_KEY` - **Required for audio/video transcription and content cleaning**
+
+**Optional (but recommended):**
+- `FIRECRAWL_API_KEY` - **Improved web crawling and content extraction from URLs**
+- `JINA_API_KEY` - **Alternative web crawling service (fallback when Firecrawl unavailable)**
 
 ```json
 {
@@ -94,14 +101,20 @@ If you need to pass API keys or other configuration:
         "content-core-mcp"
       ],
       "env": {
-        "OPENAI_API_KEY": "your-openai-key",
-        "FIRECRAWL_API_KEY": "your-firecrawl-key",
-        "JINA_API_KEY": "your-jina-key"
+        "OPENAI_API_KEY": "sk-your-openai-key-here",
+        "FIRECRAWL_API_KEY": "fc-your-firecrawl-key-here",
+        "JINA_API_KEY": "jina-your-jina-key-here"
       }
     }
   }
 }
 ```
+
+**Note:** Without `OPENAI_API_KEY`, you won't be able to:
+- Transcribe audio or video files
+- Use AI-powered content cleaning and summarization features
+
+Without the web crawling API keys, Content Core will fall back to basic BeautifulSoup extraction for URLs, which may be less reliable for complex websites.
 
 ## Usage
 
@@ -241,17 +254,38 @@ Content Core's MCP server uses the 'auto' engine by default, which automatically
 
 ### API Keys
 
-To get the best extraction results, configure these optional API keys:
+To get the best extraction results, configure these API keys:
 
+**Required for Audio/Video Processing:**
 ```bash
-# For enhanced web extraction
-export FIRECRAWL_API_KEY="your-firecrawl-key"
-export JINA_API_KEY="your-jina-key"
+# Essential for transcribing audio and video files
+export OPENAI_API_KEY="sk-your-openai-key-here"
+```
 
-# For AI-powered content cleaning and summarization
-export OPENAI_API_KEY="your-openai-key"
+**Optional but Recommended for Web Extraction:**
+```bash
+# For enhanced web crawling (recommended)
+export FIRECRAWL_API_KEY="fc-your-firecrawl-key-here"
+
+# Alternative web crawling service (fallback)
+export JINA_API_KEY="jina-your-jina-key-here"
+```
+
+**Additional AI Models (Optional):**
+```bash
+# For alternative AI models
 export GOOGLE_API_KEY="your-google-key"
 ```
+
+**What happens without these keys:**
+- **No OPENAI_API_KEY**: Audio/video transcription will fail
+- **No web crawling keys**: URLs will use basic BeautifulSoup extraction (less reliable)
+- **No AI model keys**: Content cleaning/summarization features won't work
+
+**Getting API Keys:**
+- **OpenAI**: Visit [OpenAI API Keys](https://platform.openai.com/api-keys)
+- **Firecrawl**: Visit [Firecrawl](https://www.firecrawl.dev/) for enhanced web scraping
+- **Jina**: Visit [Jina AI](https://jina.ai/) for alternative web extraction
 
 ### Custom Prompts
 
@@ -283,6 +317,16 @@ uvx --from "content-core[mcp]" content-core-mcp
 # Reinstall with MCP dependencies
 pip install --force-reinstall content-core[mcp]
 ```
+
+**Audio/video extraction failing:**
+- Make sure `OPENAI_API_KEY` is set in your environment variables
+- Check that your OpenAI API key has sufficient credits
+- Audio/video files require OpenAI's Whisper API for transcription
+
+**Poor web extraction quality:**
+- Add `FIRECRAWL_API_KEY` for better web scraping results
+- Add `JINA_API_KEY` as a fallback option
+- Without these keys, basic BeautifulSoup extraction is used (limited functionality)
 
 ### Debug Mode
 
