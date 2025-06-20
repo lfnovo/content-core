@@ -25,3 +25,4 @@ WIP/
 CLAUDE.md
 
 node_modules/
+**/notebooks/private
