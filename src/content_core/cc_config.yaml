@@ -34,6 +34,10 @@ extraction:
   url_engine: auto  # auto | simple | firecrawl | jina | docling - for URLs
   docling:
     output_format: markdown  # markdown | html | json
+  pymupdf:
+    enable_formula_ocr: false    # Enable OCR for formula-heavy pages (requires Tesseract)
+    formula_threshold: 3         # Minimum formulas per page to trigger OCR
+    ocr_fallback: true          # Gracefully fallback to standard extraction if OCR fails
 
 youtube_transcripts:
   preferred_languages: ["en", "es", "pt"]

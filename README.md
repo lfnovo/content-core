@@ -58,9 +58,10 @@ summary = await cc.summarize_content(result, context="explain to a child")
 *   **🎯 Intelligent Auto-Detection:** Automatically selects the best extraction method based on content type and available services
 *   **🔧 Smart Engine Selection:** 
     * **URLs:** Firecrawl → Jina → BeautifulSoup fallback chain
-    * **Documents:** Docling → Simple extraction fallback  
+    * **Documents:** Docling → Enhanced PyMuPDF → Simple extraction fallback  
     * **Media:** OpenAI Whisper transcription
     * **Images:** OCR with multiple engine support
+*   **📊 Enhanced PDF Processing:** Advanced PyMuPDF engine with quality flags, table detection, and optional OCR for mathematical formulas
 *   **🌍 Multiple Integrations:** CLI, Python library, MCP server, Raycast extension, macOS Services
 *   **⚡ Zero-Install Options:** Use `uvx` for instant access without installation
 *   **🧠 AI-Powered Processing:** LLM integration for content cleaning and summarization
@@ -247,6 +248,49 @@ Add to your `claude_desktop_config.json`:
 ```
 
 For detailed setup instructions, configuration options, and usage examples, see our [MCP Documentation](docs/mcp.md).
+
+## Enhanced PDF Processing
+
+Content Core features an optimized PyMuPDF extraction engine with significant improvements for scientific documents and complex PDFs.
+
+### Key Improvements
+
+- **🔬 Mathematical Formula Extraction**: Enhanced quality flags eliminate `<!-- formula-not-decoded -->` placeholders
+- **📊 Automatic Table Detection**: Tables converted to markdown format for LLM consumption
+- **🔧 Quality Text Rendering**: Better ligature, whitespace, and image-text integration
+- **⚡ Optional OCR Enhancement**: Selective OCR for formula-heavy pages (requires Tesseract)
+
+### Configuration for Scientific Documents
+
+For documents with heavy mathematical content, enable OCR enhancement:
+
+```yaml
+# In cc_config.yaml
+extraction:
+  pymupdf:
+    enable_formula_ocr: true      # Enable OCR for formula-heavy pages
+    formula_threshold: 3          # Min formulas per page to trigger OCR
+    ocr_fallback: true           # Graceful fallback if OCR fails
+```
+
+```python
+# Runtime configuration
+from content_core.config import set_pymupdf_ocr_enabled
+set_pymupdf_ocr_enabled(True)
+```
+
+### Requirements for OCR Enhancement
+
+```bash
+# Install Tesseract OCR (optional, for formula enhancement)
+# macOS
+brew install tesseract
+
+# Ubuntu/Debian
+sudo apt-get install tesseract-ocr
+```
+
+**Note**: OCR is optional - you get improved PDF extraction automatically without any additional setup.
 
 ## macOS Services Integration
 
