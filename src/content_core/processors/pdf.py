@@ -44,9 +44,13 @@ def extract_page_with_ocr(page, page_num):
         else:
             logger.warning(f"OCR TextPage creation failed for page {page_num}")
             return None
-    except Exception as e:
-        # Common errors: Tesseract not installed, OCR failure, etc.
+    except (ImportError, RuntimeError, OSError) as e:
+        # Common errors: Tesseract not installed, OCR failure, file access issues
         logger.debug(f"OCR extraction failed for page {page_num}: {e}")
+        return None
+    except Exception as e:
+        # Unexpected errors - log as warning for debugging
+        logger.warning(f"Unexpected error during OCR extraction for page {page_num}: {e}")
         return None
 
 
@@ -81,6 +85,10 @@ def convert_table_to_markdown(table):
             markdown_lines.append(row_text)
     
     return "\n".join(markdown_lines) + "\n"
+
+# Configuration constants
+DEFAULT_FORMULA_THRESHOLD = 3
+DEFAULT_OCR_FALLBACK = True
 
 SUPPORTED_FITZ_TYPES = [
     "application/pdf",
@@ -199,8 +207,8 @@ async def _extract_text_from_pdf(pdf_path):
             # Get OCR configuration
             ocr_config = CONFIG.get('extraction', {}).get('pymupdf', {})
             enable_ocr = ocr_config.get('enable_formula_ocr', False)
-            formula_threshold = ocr_config.get('formula_threshold', 3)
-            ocr_fallback = ocr_config.get('ocr_fallback', True)
+            formula_threshold = ocr_config.get('formula_threshold', DEFAULT_FORMULA_THRESHOLD)
+            ocr_fallback = ocr_config.get('ocr_fallback', DEFAULT_OCR_FALLBACK)
             
             for page_num, page in enumerate(doc):
                 # Extract regular text with quality flags
@@ -238,7 +246,10 @@ async def _extract_text_from_pdf(pdf_path):
                         for table_num, table in enumerate(tables):
                             # Extract table data
                             table_data = table.extract()
-                            if table_data:
+                            # Validate table has actual content (not just empty rows/cells)
+                            if table_data and len(table_data) > 0 and any(
+                                any(str(cell).strip() for cell in row if cell) for row in table_data if row
+                            ):
                                 # Add a marker before the table
                                 page_text += f"\n\n[Table {table_num + 1} from page {page_num + 1}]\n"
                                 # Convert to markdown

@@ -84,6 +84,18 @@ class TestTableConversion:
         assert convert_table_to_markdown([]) == ""
         assert convert_table_to_markdown(None) == ""
         assert convert_table_to_markdown([[]]) == ""
+    
+    def test_convert_table_with_only_empty_cells(self):
+        """Test converting table with only empty or whitespace cells."""
+        empty_table = [
+            ["", " ", "   "],
+            [None, "", ""],
+            ["  ", None, " "],
+        ]
+        # Should still create a table structure even with empty cells
+        result = convert_table_to_markdown(empty_table)
+        assert "|" in result  # Should have table structure
+        assert "---" in result  # Should have separator
 
 
 class TestOCRExtraction:
