@@ -98,11 +98,18 @@ extraction:
   url_engine: auto          # auto (default), simple, firecrawl, or jina
   docling:
     output_format: html     # markdown | html | json
+  pymupdf:
+    enable_formula_ocr: false    # Enable OCR for formula-heavy pages
+    formula_threshold: 3         # Min formulas per page to trigger OCR
+    ocr_fallback: true          # Graceful fallback if OCR fails
 ```
 
 ##### Programmatically in Python
 ```python
-from content_core.config import set_document_engine, set_url_engine, set_docling_output_format
+from content_core.config import (
+    set_document_engine, set_url_engine, set_docling_output_format,
+    set_pymupdf_ocr_enabled, set_pymupdf_formula_threshold
+)
 
 # toggle document engine to Docling
 set_document_engine("docling")
@@ -112,6 +119,10 @@ set_url_engine("firecrawl")
 
 # pick format
 set_docling_output_format("json")
+
+# Configure PyMuPDF OCR for scientific documents
+set_pymupdf_ocr_enabled(True)
+set_pymupdf_formula_threshold(2)  # Lower threshold for math-heavy docs
 ```
 
 #### Per-Execution Overrides
@@ -150,6 +161,78 @@ input = ProcessSourceInput(
 result = await extract_content(input)
 print(result.content)
 ```
+
+## Enhanced PyMuPDF Processing
+
+Content Core includes significant enhancements to PyMuPDF (the `simple` engine) for better PDF extraction, particularly for scientific documents and complex PDFs.
+
+### Key Improvements
+
+1. **Enhanced Quality Flags**: Automatic application of PyMuPDF quality flags for better text extraction:
+   - `TEXT_PRESERVE_LIGATURES`: Better character rendering (eliminates encoding issues)
+   - `TEXT_PRESERVE_WHITESPACE`: Improved spacing and layout preservation
+   - `TEXT_PRESERVE_IMAGES`: Better integration of image-embedded text
+
+2. **Mathematical Formula Enhancement**: Eliminates `<!-- formula-not-decoded -->` placeholders by properly extracting mathematical symbols and equations.
+
+3. **Automatic Table Detection**: Tables are automatically detected and converted to markdown format for better LLM consumption.
+
+4. **Selective OCR Enhancement**: Optional OCR support for formula-heavy pages when standard extraction is insufficient.
+
+### Configuring OCR Enhancement
+
+For scientific documents with heavy mathematical content, you can enable selective OCR:
+
+#### Requirements
+```bash
+# Install Tesseract OCR (required for OCR functionality)
+# macOS
+brew install tesseract
+
+# Ubuntu/Debian
+sudo apt-get install tesseract-ocr
+```
+
+#### Configuration Options
+
+**YAML Configuration:**
+```yaml
+extraction:
+  pymupdf:
+    enable_formula_ocr: true      # Enable OCR for formula-heavy pages
+    formula_threshold: 3          # Minimum formulas per page to trigger OCR
+    ocr_fallback: true           # Use standard extraction if OCR fails
+```
+
+**Python Configuration:**
+```python
+from content_core.config import (
+    set_pymupdf_ocr_enabled, 
+    set_pymupdf_formula_threshold,
+    set_pymupdf_ocr_fallback
+)
+
+# Enable OCR for scientific documents
+set_pymupdf_ocr_enabled(True)
+set_pymupdf_formula_threshold(2)    # Lower threshold for math-heavy docs
+set_pymupdf_ocr_fallback(True)      # Safe fallback if OCR fails
+```
+
+### Performance Considerations
+
+- **Standard Processing**: No performance impact from quality improvements
+- **OCR Processing**: ~1000x slower than standard extraction, but only triggers on formula-heavy pages
+- **Smart Triggering**: OCR only activates when formula placeholder count exceeds threshold
+- **Graceful Fallback**: If Tesseract is unavailable, falls back to enhanced standard extraction
+
+### When to Enable OCR
+
+Enable OCR enhancement for:
+- Scientific papers with complex mathematical equations
+- Technical documents with formulas that standard extraction can't handle
+- Research papers where formula accuracy is critical
+
+**Note**: The quality improvements (better character rendering, table detection) work automatically without requiring OCR or additional setup.
 
 ## Support
 

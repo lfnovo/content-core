@@ -47,3 +47,21 @@ def set_docling_output_format(fmt: str):
     extraction = CONFIG.setdefault("extraction", {})
     docling_cfg = extraction.setdefault("docling", {})
     docling_cfg["output_format"] = fmt
+
+def set_pymupdf_ocr_enabled(enabled: bool):
+    """Enable or disable PyMuPDF OCR for formula-heavy pages."""
+    extraction = CONFIG.setdefault("extraction", {})
+    pymupdf_cfg = extraction.setdefault("pymupdf", {})
+    pymupdf_cfg["enable_formula_ocr"] = enabled
+
+def set_pymupdf_formula_threshold(threshold: int):
+    """Set the minimum number of formulas per page to trigger OCR."""
+    extraction = CONFIG.setdefault("extraction", {})
+    pymupdf_cfg = extraction.setdefault("pymupdf", {})
+    pymupdf_cfg["formula_threshold"] = threshold
+
+def set_pymupdf_ocr_fallback(enabled: bool):
+    """Enable or disable fallback to standard extraction when OCR fails."""
+    extraction = CONFIG.setdefault("extraction", {})
+    pymupdf_cfg = extraction.setdefault("pymupdf", {})
+    pymupdf_cfg["ocr_fallback"] = enabled

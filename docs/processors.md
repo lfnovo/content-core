@@ -1,6 +1,6 @@
 # Content Core Processors
 
-**Note:** As of vNEXT, the default extraction engine is now `'auto'`. This means Content Core will automatically select the best extraction method based on your environment and available API keys, with a smart fallback order for both URLs and files. For files/documents, `'auto'` now tries Docling first, then falls back to simple extraction. See details below.
+**Note:** As of vNEXT, the default extraction engine is now `'auto'`. This means Content Core will automatically select the best extraction method based on your environment and available API keys, with a smart fallback order for both URLs and files. For files/documents, `'auto'` now tries Docling first, then falls back to enhanced PyMuPDF extraction (with quality flags and table detection), then to basic simple extraction. See details below.
 
 This document provides an overview of the content processors available in Content Core. These processors are responsible for extracting and handling content from various sources and file types.
 
@@ -42,14 +42,35 @@ Content Core uses a modular approach to process content from different sources. 
 - **Returned Data**: Transcribed text from the media content.
 - **Location**: `src/content_core/processors/transcription.py`
 
-### 5. **Docling Processor**
+### 5. **Enhanced PyMuPDF Processor (Simple Engine)**
+- **Purpose**: Optimized PDF extraction using PyMuPDF with enhanced quality flags, table detection, and optional OCR
+- **Supported Input**: PDF files, EPUB files
+- **Returned Data**: High-quality text extraction with proper mathematical symbols, converted tables in markdown format
+- **Location**: `src/content_core/processors/pdf.py`
+- **Key Enhancements**:
+  - **Quality Flags**: Automatically applies `TEXT_PRESERVE_LIGATURES`, `TEXT_PRESERVE_WHITESPACE`, and `TEXT_PRESERVE_IMAGES` for better text rendering
+  - **Mathematical Formula Support**: Eliminates `<!-- formula-not-decoded -->` placeholders by properly extracting mathematical symbols (∂, ∇, ρ, etc.)
+  - **Table Detection**: Automatic detection and conversion of tables to markdown format for LLM consumption
+  - **Selective OCR**: Optional OCR enhancement for formula-heavy pages (requires Tesseract installation)
+- **Configuration**: Configure OCR enhancement in `cc_config.yaml`:
+  ```yaml
+  extraction:
+    pymupdf:
+      enable_formula_ocr: false    # Enable OCR for formula-heavy pages
+      formula_threshold: 3         # Min formulas per page to trigger OCR
+      ocr_fallback: true          # Graceful fallback if OCR fails
+  ```
+- **Performance**: Standard extraction maintains baseline performance; OCR only triggers selectively on formula-heavy pages
+
+### 6. **Docling Processor**
 - **Purpose**: Use Docling library for rich document parsing (PDF, DOCX, XLSX, PPTX, Markdown, AsciiDoc, HTML, CSV, images).
 - **Supported Input**: PDF, DOCX, XLSX, PPTX, Markdown, AsciiDoc, HTML, CSV, Images (PNG, JPEG, TIFF, BMP).
 - **Returned Data**: Content converted to configured format (markdown, html, json).
 - **Location**: `src/content_core/processors/docling.py`
 - **Default Document Engine (`auto`) Logic for Files/Documents**:
     - Tries the `'docling'` extraction method first (robust document parsing for supported types).
-    - If `'docling'` fails or is not supported, automatically falls back to simple extraction (fast, lightweight for supported types).
+    - If `'docling'` fails or is not supported, automatically falls back to enhanced PyMuPDF extraction (fast, with quality flags and table detection).
+    - Final fallback to basic simple extraction if needed.
     - You can explicitly specify `'docling'` or `'simple'` as the document engine, but `'auto'` is now the default and recommended for most users.
 - **Configuration**: Activate the Docling engine in `cc_config.yaml` or custom config:
   ```yaml

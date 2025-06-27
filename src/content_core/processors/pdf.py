@@ -5,7 +5,50 @@ import unicodedata
 import fitz  # type: ignore
 
 from content_core.common import ProcessSourceState
+from content_core.config import CONFIG
 from content_core.logging import logger
+
+def count_formula_placeholders(text):
+    """
+    Count the number of formula placeholders in extracted text.
+    
+    Args:
+        text (str): Extracted text content
+    Returns:
+        int: Number of formula placeholders found
+    """
+    if not text:
+        return 0
+    return text.count('<!-- formula-not-decoded -->')
+
+
+def extract_page_with_ocr(page, page_num):
+    """
+    Extract text from a page using OCR (Tesseract).
+    
+    Args:
+        page: PyMuPDF page object
+        page_num (int): Page number for logging
+    Returns:
+        str: OCR-extracted text or None if OCR fails
+    """
+    try:
+        logger.debug(f"Attempting OCR extraction for page {page_num}")
+        # Create TextPage using OCR
+        textpage = page.get_textpage_ocr()
+        if textpage:
+            # Extract text from the OCR TextPage
+            ocr_text = textpage.extractText()
+            logger.debug(f"OCR successful for page {page_num}, extracted {len(ocr_text)} characters")
+            return ocr_text
+        else:
+            logger.warning(f"OCR TextPage creation failed for page {page_num}")
+            return None
+    except Exception as e:
+        # Common errors: Tesseract not installed, OCR failure, etc.
+        logger.debug(f"OCR extraction failed for page {page_num}: {e}")
+        return None
+
 
 def convert_table_to_markdown(table):
     """
@@ -153,11 +196,39 @@ async def _extract_text_from_pdf(pdf_path):
                 fitz.TEXT_PRESERVE_IMAGES       # Better image-text integration
             )
             
+            # Get OCR configuration
+            ocr_config = CONFIG.get('extraction', {}).get('pymupdf', {})
+            enable_ocr = ocr_config.get('enable_formula_ocr', False)
+            formula_threshold = ocr_config.get('formula_threshold', 3)
+            ocr_fallback = ocr_config.get('ocr_fallback', True)
+            
             for page_num, page in enumerate(doc):
                 # Extract regular text with quality flags
-                page_text = page.get_text(flags=extraction_flags)
+                standard_text = page.get_text(flags=extraction_flags)
                 
-                # Try to find and extract tables
+                # Check if we should try OCR for this page
+                formula_count = count_formula_placeholders(standard_text)
+                use_ocr = (enable_ocr and 
+                          formula_count >= formula_threshold and 
+                          formula_count > 0)
+                
+                if use_ocr:
+                    logger.debug(f"Page {page_num + 1} has {formula_count} formulas, attempting OCR")
+                    ocr_text = extract_page_with_ocr(page, page_num + 1)
+                    
+                    if ocr_text and ocr_fallback:
+                        # Use OCR text but preserve table extraction from standard text
+                        page_text = ocr_text
+                        logger.debug(f"Using OCR text for page {page_num + 1}")
+                    else:
+                        # OCR failed, use standard text
+                        page_text = standard_text
+                        if not ocr_text:
+                            logger.debug(f"OCR failed for page {page_num + 1}, using standard extraction")
+                else:
+                    page_text = standard_text
+                
+                # Try to find and extract tables (regardless of OCR)
                 try:
                     tables = page.find_tables()
                     if tables:
