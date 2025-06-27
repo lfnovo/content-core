@@ -1,7 +1,7 @@
 import os
 import pytest
 from types import SimpleNamespace
-from content_core.processors.docling import extract_with_docling
+from content_core.processors.docling import extract_with_docling, DOCLING_AVAILABLE
 from content_core.common.state import ProcessSourceState
 
 class DummyDoc:
@@ -31,6 +31,7 @@ def patch_converter(monkeypatch):
     )
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(not DOCLING_AVAILABLE, reason="Docling not installed")
 async def test_extract_file(tmp_path):
     # File input with explicit markdown format
     fp = tmp_path / "test.txt"
@@ -40,6 +41,7 @@ async def test_extract_file(tmp_path):
     assert new_state.content == "md:file:" + str(fp)
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(not DOCLING_AVAILABLE, reason="Docling not installed")
 async def test_extract_block_html():
     # Block input with HTML format
     state = ProcessSourceState(content="block content", metadata={"docling_format": "html"})
@@ -47,6 +49,7 @@ async def test_extract_block_html():
     assert new_state.content == "<p>blk:block content</p>"
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(not DOCLING_AVAILABLE, reason="Docling not installed")
 async def test_default_to_markdown():
     # Default format should fallback to markdown
     state = ProcessSourceState(content="plain text")

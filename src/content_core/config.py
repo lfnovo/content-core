@@ -6,6 +6,10 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+# Allowed engine values for validation
+ALLOWED_DOCUMENT_ENGINES = {"auto", "simple", "docling"}
+ALLOWED_URL_ENGINES = {"auto", "simple", "firecrawl", "jina"}
+
 
 def load_config():
     config_path = os.environ.get("CCORE_CONFIG_PATH") or os.environ.get("CCORE_MODEL_CONFIG_PATH")
@@ -32,6 +36,39 @@ def load_config():
 
 
 CONFIG = load_config()
+
+# Environment variable engine selectors for MCP/Raycast users
+def get_document_engine():
+    """Get document engine with environment variable override and validation."""
+    env_engine = os.environ.get("CCORE_DOCUMENT_ENGINE")
+    if env_engine:
+        if env_engine not in ALLOWED_DOCUMENT_ENGINES:
+            # Import logger here to avoid circular imports
+            from content_core.logging import logger
+            logger.warning(
+                f"Invalid CCORE_DOCUMENT_ENGINE: '{env_engine}'. "
+                f"Allowed values: {', '.join(sorted(ALLOWED_DOCUMENT_ENGINES))}. "
+                f"Using default from config."
+            )
+            return CONFIG.get("extraction", {}).get("document_engine", "auto")
+        return env_engine
+    return CONFIG.get("extraction", {}).get("document_engine", "auto")
+
+def get_url_engine():
+    """Get URL engine with environment variable override and validation."""
+    env_engine = os.environ.get("CCORE_URL_ENGINE")
+    if env_engine:
+        if env_engine not in ALLOWED_URL_ENGINES:
+            # Import logger here to avoid circular imports
+            from content_core.logging import logger
+            logger.warning(
+                f"Invalid CCORE_URL_ENGINE: '{env_engine}'. "
+                f"Allowed values: {', '.join(sorted(ALLOWED_URL_ENGINES))}. "
+                f"Using default from config."
+            )
+            return CONFIG.get("extraction", {}).get("url_engine", "auto")
+        return env_engine
+    return CONFIG.get("extraction", {}).get("url_engine", "auto")
 
 # Programmatic config overrides: use in notebooks or scripts
 def set_document_engine(engine: str):
