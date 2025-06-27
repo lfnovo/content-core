@@ -42,13 +42,15 @@ jobs:
           
           # Direct prompt for automated review (no @claude mention needed)
           direct_prompt: |
-            Please review this pull request and provide feedback on:
+            Please review this pull request (and any added updates) and provide feedback on:
             - Code quality and best practices
             - Potential bugs or issues
             - Performance considerations
+            - Documentation updates: does the README.md and docs/ reflect what changed?
             - Security concerns
             - Test coverage
             
+            If the pull request received updates after your first review, please redo the review based on the new code
             Be constructive and helpful in your feedback.
           
           # Optional: Customize review based on file types
