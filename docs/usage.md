@@ -1,6 +1,6 @@
 # Using the Content Core Library
 
-> **Note:** As of vNEXT, the default extraction engine is `'auto'`. Content Core will automatically select the best extraction method based on your environment and available API keys, with a smart fallback order for both URLs and files. For files/documents, `'auto'` now tries Docling first, then falls back to simple extraction. You can override the engine if needed, but `'auto'` is recommended for most users.
+> **Note:** As of vNEXT, the default extraction engine is `'auto'`. Content Core will automatically select the best extraction method based on your environment and available packages, with a smart fallback order for both URLs and files. For files/documents, `'auto'` tries Docling first (if installed with `pip install content-core[docling]`), then falls back to enhanced PyMuPDF extraction. You can override the engine if needed, but `'auto'` is recommended for most users.
 
 This documentation explains how to configure and use the **Content Core** library in your projects. The library allows customization of AI model settings through a YAML file and environment variables.
 
@@ -12,7 +12,20 @@ To set the environment variable, add the following line to your `.env` file or s
 
 ```
 CCORE_MODEL_CONFIG_PATH=/path/to/your/models_config.yaml
+
+# Optional: Override extraction engines
+CCORE_DOCUMENT_ENGINE=auto  # auto, simple, docling
+CCORE_URL_ENGINE=auto       # auto, simple, firecrawl, jina
 ```
+
+### Engine Selection Environment Variables
+
+Content Core supports environment variable overrides for extraction engines, useful for deployment scenarios:
+
+- **`CCORE_DOCUMENT_ENGINE`**: Override document engine (`auto`, `simple`, `docling`)
+- **`CCORE_URL_ENGINE`**: Override URL engine (`auto`, `simple`, `firecrawl`, `jina`)
+
+These environment variables take precedence over configuration file settings and per-call overrides.
 
 ## YAML File Schema
 

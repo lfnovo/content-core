@@ -74,11 +74,17 @@ summary = await cc.summarize_content(result, context="explain to a child")
 Install Content Core using `pip`:
 
 ```bash
-# Install the package
+# Basic installation (PyMuPDF + BeautifulSoup/Jina extraction)
 pip install content-core
 
-# Install with MCP server support
+# With enhanced document processing (adds Docling)
+pip install content-core[docling]
+
+# With MCP server support
 pip install content-core[mcp]
+
+# Full installation
+pip install content-core[docling,mcp]
 ```
 
 Alternatively, if you’re developing locally:
@@ -488,7 +494,20 @@ Example `.env`:
 ```plaintext
 OPENAI_API_KEY=your-key-here
 GOOGLE_API_KEY=your-key-here
+
+# Engine Selection (optional)
+CCORE_DOCUMENT_ENGINE=auto  # auto, simple, docling
+CCORE_URL_ENGINE=auto       # auto, simple, firecrawl, jina
 ```
+
+### Engine Selection via Environment Variables
+
+For deployment scenarios like MCP servers or Raycast extensions, you can override the extraction engines using environment variables:
+
+- **`CCORE_DOCUMENT_ENGINE`**: Force document engine (`auto`, `simple`, `docling`)
+- **`CCORE_URL_ENGINE`**: Force URL engine (`auto`, `simple`, `firecrawl`, `jina`)
+
+These variables take precedence over config file settings and provide explicit control for different deployment scenarios.
 
 ### Custom Prompt Templates
 

@@ -2,22 +2,23 @@
 Docling-based document extraction processor.
 """
 
+from content_core.common.state import ProcessSourceState
+from content_core.config import CONFIG
+
+DOCLING_AVAILABLE = False
 try:
     from docling.document_converter import DocumentConverter
+    DOCLING_AVAILABLE = True
 except ImportError:
 
     class DocumentConverter:
         """Stub when docling is not installed."""
 
         def __init__(self):
-            raise ImportError("Docling not installed")
+            raise ImportError("Docling not installed. Install with: pip install content-core[docling]")
 
         def convert(self, source: str):
-            raise ImportError("Docling not installed")
-
-
-from content_core.common.state import ProcessSourceState
-from content_core.config import CONFIG
+            raise ImportError("Docling not installed. Install with: pip install content-core[docling]")
 
 # Supported MIME types for Docling extraction
 DOCLING_SUPPORTED = {

@@ -33,6 +33,21 @@ def load_config():
 
 CONFIG = load_config()
 
+# Environment variable engine selectors for MCP/Raycast users
+def get_document_engine():
+    """Get document engine with environment variable override."""
+    env_engine = os.environ.get("CCORE_DOCUMENT_ENGINE")
+    if env_engine:
+        return env_engine
+    return CONFIG.get("extraction", {}).get("document_engine", "auto")
+
+def get_url_engine():
+    """Get URL engine with environment variable override."""
+    env_engine = os.environ.get("CCORE_URL_ENGINE")
+    if env_engine:
+        return env_engine
+    return CONFIG.get("extraction", {}).get("url_engine", "auto")
+
 # Programmatic config overrides: use in notebooks or scripts
 def set_document_engine(engine: str):
     """Override the document extraction engine ('auto', 'simple', or 'docling')."""

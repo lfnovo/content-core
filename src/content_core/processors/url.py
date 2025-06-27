@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 from readability import Document
 
 from content_core.common import ProcessSourceState
-from content_core.config import CONFIG
+from content_core.config import get_url_engine
 from content_core.logging import logger
 from content_core.processors.docling import DOCLING_SUPPORTED
 from content_core.processors.office import SUPPORTED_OFFICE_TYPES
@@ -165,7 +165,8 @@ async def extract_url(state: ProcessSourceState):
     """
     assert state.url, "No URL provided"
     url = state.url
-    engine = state.url_engine or CONFIG.get("extraction", {}).get("url_engine", "auto")
+    # Use environment-aware engine selection
+    engine = state.url_engine or get_url_engine()
     try:
         if engine == "auto":
             if os.environ.get("FIRECRAWL_API_KEY"):

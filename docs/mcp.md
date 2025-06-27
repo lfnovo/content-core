@@ -292,6 +292,34 @@ export GOOGLE_API_KEY="your-google-key"
 - **Firecrawl**: Visit [Firecrawl](https://www.firecrawl.dev/) for enhanced web scraping
 - **Jina**: Visit [Jina AI](https://jina.ai/) for alternative web extraction
 
+### Engine Selection via Environment Variables
+
+For advanced users, you can override the extraction engines:
+
+```json
+{
+  "mcpServers": {
+    "content-core": {
+      "env": {
+        "OPENAI_API_KEY": "sk-...",
+        "FIRECRAWL_API_KEY": "fc-...",
+        "CCORE_DOCUMENT_ENGINE": "simple",    // Skip docling, use PyMuPDF
+        "CCORE_URL_ENGINE": "auto"       // Or firecrawl, jina
+      }
+    }
+  }
+}
+```
+
+**Available engines:**
+- **Document**: `auto`, `simple`, `docling` (requires `content-core[docling]`)
+- **URL**: `auto`, `simple`, `firecrawl`, `jina`
+
+**Use cases:**
+- Set `CCORE_DOCUMENT_ENGINE=simple` to avoid docling dependency issues
+- Set `CCORE_URL_ENGINE=firecrawl` to always use paid service for better reliability
+- Set `CCORE_URL_ENGINE=simple` for faster processing without external API calls
+
 ### Custom Prompts
 
 You can customize Content Core's behavior by setting a custom prompt path:

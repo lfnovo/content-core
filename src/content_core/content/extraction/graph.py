@@ -12,13 +12,19 @@ from content_core.common import (
     ProcessSourceState,
     UnsupportedTypeException,
 )
-from content_core.config import CONFIG  # type: ignore
+from content_core.config import get_document_engine  # type: ignore
 from content_core.logging import logger
 from content_core.processors.audio import extract_audio_data  # type: ignore
-from content_core.processors.docling import (
-    DOCLING_SUPPORTED,  # type: ignore
-    extract_with_docling,
-)
+try:
+    from content_core.processors.docling import (
+        DOCLING_SUPPORTED,  # type: ignore
+        extract_with_docling,
+        DOCLING_AVAILABLE,
+    )
+except ImportError:
+    DOCLING_AVAILABLE = False
+    DOCLING_SUPPORTED = set()
+    extract_with_docling = None
 from content_core.processors.office import (
     SUPPORTED_OFFICE_TYPES,
     extract_office_content,
@@ -126,26 +132,30 @@ async def file_type_router_docling(state: ProcessSourceState) -> str:
     Supports 'auto', 'docling', and 'simple'.
     'auto' tries docling first, then falls back to simple if docling fails.
     """
-    engine = state.document_engine or CONFIG.get("extraction", {}).get("document_engine", "auto")
+    # Use environment-aware engine selection
+    engine = state.document_engine or get_document_engine()
+    
     if engine == "auto":
         logger.debug("Using auto engine")
-        # Try docling first; if it fails or is not supported, fallback to simple
-        if state.identified_type in DOCLING_SUPPORTED:
-            try:
-                logger.debug("Trying docling extraction")
-                return "extract_docling"
-            except Exception as e:
-                logger.warning(
-                    f"Docling extraction failed in 'auto' mode, falling back to simple: {e}"
-                )
+        # Check if docling is available AND supports the file type
+        if DOCLING_AVAILABLE and state.identified_type in DOCLING_SUPPORTED:
+            logger.debug("Using docling extraction (auto mode)")
+            return "extract_docling"
         # Fallback to simple
-        logger.debug("Falling back to simple extraction")
+        logger.debug("Falling back to simple extraction (docling unavailable or unsupported)")
         return await file_type_edge(state)
 
-    if engine == "docling" and state.identified_type in DOCLING_SUPPORTED:
-        logger.debug("Using docling engine")
-        return "extract_docling"
-    # For 'simple', use the default file type edge
+    if engine == "docling":
+        if not DOCLING_AVAILABLE:
+            raise ImportError("Docling engine requested but docling package not installed. Install with: pip install content-core[docling]")
+        if state.identified_type in DOCLING_SUPPORTED:
+            logger.debug("Using docling engine")
+            return "extract_docling"
+        # If docling doesn't support this file type, fall back to simple
+        logger.debug("Docling doesn't support this file type, using simple engine")
+        return await file_type_edge(state)
+    
+    # For 'simple' or any other engine
     logger.debug("Using simple engine")
     return await file_type_edge(state)
 
@@ -168,7 +178,9 @@ workflow.add_node("extract_audio_data", extract_audio_data)
 workflow.add_node("extract_youtube_transcript", extract_youtube_transcript)
 workflow.add_node("delete_file", delete_file)
 workflow.add_node("download_remote_file", download_remote_file)
-workflow.add_node("extract_docling", extract_with_docling)
+# Only add docling node if available
+if DOCLING_AVAILABLE:
+    workflow.add_node("extract_docling", extract_with_docling)
 
 # Add edges
 workflow.add_edge(START, "source")
