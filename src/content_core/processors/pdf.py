@@ -7,18 +7,37 @@ import fitz  # type: ignore
 from content_core.common import ProcessSourceState
 from content_core.logging import logger
 
-# todo: find tables - https://pymupdf.readthedocs.io/en/latest/the-basics.html#extracting-tables-from-a-page
-# todo: what else can we do to make the text more readable?
-# todo: try to fix encoding for some PDF that is still breaking
-# def _extract_text_from_pdf(pdf_path):
-#     doc = fitz.open(pdf_path)
-#     text = ""
-#     logger.debug(f"Found {len(doc)} pages in PDF")
-#     for page in doc:
-#         # Use encode/decode if you need to clean up any encoding issues
-#         text += page.get_text().encode('utf-8').decode('utf-8')
-#     doc.close()
-#     return text
+def convert_table_to_markdown(table):
+    """
+    Convert a PyMuPDF table to markdown format.
+    
+    Args:
+        table: Table data from PyMuPDF (list of lists)
+    Returns:
+        str: Markdown-formatted table
+    """
+    if not table or not table[0]:
+        return ""
+    
+    # Build markdown table
+    markdown_lines = []
+    
+    # Header row
+    header = table[0]
+    header_row = "| " + " | ".join(str(cell) if cell else "" for cell in header) + " |"
+    markdown_lines.append(header_row)
+    
+    # Separator row
+    separator = "|" + "|".join([" --- " for _ in header]) + "|"
+    markdown_lines.append(separator)
+    
+    # Data rows
+    for row in table[1:]:
+        if row:  # Skip empty rows
+            row_text = "| " + " | ".join(str(cell) if cell else "" for cell in row) + " |"
+            markdown_lines.append(row_text)
+    
+    return "\n".join(markdown_lines) + "\n"
 
 SUPPORTED_FITZ_TYPES = [
     "application/pdf",
@@ -116,30 +135,53 @@ def clean_pdf_text(text):
     return text.strip()
 
 
-async def _extract_text_from_pdf(pdf_path):
-    doc = fitz.open(pdf_path)
-    try:
-        text = ""
-        logger.debug(f"Found {len(doc)} pages in PDF")
-        for page in doc:
-            text += page.get_text()
-        normalized_text = clean_pdf_text(text)
-        return normalized_text
-    finally:
-        doc.close()
 
 
 async def _extract_text_from_pdf(pdf_path):
-    """Extract text from PDF asynchronously"""
+    """Extract text from PDF asynchronously with table detection"""
 
     def _extract():
         doc = fitz.open(pdf_path)
         try:
-            text = ""
+            full_text = []
             logger.debug(f"Found {len(doc)} pages in PDF")
-            for page in doc:
-                text += page.get_text()
-            return clean_pdf_text(text)
+            
+            # Use quality improvement flags for better text extraction
+            extraction_flags = (
+                fitz.TEXT_PRESERVE_LIGATURES |  # Better character rendering
+                fitz.TEXT_PRESERVE_WHITESPACE |  # Better spacing preservation
+                fitz.TEXT_PRESERVE_IMAGES       # Better image-text integration
+            )
+            
+            for page_num, page in enumerate(doc):
+                # Extract regular text with quality flags
+                page_text = page.get_text(flags=extraction_flags)
+                
+                # Try to find and extract tables
+                try:
+                    tables = page.find_tables()
+                    if tables:
+                        logger.debug(f"Found {len(tables)} table(s) on page {page_num + 1}")
+                        
+                        # For each table found, convert to markdown and append
+                        for table_num, table in enumerate(tables):
+                            # Extract table data
+                            table_data = table.extract()
+                            if table_data:
+                                # Add a marker before the table
+                                page_text += f"\n\n[Table {table_num + 1} from page {page_num + 1}]\n"
+                                # Convert to markdown
+                                markdown_table = convert_table_to_markdown(table_data)
+                                page_text += markdown_table + "\n"
+                except Exception as e:
+                    # If table extraction fails, continue with regular text
+                    logger.debug(f"Table extraction failed on page {page_num + 1}: {e}")
+                
+                full_text.append(page_text)
+            
+            # Join all pages and clean
+            combined_text = "".join(full_text)
+            return clean_pdf_text(combined_text)
         finally:
             doc.close()
 
