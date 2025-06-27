@@ -1,6 +1,6 @@
 [project]
 name = "content-core"
-version = "1.1.2"
+version = "1.2.0"
 description = "Extract what matters from any media source. Available as Python Library, macOS Service, CLI and MCP Server"
 readme = "README.md"
 homepage = "https://github.com/lfnovo/content-core"
@@ -30,7 +30,6 @@ dependencies = [
     "moviepy>=2.1.2",
     "readability-lxml>=0.8.4.1",
     "firecrawl-py>=2.7.0",
-    "docling>=2.34.0",
     "pillow>=10.4.0",
     "asciidoc>=10.2.1",
     "python-magic-bin==0.4.14; sys_platform == 'win32'",
@@ -39,6 +38,7 @@ dependencies = [
 
 [project.optional-dependencies]
 mcp = ["fastmcp>=0.5.0"]
+docling = ["docling>=2.34.0"]
 
 [project.scripts]
 ccore = "content_core:ccore"
