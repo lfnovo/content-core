@@ -12,7 +12,7 @@ from content_core.common import (
     ProcessSourceState,
     UnsupportedTypeException,
 )
-from content_core.config import get_document_engine  # type: ignore
+from content_core.config import get_document_engine
 from content_core.logging import logger
 from content_core.processors.audio import extract_audio_data  # type: ignore
 try:

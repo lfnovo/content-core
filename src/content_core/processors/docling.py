@@ -15,10 +15,16 @@ except ImportError:
         """Stub when docling is not installed."""
 
         def __init__(self):
-            raise ImportError("Docling not installed. Install with: pip install content-core[docling]")
+            raise ImportError(
+                "Docling not installed. Install with: pip install content-core[docling] "
+                "or use CCORE_DOCUMENT_ENGINE=simple to skip docling."
+            )
 
         def convert(self, source: str):
-            raise ImportError("Docling not installed. Install with: pip install content-core[docling]")
+            raise ImportError(
+                "Docling not installed. Install with: pip install content-core[docling] "
+                "or use CCORE_DOCUMENT_ENGINE=simple to skip docling."
+            )
 
 # Supported MIME types for Docling extraction
 DOCLING_SUPPORTED = {
