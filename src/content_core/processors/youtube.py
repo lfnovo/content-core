@@ -3,12 +3,13 @@ import ssl
 
 import aiohttp
 from bs4 import BeautifulSoup
+from youtube_transcript_api import YouTubeTranscriptApi  # type: ignore
+from youtube_transcript_api.formatters import TextFormatter  # type: ignore
+
 from content_core.common import ProcessSourceState
 from content_core.common.exceptions import NoTranscriptFound
 from content_core.config import CONFIG
 from content_core.logging import logger
-from youtube_transcript_api import YouTubeTranscriptApi  # type: ignore
-from youtube_transcript_api.formatters import TextFormatter  # type: ignore
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
@@ -172,7 +173,7 @@ async def extract_youtube_transcript(state: ProcessSourceState):
     """
 
     assert state.url, "No URL provided"
-    logger.warning(f"Extracting transcript from URL: {state.url}")
+    logger.debug(f"Extracting transcript from URL: {state.url}")
     languages = CONFIG.get("youtube_transcripts", {}).get(
         "preferred_languages", ["en", "es", "pt"]
     )

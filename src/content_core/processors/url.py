@@ -38,10 +38,10 @@ async def url_provider(state: ProcessSourceState):
                 or mime in SUPPORTED_FITZ_TYPES
                 or mime in SUPPORTED_OFFICE_TYPES
             ):
-                logger.warning(f"Identified type for {url}: {mime}")
+                logger.debug(f"Identified type for {url}: {mime}")
                 return_dict["identified_type"] = mime
             else:
-                logger.warning(f"Identified type for {url}: article")
+                logger.debug(f"Identified type for {url}: article")
                 return_dict["identified_type"] = "article"
     return return_dict
 
