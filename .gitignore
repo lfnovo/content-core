@@ -26,3 +26,5 @@ CLAUDE.md
 
 node_modules/
 **/notebooks/private
+
+.claude/
