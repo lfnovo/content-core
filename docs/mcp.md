@@ -20,8 +20,8 @@ The [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) is an open 
 ### Option 1: Install with pip (Recommended for local development)
 
 ```bash
-# Install Content Core with MCP support
-pip install content-core[mcp]
+# Install Content Core (MCP server included by default)
+pip install content-core
 
 # The content-core-mcp command becomes available
 content-core-mcp
@@ -31,7 +31,7 @@ content-core-mcp
 
 ```bash
 # Run MCP server directly without installation
-uvx --from "content-core[mcp]" content-core-mcp
+uvx --from "content-core" content-core-mcp
 
 # Also works for CLI tools
 uvx --from "content-core" ccore https://example.com
@@ -58,7 +58,7 @@ Add Content Core to your Claude Desktop configuration file:
       "command": "uvx",
       "args": [
         "--from",
-        "content-core[mcp]",
+        "content-core",
         "content-core-mcp"
       ]
     }
@@ -102,7 +102,7 @@ For optimal functionality, you'll need to configure API keys. Here's what each k
       "command": "uvx",
       "args": [
         "--from",
-        "content-core[mcp]",
+        "content-core",
         "content-core-mcp"
       ],
       "env": {
@@ -342,13 +342,13 @@ export PROMPT_PATH="/path/to/your/custom/prompts"
 content-core-mcp
 
 # Or with uvx
-uvx --from "content-core[mcp]" content-core-mcp
+uvx --from "content-core" content-core-mcp
 ```
 
 **Missing dependencies:**
 ```bash
-# Reinstall with MCP dependencies
-pip install --force-reinstall content-core[mcp]
+# Reinstall Content Core
+pip install --force-reinstall content-core
 ```
 
 **Audio/video extraction failing:**

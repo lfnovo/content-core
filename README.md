@@ -80,11 +80,11 @@ pip install content-core
 # With enhanced document processing (adds Docling)
 pip install content-core[docling]
 
-# With MCP server support
-pip install content-core[mcp]
+# With MCP server support (now included by default)
+pip install content-core
 
-# Full installation
-pip install content-core[docling,mcp]
+# Full installation (with enhanced document processing)
+pip install content-core[docling]
 ```
 
 Alternatively, if you’re developing locally:
@@ -230,11 +230,11 @@ Content Core includes a Model Context Protocol (MCP) server that enables seamles
 ### Quick Setup with Claude Desktop
 
 ```bash
-# Install with MCP support
-pip install content-core[mcp]
+# Install Content Core (MCP server included)
+pip install content-core
 
 # Or use directly with uvx (no installation required)
-uvx --from "content-core[mcp]" content-core-mcp
+uvx --from "content-core" content-core-mcp
 ```
 
 Add to your `claude_desktop_config.json`:
@@ -245,7 +245,7 @@ Add to your `claude_desktop_config.json`:
       "command": "uvx",
       "args": [
         "--from",
-        "content-core[mcp]",
+        "content-core",
         "content-core-mcp"
       ]
     }
