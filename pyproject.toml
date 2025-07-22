@@ -34,10 +34,10 @@ dependencies = [
     "asciidoc>=10.2.1",
     "python-magic-bin==0.4.14; sys_platform == 'win32'",
     "pytubefix>=9.1.1",
+    "fastmcp>=0.5.0",
 ]
 
 [project.optional-dependencies]
-mcp = ["fastmcp>=0.5.0"]
 docling = ["docling>=2.34.0"]
 
 [project.scripts]

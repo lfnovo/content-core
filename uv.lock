@@ -428,6 +428,7 @@ dependencies = [
     { name = "bs4" },
     { name = "dicttoxml" },
     { name = "esperanto" },
+    { name = "fastmcp" },
     { name = "firecrawl-py" },
     { name = "jinja2" },
     { name = "langdetect" },
@@ -453,9 +454,6 @@ dependencies = [
 docling = [
     { name = "docling" },
 ]
-mcp = [
-    { name = "fastmcp" },
-]
 
 [package.dev-dependencies]
 dev = [
@@ -476,7 +474,7 @@ requires-dist = [
     { name = "dicttoxml", specifier = ">=1.7.16" },
     { name = "docling", marker = "extra == 'docling'", specifier = ">=2.34.0" },
     { name = "esperanto", specifier = ">=1.2.0" },
-    { name = "fastmcp", marker = "extra == 'mcp'", specifier = ">=0.5.0" },
+    { name = "fastmcp", specifier = ">=0.5.0" },
     { name = "firecrawl-py", specifier = ">=2.7.0" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "langdetect", specifier = ">=1.0.9" },
@@ -497,7 +495,7 @@ requires-dist = [
     { name = "validators", specifier = ">=0.34.0" },
     { name = "youtube-transcript-api", specifier = ">=1.0.3" },
 ]
-provides-extras = ["mcp", "docling"]
+provides-extras = ["docling"]
 
 [package.metadata.requires-dev]
 dev = [
