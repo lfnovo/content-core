@@ -2,6 +2,10 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+<a href="https://glama.ai/mcp/servers/@lfnovo/content-core">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@lfnovo/content-core/badge" />
+</a>
+
 **Content Core** is a powerful, AI-powered content extraction and processing platform that transforms any source into clean, structured content. Extract text from websites, transcribe videos, process documents, and generate AI summaries—all through a unified interface with multiple integration options.
 
 ## 🚀 What You Can Do
