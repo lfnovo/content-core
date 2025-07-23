@@ -1,10 +1,14 @@
 # Content Core
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-<a href="https://glama.ai/mcp/servers/@lfnovo/content-core">
-  <img width="380" height="200" src="https://glama.ai/mcp/servers/@lfnovo/content-core/badge" />
-</a>
+[![PyPI version](https://badge.fury.io/py/content-core.svg)](https://badge.fury.io/py/content-core)
+[![Downloads](https://pepy.tech/badge/content-core)](https://pepy.tech/project/content-core)
+[![Downloads](https://pepy.tech/badge/content-core/month)](https://pepy.tech/project/content-core)
+[![GitHub stars](https://img.shields.io/github/stars/lfnovo/content-core?style=social)](https://github.com/lfnovo/content-core)
+[![GitHub forks](https://img.shields.io/github/forks/lfnovo/content-core?style=social)](https://github.com/lfnovo/content-core)
+[![GitHub issues](https://img.shields.io/github/issues/lfnovo/content-core)](https://github.com/lfnovo/content-core/issues)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 **Content Core** is a powerful, AI-powered content extraction and processing platform that transforms any source into clean, structured content. Extract text from websites, transcribe videos, process documents, and generate AI summaries—all through a unified interface with multiple integration options.
 
@@ -230,6 +234,10 @@ For more information on how to use the Content Core library, including details o
 ## MCP Server Integration
 
 Content Core includes a Model Context Protocol (MCP) server that enables seamless integration with Claude Desktop and other MCP-compatible applications. The MCP server exposes Content Core's powerful extraction capabilities through a standardized protocol.
+
+<a href="https://glama.ai/mcp/servers/@lfnovo/content-core">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@lfnovo/content-core/badge" />
+</a>
 
 ### Quick Setup with Claude Desktop
 
