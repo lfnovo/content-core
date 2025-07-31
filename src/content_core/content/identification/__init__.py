@@ -1,8 +1,9 @@
-import magic
+from .file_detector import FileDetector
 
 
 async def get_file_type(file_path: str) -> str:
     """
-    Identify the file using python-magic
+    Identify the file using pure Python file detection
     """
-    return magic.from_file(file_path, mime=True)
+    detector = FileDetector()
+    return await detector.detect(file_path)

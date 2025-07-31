@@ -20,7 +20,6 @@ dependencies = [
     "pymupdf>=1.25.5",
     "python-docx>=1.1.2",
     "python-dotenv>=1.1.0",
-    "python-magic>=0.4.27",
     "python-pptx>=1.0.2",
     "youtube-transcript-api>=1.0.3",
     "langgraph>=0.3.29",
@@ -32,7 +31,6 @@ dependencies = [
     "firecrawl-py>=2.7.0",
     "pillow>=10.4.0",
     "asciidoc>=10.2.1",
-    "python-magic-bin==0.4.14; sys_platform == 'win32'",
     "pytubefix>=9.1.1",
     "fastmcp>=2.10.0",
 ]
