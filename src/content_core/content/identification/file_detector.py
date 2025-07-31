@@ -15,6 +15,10 @@ from content_core.logging import logger
 class FileDetector:
     """Pure Python file type detection using magic bytes and content analysis."""
     
+    # Configuration constants
+    SIGNATURE_READ_SIZE = 512  # Bytes to read for binary signature detection
+    TEXT_READ_SIZE = 1024      # Bytes to read for text content analysis
+    
     def __init__(self):
         """Initialize the FileDetector with signature mappings."""
         self.binary_signatures = self._load_binary_signatures()
@@ -27,35 +31,35 @@ class FileDetector:
         # Ordered by specificity - longer/more specific signatures first
         return {
             # PDF
-            b'%PDF': 'application/pdf',
+            b'%PDF': 'application/pdf',  # PDF document signature (hex: 25 50 44 46)
             
             # Images
-            b'\xff\xd8\xff\xe0': 'image/jpeg',  # JPEG with JFIF
-            b'\xff\xd8\xff\xe1': 'image/jpeg',  # JPEG with EXIF
-            b'\xff\xd8\xff\xe2': 'image/jpeg',  # JPEG with Adobe
-            b'\xff\xd8\xff\xdb': 'image/jpeg',  # JPEG with DQT
-            b'\xff\xd8': 'image/jpeg',  # Generic JPEG (must be last)
-            b'\x89PNG\r\n\x1a\n': 'image/png',
-            b'GIF87a': 'image/gif',
-            b'GIF89a': 'image/gif',
-            b'II*\x00': 'image/tiff',  # Little-endian TIFF
-            b'MM\x00*': 'image/tiff',  # Big-endian TIFF
-            b'BM': 'image/bmp',
+            b'\xff\xd8\xff\xe0': 'image/jpeg',  # JPEG with JFIF header (JPEG File Interchange Format)
+            b'\xff\xd8\xff\xe1': 'image/jpeg',  # JPEG with EXIF header (Exchangeable Image File Format)
+            b'\xff\xd8\xff\xe2': 'image/jpeg',  # JPEG with Adobe header (Adobe JPEG)
+            b'\xff\xd8\xff\xdb': 'image/jpeg',  # JPEG with DQT (Define Quantization Table) marker
+            b'\xff\xd8': 'image/jpeg',  # Generic JPEG signature (Start of Image marker, must be last)
+            b'\x89PNG\r\n\x1a\n': 'image/png',  # PNG signature (hex: 89 50 4E 47 0D 0A 1A 0A)
+            b'GIF87a': 'image/gif',  # GIF version 87a
+            b'GIF89a': 'image/gif',  # GIF version 89a (supports animation and transparency)
+            b'II*\x00': 'image/tiff',  # TIFF little-endian (Intel byte order)
+            b'MM\x00*': 'image/tiff',  # TIFF big-endian (Motorola byte order)
+            b'BM': 'image/bmp',  # Windows Bitmap signature
             
             # Audio
-            b'ID3': 'audio/mpeg',  # MP3 with ID3 tag
-            b'\xff\xfb': 'audio/mpeg',  # MP3 without ID3
-            b'\xff\xf3': 'audio/mpeg',  # MP3 without ID3 (alternate)
-            b'\xff\xf2': 'audio/mpeg',  # MP3 without ID3 (alternate)
-            b'RIFF': None,  # Special handling needed - could be WAV or AVI
-            b'fLaC': 'audio/flac',  # FLAC audio
+            b'ID3': 'audio/mpeg',  # MP3 with ID3v2 metadata tag
+            b'\xff\xfb': 'audio/mpeg',  # MP3 frame sync with MPEG-1 Layer 3
+            b'\xff\xf3': 'audio/mpeg',  # MP3 frame sync with MPEG-2 Layer 3
+            b'\xff\xf2': 'audio/mpeg',  # MP3 frame sync with MPEG-2.5 Layer 3
+            b'RIFF': None,  # Resource Interchange File Format - requires further inspection (could be WAV, AVI, WebP)
+            b'fLaC': 'audio/flac',  # Free Lossless Audio Codec signature
             
             # Video/Audio containers - these will be handled by ftyp detection
-            # Removed fixed box size patterns as they are brittle
+            # MP4/M4A/MOV use ftyp box at offset 4 for identification
             
-            # ZIP-based formats (need further inspection)
-            b'PK\x03\x04': 'application/zip',  # Will be refined by ZIP content inspection
-            b'PK\x05\x06': 'application/zip',  # Empty ZIP
+            # Archive formats
+            b'PK\x03\x04': 'application/zip',  # ZIP archive (also used by DOCX, XLSX, PPTX, JAR, etc.)
+            b'PK\x05\x06': 'application/zip',  # Empty ZIP archive (End of Central Directory)
         }
     
     def _load_text_patterns(self) -> Dict[str, str]:
@@ -205,8 +209,8 @@ class FileDetector:
         """Detect file type by binary signature (magic bytes)."""
         try:
             with open(file_path, 'rb') as f:
-                # Read first 512 bytes
-                header = f.read(512)
+                # Read bytes for signature detection
+                header = f.read(self.SIGNATURE_READ_SIZE)
                 
             if not header:
                 return None
@@ -274,9 +278,9 @@ class FileDetector:
     async def _detect_text_format(self, file_path: Path) -> Optional[str]:
         """Detect text-based formats by content analysis."""
         try:
-            # Read first 1024 bytes as text
+            # Read bytes for text content analysis
             with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
-                content = f.read(1024)
+                content = f.read(self.TEXT_READ_SIZE)
             
             if not content or len(content) < 10:
                 return None
@@ -291,16 +295,12 @@ class FileDetector:
                     if mime_type == 'application/json':
                         if self._is_valid_json_start(content_stripped):
                             return mime_type
-                    else:
+                    # HTML needs to be detected for routing
+                    elif mime_type == 'text/html':
                         return mime_type
-            
-            # Check for Markdown first (it might have YAML front matter)
-            if self._looks_like_markdown(content):
-                return 'text/plain'  # Markdown is treated as plain text
-            
-            # Additional YAML detection (more patterns)
-            if self._looks_like_yaml(content):
-                return 'text/yaml'
+                    # For other text patterns (YAML, etc), just return text/plain
+                    else:
+                        return 'text/plain'
             
             # Check for CSV pattern (multiple comma-separated values)
             if self._looks_like_csv(content):
@@ -363,67 +363,6 @@ class FileDetector:
         # Require stronger evidence to avoid false positives
         return pattern_count >= 3 or keyword_count >= 1
     
-    def _looks_like_yaml(self, content: str) -> bool:
-        """Check if content looks like YAML format."""
-        lines = content.split('\n')
-        yaml_indicators = 0
-        key_value_lines = 0
-        
-        # Check for YAML front matter in Markdown (special case)
-        if len(lines) > 0 and lines[0].strip() == '---':
-            # Look for closing --- within first 20 lines
-            for i, line in enumerate(lines[1:21], 1):
-                if line.strip() == '---':
-                    # This is likely YAML front matter
-                    # Check if the content between markers looks like YAML
-                    front_matter = '\n'.join(lines[1:i])
-                    if ':' in front_matter:
-                        # But if rest of file is Markdown, treat as Markdown
-                        rest_of_file = '\n'.join(lines[i+1:])
-                        if self._get_markdown_score(rest_of_file) >= 3:
-                            return False  # It's Markdown with YAML front matter
-                        return True
-                    break
-        
-        # Don't detect YAML if it has strong Markdown indicators
-        # But be more selective - only if Markdown score is very high
-        markdown_score = self._get_markdown_score(content)
-        if markdown_score > 10:  # High threshold to avoid false negatives
-            return False
-        
-        # Check for programming language indicators that would exclude YAML
-        programming_indicators = ['function', 'const ', 'let ', 'var ', 'class ', 'def ', 'import ', 'return ', '=>', '};', '{', '}']
-        prog_count = sum(1 for ind in programming_indicators if ind in content[:500])
-        if prog_count >= 3:
-            return False  # Likely a programming language, not YAML
-        
-        for line in lines[:20]:  # Check first 20 lines
-            stripped = line.strip()
-            # YAML document markers (strong indicator at start)
-            if stripped == '---' or stripped == '...':
-                if lines.index(line) < 3:  # Only count if near start
-                    yaml_indicators += 3
-            elif ':' in line and not line.strip().startswith('#'):
-                # Check for key: value pattern
-                parts = line.split(':', 1)
-                if len(parts) == 2 and parts[0].strip() and not parts[0].strip().startswith('"'):
-                    # Valid YAML key pattern
-                    key = parts[0].strip()
-                    # Exclude if it looks like JavaScript object property
-                    if not ('{' in line or '}' in line or '(' in key or ')' in key):
-                        if ' ' not in key or key.startswith('"') or key.startswith("'"):
-                            yaml_indicators += 1
-                            key_value_lines += 1
-            elif stripped.startswith('- ') and len(stripped) > 2:
-                yaml_indicators += 1
-            elif stripped.startswith('#') and len(stripped) > 1:
-                yaml_indicators += 0.3  # Comments are weak indicators
-        
-        # Need multiple key-value pairs for simple YAML detection
-        if key_value_lines >= 2 and yaml_indicators >= 2:
-            return True
-            
-        return yaml_indicators >= 3
     
     def _looks_like_csv(self, content: str) -> bool:
         """Check if content looks like CSV format."""
@@ -439,86 +378,6 @@ class FileDetector:
         # CSV should have consistent comma counts
         return len(set(comma_counts)) == 1 and comma_counts[0] > 0
     
-    def _get_markdown_score(self, content: str) -> float:
-        """Calculate a score indicating how much the content looks like Markdown."""
-        lines = content.split('\n')
-        markdown_score = 0
-        
-        # Strong indicators (at start of line)
-        for line in lines[:30]:  # Check first 30 lines
-            stripped = line.strip()
-            # Headers
-            if stripped.startswith(('#', '##', '###', '####', '#####', '######')) and ' ' in stripped:
-                markdown_score += 2
-            # Lists
-            elif stripped.startswith(('- ', '* ', '+ ')) or (len(stripped) >= 3 and stripped[0].isdigit() and stripped[1:3] in ['. ', ') ']):
-                markdown_score += 1.5
-            # Quotes
-            elif stripped.startswith('> '):
-                markdown_score += 1.5
-            # Horizontal rules
-            elif stripped in ['---', '***', '___'] and len(stripped) >= 3:
-                markdown_score += 2
-            # Code blocks
-            elif stripped.startswith('```'):
-                markdown_score += 2
-        
-        # Inline indicators (anywhere in content)
-        content_sample = content[:1000]  # Check first 1000 chars
-        
-        # Links [text](url)
-        if '[' in content_sample and '](' in content_sample:
-            markdown_score += 1.5
-        
-        # Images ![alt](url)
-        if '![' in content_sample and '](' in content_sample:
-            markdown_score += 2
-        
-        # Bold/italic
-        if '**' in content_sample or '__' in content_sample:
-            markdown_score += 1
-        if '*' in content_sample or '_' in content_sample:
-            markdown_score += 0.5
-        
-        # Code spans
-        if '`' in content_sample:
-            markdown_score += 1
-        
-        # Tables (look for pipe characters in aligned patterns)
-        for line in lines[:20]:
-            if '|' in line and line.count('|') >= 2:
-                markdown_score += 1.5
-                break
-        
-        return markdown_score
-    
-    def _looks_like_markdown(self, content: str) -> bool:
-        """Check if content looks like Markdown format."""
-        # Need significant evidence for Markdown
-        return self._get_markdown_score(content) >= 3
-    
-    def _has_strong_yaml_indicators(self, content: str) -> bool:
-        """Check if content has strong YAML indicators that override other formats."""
-        lines = content.split('\n')
-        if len(lines) < 2:
-            return False
-        
-        # Check for YAML document markers at start
-        if lines[0].strip() == '---':
-            return True
-        
-        # Check for multiple top-level YAML keys
-        yaml_key_pattern_count = 0
-        for line in lines[:10]:
-            if ':' in line and not line.strip().startswith('#'):
-                parts = line.split(':', 1)
-                if len(parts) == 2 and parts[0].strip() and not parts[0].strip().startswith('"'):
-                    # Check if it's a valid YAML key (no spaces unless quoted)
-                    key = parts[0].strip()
-                    if ' ' not in key or key.startswith('"') or key.startswith("'"):
-                        yaml_key_pattern_count += 1
-        
-        return yaml_key_pattern_count >= 3
     
     def _is_text_file(self, content: str) -> bool:
         """Check if content appears to be plain text."""
