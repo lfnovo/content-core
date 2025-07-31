@@ -2,11 +2,11 @@
 
 If you are working on this feature, make sure to update this plan.md file as you go. 
 
-## PHASE 1: Create Pure Python File Detection Module [Not Started ⏳]
+## PHASE 1: Create Pure Python File Detection Module [Completed ✅]
 
 Build the core file detection system to replace libmagic with pure Python implementation.
 
-### Create file_detector.py with basic structure [Not Started ⏳]
+### Create file_detector.py with basic structure [Completed ✅]
 
 Create `/src/content_core/content/identification/file_detector.py` with:
 - FileDetector class skeleton
@@ -14,7 +14,7 @@ Create `/src/content_core/content/identification/file_detector.py` with:
 - Simple detect() method that reads first 512 bytes
 - Raise UnsupportedTypeException for unknown types
 
-### Implement binary format detection [Not Started ⏳]
+### Implement binary format detection [Completed ✅]
 
 Add detection for binary formats:
 - PDF files (magic bytes: `%PDF`)
@@ -23,7 +23,7 @@ Add detection for binary formats:
 - Video formats (MP4, AVI, MOV)
 - Test each format with sample files
 
-### Implement ZIP-based format detection [Not Started ⏳]
+### Implement ZIP-based format detection [Completed ✅]
 
 Handle Office and EPUB formats that use ZIP containers:
 - Detect ZIP magic bytes (`PK\x03\x04`)
@@ -34,12 +34,19 @@ Handle Office and EPUB formats that use ZIP containers:
 ### Comments:
 - Focus on accurate detection over performance
 - Ensure all MIME types match exactly what libmagic returns
+- **Implementation notes from Phase 1:**
+  - Added comprehensive binary signatures with ordered checking (longer signatures first)
+  - Implemented generic ftyp box detection for MP4/MOV files for better compatibility
+  - Added FLAC audio format support
+  - Special RIFF handling differentiates between WAV and AVI
+  - Text detection requires minimum content length to avoid false positives
+  - All core file types tested and working correctly
 
-## PHASE 2: Text Format Detection and Fallbacks [Not Started ⏳]
+## PHASE 2: Text Format Detection and Fallbacks [Completed ✅]
 
 Implement text-based format detection and extension fallback mechanism.
 
-### Add text format detection [Not Started ⏳]
+### Add text format detection [Completed ✅]
 
 Implement content analysis for text formats:
 - HTML detection (DOCTYPE, <html tags)
@@ -50,7 +57,7 @@ Implement content analysis for text formats:
 - CSV detection (analyze structure)
 - Plain text as default for unrecognized text
 
-### Implement extension fallback system [Not Started ⏳]
+### Implement extension fallback system [Completed ✅]
 
 Create comprehensive extension mapping:
 - Map common file extensions to MIME types
@@ -58,7 +65,7 @@ Create comprehensive extension mapping:
 - Log when falling back to extension
 - Maintain compatibility with current behavior
 
-### Add detection method priority logic [Not Started ⏳]
+### Add detection method priority logic [Completed ✅]
 
 Implement the agreed priority order:
 1. Binary signature detection (most reliable)
@@ -70,6 +77,14 @@ Implement the agreed priority order:
 ### Comments:
 - Text detection needs to be careful to avoid false positives
 - Extension fallback ensures graceful degradation
+- **Implementation notes from Phase 2:**
+  - Enhanced JSON detection with pattern matching and keyword checking
+  - Improved YAML detection to avoid conflicts with Markdown
+  - Added sophisticated Markdown scoring system (headers, lists, links, etc.)
+  - Extended extension mapping to cover more file types (70+ extensions)
+  - Fixed YAML/Markdown detection priority to avoid false positives
+  - Added minimum content requirements for text detection
+  - All text formats tested with edge cases
 
 ## PHASE 3: Integration with Existing Code [Not Started ⏳]
 

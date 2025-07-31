@@ -81,44 +81,80 @@ class FileDetector:
     def _load_extension_mapping(self) -> Dict[str, str]:
         """Load file extension to MIME type mappings as fallback."""
         return {
+            # Documents
             '.pdf': 'application/pdf',
             '.txt': 'text/plain',
             '.md': 'text/plain',  # Markdown treated as plain text (current behavior)
             '.markdown': 'text/plain',
+            '.rst': 'text/plain',  # reStructuredText
+            '.log': 'text/plain',
+            
+            # Web formats
             '.html': 'text/html',
             '.htm': 'text/html',
+            '.xhtml': 'text/html',
             '.xml': 'text/xml',
+            
+            # Data formats
             '.json': 'application/json',
             '.yaml': 'text/yaml',
             '.yml': 'text/yaml',
             '.csv': 'text/csv',
+            '.tsv': 'text/csv',  # Tab-separated values
             
             # Images
             '.jpg': 'image/jpeg',
             '.jpeg': 'image/jpeg',
+            '.jpe': 'image/jpeg',
             '.png': 'image/png',
             '.gif': 'image/gif',
             '.tiff': 'image/tiff',
             '.tif': 'image/tiff',
             '.bmp': 'image/bmp',
+            '.webp': 'image/webp',
+            '.ico': 'image/x-icon',
+            '.svg': 'image/svg+xml',
             
             # Audio
             '.mp3': 'audio/mpeg',
             '.wav': 'audio/wav',
+            '.wave': 'audio/wav',
             '.m4a': 'audio/mp4',
+            '.aac': 'audio/aac',
+            '.ogg': 'audio/ogg',
+            '.oga': 'audio/ogg',
+            '.flac': 'audio/flac',
+            '.wma': 'audio/x-ms-wma',
             
             # Video
             '.mp4': 'video/mp4',
+            '.m4v': 'video/mp4',
             '.avi': 'video/x-msvideo',
             '.mov': 'video/quicktime',
+            '.qt': 'video/quicktime',
+            '.wmv': 'video/x-ms-wmv',
+            '.flv': 'video/x-flv',
+            '.mkv': 'video/x-matroska',
+            '.webm': 'video/webm',
+            '.mpg': 'video/mpeg',
+            '.mpeg': 'video/mpeg',
+            '.3gp': 'video/3gpp',
             
             # Office formats
             '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
             
-            # EPUB
+            # E-books
             '.epub': 'application/epub+zip',
+            
+            # Archives (basic detection - not expanded)
+            '.zip': 'application/zip',
+            '.tar': 'application/x-tar',
+            '.gz': 'application/gzip',
+            '.bz2': 'application/x-bzip2',
+            '.7z': 'application/x-7z-compressed',
+            '.rar': 'application/x-rar-compressed',
         }
     
     def _load_zip_content_patterns(self) -> Dict[str, str]:
@@ -248,7 +284,7 @@ class FileDetector:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read(1024)
             
-            if not content:
+            if not content or len(content) < 10:
                 return None
             
             # Strip whitespace for analysis
@@ -263,6 +299,10 @@ class FileDetector:
                             return mime_type
                     else:
                         return mime_type
+            
+            # Additional YAML detection (more patterns)
+            if self._looks_like_yaml(content):
+                return 'text/yaml'
             
             # Check for CSV pattern (multiple comma-separated values)
             if self._looks_like_csv(content):
@@ -292,10 +332,56 @@ class FileDetector:
     
     def _is_valid_json_start(self, content: str) -> bool:
         """Check if content starts like valid JSON."""
-        # Simple check for JSON-like start
-        return (content.startswith('{') or content.startswith('[')) and (
-            '"' in content[:50] or "'" in content[:50]
-        )
+        # More robust JSON detection
+        content = content.strip()
+        if not (content.startswith('{') or content.startswith('[')):
+            return False
+        
+        # Check for JSON-like patterns in first 100 chars
+        json_indicators = ['":', '": ', '",', ', "', '"]', '"}', '[]', '{}']
+        indicator_count = sum(1 for ind in json_indicators if ind in content[:100])
+        
+        # Also check for common JSON keywords
+        json_keywords = ['true', 'false', 'null']
+        keyword_found = any(kw in content[:200].lower() for kw in json_keywords)
+        
+        return indicator_count >= 1 or keyword_found
+    
+    def _looks_like_yaml(self, content: str) -> bool:
+        """Check if content looks like YAML format."""
+        lines = content.split('\n')
+        yaml_indicators = 0
+        key_value_lines = 0
+        
+        # Don't detect YAML if it looks more like Markdown
+        if self._looks_like_markdown(content):
+            return False
+        
+        for line in lines[:20]:  # Check first 20 lines
+            stripped = line.strip()
+            # YAML document markers (strong indicator at start)
+            if stripped == '---' or stripped == '...':
+                if lines.index(line) < 3:  # Only count if near start
+                    yaml_indicators += 3
+            elif ':' in line and not line.strip().startswith('#'):
+                # Check for key: value pattern
+                parts = line.split(':', 1)
+                if len(parts) == 2 and parts[0].strip() and not parts[0].strip().startswith('"'):
+                    # Valid YAML key pattern
+                    key = parts[0].strip()
+                    if ' ' not in key or key.startswith('"') or key.startswith("'"):
+                        yaml_indicators += 1
+                        key_value_lines += 1
+            elif stripped.startswith('- ') and len(stripped) > 2:
+                yaml_indicators += 1
+            elif stripped.startswith('#') and len(stripped) > 1:
+                yaml_indicators += 0.3  # Comments are weak indicators
+        
+        # Need multiple key-value pairs for simple YAML detection
+        if key_value_lines >= 2 and yaml_indicators >= 2:
+            return True
+            
+        return yaml_indicators >= 3
     
     def _looks_like_csv(self, content: str) -> bool:
         """Check if content looks like CSV format."""
@@ -313,26 +399,57 @@ class FileDetector:
     
     def _looks_like_markdown(self, content: str) -> bool:
         """Check if content looks like Markdown format."""
-        # Look for common Markdown patterns
-        markdown_indicators = [
-            '# ',  # Headers
-            '## ',
-            '### ',
-            '- ',  # Lists
-            '* ',
-            '1. ',
-            '[',  # Links
-            '```',  # Code blocks
-            '**',  # Bold
-            '*',  # Italic (but not bullet point)
-            '> ',  # Quotes
-        ]
+        lines = content.split('\n')
+        markdown_score = 0
         
-        # Count indicators
-        indicator_count = sum(1 for indicator in markdown_indicators if indicator in content)
+        # Strong indicators (at start of line)
+        for line in lines[:30]:  # Check first 30 lines
+            stripped = line.strip()
+            # Headers
+            if stripped.startswith(('#', '##', '###', '####', '#####', '######')) and ' ' in stripped:
+                markdown_score += 2
+            # Lists
+            elif stripped.startswith(('- ', '* ', '+ ')) or (len(stripped) >= 3 and stripped[0].isdigit() and stripped[1:3] in ['. ', ') ']):
+                markdown_score += 1.5
+            # Quotes
+            elif stripped.startswith('> '):
+                markdown_score += 1.5
+            # Horizontal rules
+            elif stripped in ['---', '***', '___'] and len(stripped) >= 3:
+                markdown_score += 2
+            # Code blocks
+            elif stripped.startswith('```'):
+                markdown_score += 2
         
-        # If multiple indicators found, likely Markdown
-        return indicator_count >= 2
+        # Inline indicators (anywhere in content)
+        content_sample = content[:1000]  # Check first 1000 chars
+        
+        # Links [text](url)
+        if '[' in content_sample and '](' in content_sample:
+            markdown_score += 1.5
+        
+        # Images ![alt](url)
+        if '![' in content_sample and '](' in content_sample:
+            markdown_score += 2
+        
+        # Bold/italic
+        if '**' in content_sample or '__' in content_sample:
+            markdown_score += 1
+        if '*' in content_sample or '_' in content_sample:
+            markdown_score += 0.5
+        
+        # Code spans
+        if '`' in content_sample:
+            markdown_score += 1
+        
+        # Tables (look for pipe characters in aligned patterns)
+        for line in lines[:20]:
+            if '|' in line and line.count('|') >= 2:
+                markdown_score += 1.5
+                break
+        
+        # Need significant evidence for Markdown
+        return markdown_score >= 3
     
     def _is_text_file(self, content: str) -> bool:
         """Check if content appears to be plain text."""
