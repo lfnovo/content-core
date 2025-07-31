@@ -247,6 +247,40 @@ Enable OCR enhancement for:
 
 **Note**: The quality improvements (better character rendering, table detection) work automatically without requiring OCR or additional setup.
 
+## File Type Detection
+
+Content Core uses a pure Python implementation for file type detection, eliminating the need for system dependencies like libmagic. This ensures consistent behavior across all platforms (Windows, macOS, Linux).
+
+### How It Works
+
+The `FileDetector` class uses:
+- **Binary signature matching** for formats like PDF, images, audio, and video files
+- **Content analysis** for text-based formats (HTML, XML, JSON, YAML, CSV, Markdown)
+- **ZIP structure detection** for modern document formats (DOCX, XLSX, PPTX, EPUB)
+
+### Supported Formats
+
+Content Core automatically detects and returns appropriate MIME types for:
+- **Documents**: PDF, DOCX, XLSX, PPTX, ODT, ODS, ODP, RTF, EPUB
+- **Images**: JPEG, PNG, GIF, BMP, WEBP, SVG, TIFF, ICO
+- **Media**: MP4, AVI, MKV, MOV, MP3, WAV, OGG, FLAC, M4A
+- **Text**: HTML, XML, JSON, YAML, CSV, Markdown, Plain text
+- **Archives**: ZIP, TAR, GZ, BZ2, XZ
+
+### Implementation Details
+
+File detection is performed automatically when you call `extract_content()`. The detection:
+- Reads only the necessary bytes (typically first 8KB) for performance
+- Works regardless of file extension - detection is based on content
+- Falls back to `text/plain` for unrecognized text files
+- Returns `application/octet-stream` for binary files that don't match known signatures
+
+This pure Python approach means:
+- No installation headaches on different platforms
+- Consistent behavior in all environments (local, Docker, serverless)
+- Easy debugging and customization if needed
+- No binary dependencies or system library conflicts
+
 ## Support
 
 If you have questions or encounter issues while using the library, open an issue in the repository or contact the support team.
