@@ -27,4 +27,4 @@ CLAUDE.md
 node_modules/
 **/notebooks/private
 
-.claude/
+claude-logs

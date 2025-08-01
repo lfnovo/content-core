@@ -74,12 +74,13 @@ summary = await cc.summarize_content(result, context="explain to a child")
 *   **⚡ Zero-Install Options:** Use `uvx` for instant access without installation
 *   **🧠 AI-Powered Processing:** LLM integration for content cleaning and summarization
 *   **🔄 Asynchronous:** Built with `asyncio` for efficient processing
+*   **🐍 Pure Python Implementation:** No system dependencies required - simplified installation across all platforms
 
 ## Getting Started
 
 ### Installation
 
-Install Content Core using `pip`:
+Install Content Core using `pip` - **no system dependencies required!**
 
 ```bash
 # Basic installation (PyMuPDF + BeautifulSoup/Jina extraction)
@@ -94,6 +95,8 @@ pip install content-core
 # Full installation (with enhanced document processing)
 pip install content-core[docling]
 ```
+
+> **Note:** Unlike many content extraction tools, Content Core uses pure Python implementations and doesn't require system libraries like libmagic. This ensures consistent, hassle-free installation across Windows, macOS, and Linux.
 
 Alternatively, if you’re developing locally:
 

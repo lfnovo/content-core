@@ -4,7 +4,6 @@ from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
 import aiohttp
-import magic
 from langgraph.graph import END, START, StateGraph
 
 from content_core.common import (
@@ -54,12 +53,14 @@ async def source_identification(state: ProcessSourceState) -> Dict[str, str]:
 
 async def file_type(state: ProcessSourceState) -> Dict[str, Any]:
     """
-    Identify the file using python-magic
+    Identify the file using pure Python file detection
     """
+    from content_core.content.identification import get_file_type
+    
     return_dict = {}
     file_path = state.file_path
     if file_path is not None:
-        return_dict["identified_type"] = magic.from_file(file_path, mime=True)
+        return_dict["identified_type"] = await get_file_type(file_path)
         return_dict["title"] = os.path.basename(file_path)
     return return_dict
 
