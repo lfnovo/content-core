@@ -3,11 +3,11 @@ import { existsSync } from "fs";
 import { basename, extname } from "path";
 import { getPreferenceValues, showToast, Toast } from "@raycast/api";
 import { showFailureToast } from "@raycast/utils";
-const shellEnv = require("shell-env");
+import { shellEnvSync } from "shell-env";
 import { ContentResult, ProcessingOptions } from "./types";
 
 // Get shell environment with proper PATH
-const shellEnvironment = shellEnv.sync();
+const shellEnvironment = shellEnvSync();
 
 /**
  * Get the path to uvx executable
