@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { execFileSync, execSync } from "child_process";
 import { existsSync } from "fs";
 import { basename, extname } from "path";
 import { getPreferenceValues, showToast, Toast } from "@raycast/api";
@@ -149,8 +149,11 @@ export async function extractContent(
       );
     }
 
-    const formatFlag = format !== "text" ? ` --format ${format}` : "";
-    const command = `"${uvxPath}" --from "content-core" ccore "${source}"${formatFlag}`;
+    // Build command arguments safely to prevent injection
+    const args = ["--from", "content-core", "ccore", source];
+    if (format !== "text") {
+      args.push("--format", format);
+    }
 
     await showToast({
       style: Toast.Style.Animated,
@@ -159,7 +162,7 @@ export async function extractContent(
     });
 
     const startTime = Date.now();
-    const output = execSync(command, {
+    const output = execFileSync(uvxPath, args, {
       encoding: "utf8",
       env,
       timeout: 120000, // 2 minute timeout
@@ -243,8 +246,11 @@ export async function summarizeContent(
       );
     }
 
-    const contextFlag = context ? ` --context "${context}"` : "";
-    const command = `"${uvxPath}" --from "content-core" csum "${source}"${contextFlag}`;
+    // Build command arguments safely to prevent injection
+    const args = ["--from", "content-core", "csum", source];
+    if (context) {
+      args.push("--context", context);
+    }
 
     await showToast({
       style: Toast.Style.Animated,
@@ -253,7 +259,7 @@ export async function summarizeContent(
     });
 
     const startTime = Date.now();
-    const output = execSync(command, {
+    const output = execFileSync(uvxPath, args, {
       encoding: "utf8",
       env,
       timeout: 120000, // 2 minute timeout
