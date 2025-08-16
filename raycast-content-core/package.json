@@ -15,7 +15,6 @@
     "Productivity",
     "Developer Tools"
   ],
-  "version": "1.0.0",
   "preferences": [
     {
       "name": "openaiApiKey",
@@ -81,7 +80,8 @@
   ],
   "dependencies": {
     "@raycast/api": "1.70.0",
-    "@raycast/utils": "^1.12.0"
+    "@raycast/utils": "^1.12.0",
+    "shell-env": "^4.0.1"
   },
   "devDependencies": {
     "@raycast/eslint-config": "^1.0.6",

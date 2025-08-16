@@ -3,7 +3,11 @@ import { existsSync } from "fs";
 import { basename, extname } from "path";
 import { getPreferenceValues, showToast, Toast } from "@raycast/api";
 import { showFailureToast } from "@raycast/utils";
+import shellEnv from "shell-env";
 import { ContentResult, ProcessingOptions } from "./types";
+
+// Get shell environment with proper PATH
+const shellEnvironment = shellEnv.sync();
 
 /**
  * Get the path to uvx executable
@@ -16,20 +20,11 @@ function getUvxPath(): string | null {
     "/Users/" + process.env.USER + "/.local/bin/uvx",
   ];
 
-  // First try with full PATH
+  // First try with shell environment PATH
   try {
     const result = execSync("which uvx", {
       encoding: "utf8",
-      env: {
-        ...process.env,
-        PATH:
-          "/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin:/Users/" +
-          process.env.USER +
-          "/.cargo/bin:/Users/" +
-          process.env.USER +
-          "/.local/bin:" +
-          (process.env.PATH || ""),
-      },
+      env: shellEnvironment,
     });
     return result.trim();
   } catch {
@@ -59,14 +54,7 @@ export function checkUvxAvailable(): boolean {
 function setupEnvironment(): Record<string, string> {
   const preferences = getPreferenceValues<Preferences>();
   const env: Record<string, string> = {
-    ...process.env,
-    PATH:
-      "/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin:/Users/" +
-      process.env.USER +
-      "/.cargo/bin:/Users/" +
-      process.env.USER +
-      "/.local/bin:" +
-      (process.env.PATH || ""),
+    ...shellEnvironment,
   };
 
   if (preferences.openaiApiKey) {
