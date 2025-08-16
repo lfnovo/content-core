@@ -19,9 +19,3 @@ export interface ProcessingOptions {
   source: string;
   sourceType: "url" | "file";
 }
-
-export interface ApiPreferences {
-  openaiApiKey?: string;
-  firecrawlApiKey?: string;
-  jinaApiKey?: string;
-}

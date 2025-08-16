@@ -3,7 +3,7 @@ import { existsSync } from "fs";
 import { basename, extname } from "path";
 import { getPreferenceValues, showToast, Toast } from "@raycast/api";
 import { showFailureToast } from "@raycast/utils";
-import { ContentResult, ProcessingOptions, ApiPreferences } from "./types";
+import { ContentResult, ProcessingOptions } from "./types";
 
 /**
  * Get the path to uvx executable
@@ -57,7 +57,7 @@ export function checkUvxAvailable(): boolean {
  * Setup environment variables from Raycast preferences
  */
 function setupEnvironment(): Record<string, string> {
-  const preferences = getPreferenceValues<ApiPreferences>();
+  const preferences = getPreferenceValues<Preferences>();
   const env: Record<string, string> = {
     ...process.env,
     PATH:
