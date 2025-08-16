@@ -7,7 +7,6 @@ import {
   useNavigation,
   showToast,
   Toast,
-  open,
 } from "@raycast/api";
 import {
   summarizeContent,
@@ -208,13 +207,6 @@ function SummarizeContentForm() {
       actions={
         <ActionPanel>
           <Action.SubmitForm title="Generate Summary" onSubmit={handleSubmit} />
-          <Action
-            title="Choose File"
-            onAction={async () => {
-              await open("file:///");
-            }}
-            shortcut={{ modifiers: ["cmd"], key: "o" }}
-          />
           <Action.OpenInBrowser
             title="Get Openai Api Key"
             url="https://platform.openai.com/api-keys"

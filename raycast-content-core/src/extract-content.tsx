@@ -7,7 +7,6 @@ import {
   useNavigation,
   showToast,
   Toast,
-  open,
 } from "@raycast/api";
 import {
   extractContent,
@@ -130,13 +129,6 @@ function ExtractContentForm() {
       actions={
         <ActionPanel>
           <Action.SubmitForm title="Extract Content" onSubmit={handleSubmit} />
-          <Action
-            title="Choose File"
-            onAction={async () => {
-              await open("file:///");
-            }}
-            shortcut={{ modifiers: ["cmd"], key: "o" }}
-          />
           <Action.OpenInBrowser
             title="Get Firecrawl Api Key"
             url="https://www.firecrawl.dev/"
