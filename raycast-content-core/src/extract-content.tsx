@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { basename } from "path";
 import {
   Form,
   ActionPanel,
@@ -185,7 +186,7 @@ function ResultsView({
 }) {
   const sourceDisplay = sourceType === "url" ? "URL" : "File";
   const sourceName =
-    result.metadata?.source?.split("/").pop() || result.metadata?.source || "";
+    (result.metadata?.source ? basename(result.metadata.source) : result.metadata?.source) || "";
 
   const markdown = result.success
     ? `# Content Extraction Results

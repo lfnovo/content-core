@@ -1,5 +1,6 @@
 import { execSync } from "child_process";
 import { existsSync } from "fs";
+import { basename, extname } from "path";
 import { getPreferenceValues, showToast, Toast } from "@raycast/api";
 import { ContentResult, ProcessingOptions, ApiPreferences } from "./types";
 
@@ -154,7 +155,7 @@ export async function extractContent(
     await showToast({
       style: Toast.Style.Animated,
       title: "Extracting content...",
-      message: `Processing ${sourceType}: ${source.split("/").pop() || source}`,
+      message: `Processing ${sourceType}: ${basename(source) || source}`,
     });
 
     const startTime = Date.now();
@@ -248,7 +249,7 @@ export async function summarizeContent(
     await showToast({
       style: Toast.Style.Animated,
       title: "Generating summary...",
-      message: `Processing ${sourceType}: ${source.split("/").pop() || source}`,
+      message: `Processing ${sourceType}: ${basename(source) || source}`,
     });
 
     const startTime = Date.now();
@@ -343,6 +344,6 @@ export function getSupportedExtensions(): string[] {
  * Check if file extension is supported
  */
 export function isSupportedFile(filename: string): boolean {
-  const ext = filename.toLowerCase().split(".").pop();
-  return ext ? getSupportedExtensions().includes("." + ext) : false;
+  const ext = extname(filename).toLowerCase();
+  return ext ? getSupportedExtensions().includes(ext) : false;
 }

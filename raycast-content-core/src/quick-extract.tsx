@@ -5,6 +5,7 @@ import {
   Toast,
   closeMainWindow,
 } from "@raycast/api";
+import { basename } from "path";
 import {
   extractContent,
   checkUvxAvailable,
@@ -82,7 +83,7 @@ export default async function Command(
     }
 
     // Show processing toast
-    const displayName = source.split("/").pop() || source;
+    const displayName = basename(source) || source;
     const typeDisplay = sourceType === "url" ? "URL" : "file";
 
     await showToast({
