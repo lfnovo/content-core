@@ -9,13 +9,7 @@
   "keywords": [
     "content",
     "extract",
-    "pdf",
-    "video",
-    "audio",
-    "transcription",
-    "summary",
-    "ocr",
-    "documents"
+    "summary"
   ],
   "categories": [
     "Productivity",
@@ -55,14 +49,7 @@
       "description": "Extract content from URLs, files, documents, videos, and audio",
       "mode": "view",
       "keywords": [
-        "extract",
-        "content",
-        "url",
-        "file",
-        "pdf",
-        "document",
-        "video",
-        "audio"
+        "extract"
       ]
     },
     {
@@ -71,12 +58,7 @@
       "description": "Generate AI-powered summaries from URLs, files, and documents",
       "mode": "view",
       "keywords": [
-        "summarize",
-        "summary",
-        "ai",
-        "url",
-        "file",
-        "document"
+        "summarize"
       ]
     },
     {
@@ -93,11 +75,7 @@
         }
       ],
       "keywords": [
-        "quick",
-        "extract",
-        "clipboard",
-        "url",
-        "file"
+        "quick"
       ]
     }
   ],
