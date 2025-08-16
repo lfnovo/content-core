@@ -79,8 +79,8 @@
     }
   ],
   "dependencies": {
-    "@raycast/api": "1.70.0",
-    "@raycast/utils": "^1.12.0",
+    "@raycast/api": "^1.102.4",
+    "@raycast/utils": "^2.2.0",
     "shell-env": "^4.0.1"
   },
   "devDependencies": {
