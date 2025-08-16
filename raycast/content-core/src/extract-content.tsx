@@ -135,7 +135,6 @@ function ExtractContentForm() {
             title="Get Firecrawl Api Key"
             url="https://www.firecrawl.dev/"
             icon={Icon.Key}
-            shortcut={{ modifiers: ["cmd"], key: "f" }}
           />
           <Action.OpenInBrowser
             title="Get Openai Api Key"

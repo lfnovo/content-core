@@ -210,7 +210,6 @@ function SummarizeContentForm() {
             title="Get Firecrawl Api Key"
             url="https://www.firecrawl.dev/"
             icon={Icon.Key}
-            shortcut={{ modifiers: ["cmd"], key: "f" }}
           />
         </ActionPanel>
       }
