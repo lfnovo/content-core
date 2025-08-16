@@ -1,7 +1,7 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "raycast-content-core",
-  "title": "Content Core Raycast Extension",
+  "title": "Content Core",
   "description": "Extract content from URLs, documents, videos, and audio files using Content Core's intelligent auto-engine",
   "icon": "command-icon.png",
   "author": "luis_novo",

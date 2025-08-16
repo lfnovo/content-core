@@ -1,4 +1,4 @@
-# Content Core Raycast Extension
+# Content Core
 
 A Raycast extension that provides quick access to Content Core's powerful content extraction and summarization capabilities directly from your Raycast interface.
 
