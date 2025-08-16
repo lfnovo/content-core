@@ -133,7 +133,7 @@ function SummarizeContentForm() {
         style: Toast.Style.Failure,
         title: "uvx not found",
         message:
-          "Please install uv first: curl -LsSf https://astral.sh/uv/install.sh | sh",
+          "Please install uv first: brew install uv",
       });
       return;
     }

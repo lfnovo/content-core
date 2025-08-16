@@ -145,7 +145,7 @@ export async function extractContent(
 
     if (!uvxPath) {
       throw new Error(
-        "uvx not found. Please install uv first: curl -LsSf https://astral.sh/uv/install.sh | sh",
+        "uvx not found. Please install uv first: brew install uv",
       );
     }
 
@@ -239,7 +239,7 @@ export async function summarizeContent(
 
     if (!uvxPath) {
       throw new Error(
-        "uvx not found. Please install uv first: curl -LsSf https://astral.sh/uv/install.sh | sh",
+        "uvx not found. Please install uv first: brew install uv",
       );
     }
 
