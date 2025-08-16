@@ -3,7 +3,7 @@ import { existsSync } from "fs";
 import { basename, extname } from "path";
 import { getPreferenceValues, showToast, Toast } from "@raycast/api";
 import { showFailureToast } from "@raycast/utils";
-import shellEnv from "shell-env";
+const shellEnv = require("shell-env");
 import { ContentResult, ProcessingOptions } from "./types";
 
 // Get shell environment with proper PATH
