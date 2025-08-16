@@ -5,6 +5,7 @@ import {
   ActionPanel,
   Action,
   Detail,
+  Icon,
   useNavigation,
   showToast,
   Toast,
@@ -156,63 +157,59 @@ function SummarizeContentForm() {
   }
 
 
+  const contextIcons: Record<string, string> = {
+    "bullet points": "•",
+    "executive summary": "💼",
+    "key takeaways": "🎯",
+    "research summary": "🔬",
+    "meeting notes": "📝",
+    "technical summary": "⚙️",
+    "explain to a child": "👶",
+    "action items": "✅",
+  };
+
+  const sourceTypeIcons: Record<string, string> = {
+    url: "🌐",
+    file: "📄",
+    unknown: "❓",
+  };
+
+  const sourceTypeDescriptions: Record<string, string> = {
+    url: "Will summarize content from the web page",
+    file: "Will summarize content from the local file",
+    unknown: "Enter a URL or file path to auto-detect",
+  };
+
   function getContextIcon(context: string): string {
-    switch (context) {
-      case "bullet points":
-        return "•";
-      case "executive summary":
-        return "💼";
-      case "key takeaways":
-        return "🎯";
-      case "research summary":
-        return "🔬";
-      case "meeting notes":
-        return "📝";
-      case "technical summary":
-        return "⚙️";
-      case "explain to a child":
-        return "👶";
-      case "action items":
-        return "✅";
-      default:
-        return "📄";
-    }
+    return contextIcons[context] || "📄";
   }
 
   function getSourceTypeIcon(): string {
-    switch (detectedType) {
-      case "url":
-        return "🌐";
-      case "file":
-        return "📄";
-      case "unknown":
-        return "❓";
-    }
+    return sourceTypeIcons[detectedType] || "❓";
   }
 
   function getSourceTypeDescription(): string {
-    switch (detectedType) {
-      case "url":
-        return "Will summarize content from the web page";
-      case "file":
-        return "Will summarize content from the local file";
-      case "unknown":
-        return "Enter a URL or file path to auto-detect";
-    }
+    return sourceTypeDescriptions[detectedType] || "Enter a URL or file path to auto-detect";
   }
 
   return (
     <Form
       actions={
         <ActionPanel>
-          <Action.SubmitForm title="Generate Summary" onSubmit={handleSubmit} />
+          <Action.SubmitForm 
+            title="Generate Summary" 
+            icon={Icon.Sparkles}
+            onSubmit={handleSubmit} 
+          />
           <Action.OpenInBrowser
             title="Get Openai Api Key"
             url="https://platform.openai.com/api-keys"
+            icon={Icon.Key}
           />
           <Action.OpenInBrowser
             title="Get Firecrawl Api Key"
             url="https://www.firecrawl.dev/"
+            icon={Icon.Key}
             shortcut={{ modifiers: ["cmd"], key: "f" }}
           />
         </ActionPanel>
@@ -321,17 +318,20 @@ ${
           <Action.CopyToClipboard
             title="Copy Summary"
             content={result.content}
+            icon={Icon.Clipboard}
             shortcut={{ modifiers: ["cmd"], key: "c" }}
           />
           <Action.Paste
             title="Paste Summary"
             content={result.content}
+            icon={Icon.Document}
             shortcut={{ modifiers: ["cmd"], key: "v" }}
           />
           {sourceType === "url" ? (
             <Action.OpenInBrowser
               title="Open Original URL"
               url={result.metadata?.source || ""}
+              icon={Icon.Globe}
               shortcut={{ modifiers: ["cmd"], key: "o" }}
             />
           ) : (
@@ -339,11 +339,13 @@ ${
               <Action.OpenWith
                 title="Open Original File"
                 path={result.metadata?.source || ""}
+                icon={Icon.Finder}
                 shortcut={{ modifiers: ["cmd"], key: "o" }}
               />
               <Action.ShowInFinder
                 title="Show in Finder"
                 path={result.metadata?.source || ""}
+                icon={Icon.Finder}
                 shortcut={{ modifiers: ["cmd"], key: "f" }}
               />
             </>
@@ -352,6 +354,7 @@ ${
             <>
               <Action.CreateSnippet
                 title="Save as Snippet"
+                icon={Icon.Snippets}
                 snippet={{
                   text: result.content,
                   name: `Summary: ${sourceName}`,
@@ -361,6 +364,7 @@ ${
               />
               <Action.CreateQuicklink
                 title="Create Quicklink"
+                icon={Icon.Link}
                 quicklink={{
                   link:
                     sourceType === "url"

@@ -5,6 +5,7 @@ import {
   ActionPanel,
   Action,
   Detail,
+  Icon,
   useNavigation,
   showToast,
   Toast,
@@ -101,41 +102,45 @@ function ExtractContentForm() {
   }
 
 
+  const sourceTypeIcons: Record<string, string> = {
+    url: "🌐",
+    file: "📄",
+    unknown: "❓",
+  };
+
+  const sourceTypeDescriptions: Record<string, string> = {
+    url: "Will extract content from the web page",
+    file: "Will extract content from the local file",
+    unknown: "Enter a URL or file path to auto-detect",
+  };
+
   function getSourceTypeIcon(): string {
-    switch (detectedType) {
-      case "url":
-        return "🌐";
-      case "file":
-        return "📄";
-      case "unknown":
-        return "❓";
-    }
+    return sourceTypeIcons[detectedType] || "❓";
   }
 
   function getSourceTypeDescription(): string {
-    switch (detectedType) {
-      case "url":
-        return "Will extract content from the web page";
-      case "file":
-        return "Will extract content from the local file";
-      case "unknown":
-        return "Enter a URL or file path to auto-detect";
-    }
+    return sourceTypeDescriptions[detectedType] || "Enter a URL or file path to auto-detect";
   }
 
   return (
     <Form
       actions={
         <ActionPanel>
-          <Action.SubmitForm title="Extract Content" onSubmit={handleSubmit} />
+          <Action.SubmitForm 
+            title="Extract Content" 
+            icon={Icon.Download}
+            onSubmit={handleSubmit} 
+          />
           <Action.OpenInBrowser
             title="Get Firecrawl Api Key"
             url="https://www.firecrawl.dev/"
+            icon={Icon.Key}
             shortcut={{ modifiers: ["cmd"], key: "f" }}
           />
           <Action.OpenInBrowser
             title="Get Openai Api Key"
             url="https://platform.openai.com/api-keys"
+            icon={Icon.Key}
           />
         </ActionPanel>
       }
@@ -224,17 +229,20 @@ ${
           <Action.CopyToClipboard
             title="Copy Content"
             content={result.content}
+            icon={Icon.Clipboard}
             shortcut={{ modifiers: ["cmd"], key: "c" }}
           />
           <Action.Paste
             title="Paste Content"
             content={result.content}
+            icon={Icon.Document}
             shortcut={{ modifiers: ["cmd"], key: "v" }}
           />
           {sourceType === "url" ? (
             <Action.OpenInBrowser
               title="Open Original URL"
               url={result.metadata?.source || ""}
+              icon={Icon.Globe}
               shortcut={{ modifiers: ["cmd"], key: "o" }}
             />
           ) : (
@@ -242,11 +250,13 @@ ${
               <Action.OpenWith
                 title="Open Original File"
                 path={result.metadata?.source || ""}
+                icon={Icon.Finder}
                 shortcut={{ modifiers: ["cmd"], key: "o" }}
               />
               <Action.ShowInFinder
                 title="Show in Finder"
                 path={result.metadata?.source || ""}
+                icon={Icon.Finder}
                 shortcut={{ modifiers: ["cmd"], key: "f" }}
               />
             </>
@@ -254,6 +264,7 @@ ${
           {result.success && (
             <Action.CreateSnippet
               title="Save as Snippet"
+              icon={Icon.Snippets}
               snippet={{
                 text: result.content,
                 name: `Extracted: ${sourceName}`,
