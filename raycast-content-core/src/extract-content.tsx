@@ -9,6 +9,7 @@ import {
   showToast,
   Toast,
 } from "@raycast/api";
+import { showFailureToast } from "@raycast/utils";
 import {
   extractContent,
   checkUvxAvailable,
@@ -80,11 +81,8 @@ function ExtractContentForm() {
 
     // Check if uvx is available
     if (!checkUvxAvailable()) {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "uvx not found",
-        message:
-          "Please install uv first: brew install uv",
+      await showFailureToast("Please install uv first: brew install uv", {
+        title: "uvx not found"
       });
       return;
     }

@@ -5,6 +5,7 @@ import {
   Toast,
   closeMainWindow,
 } from "@raycast/api";
+import { showFailureToast } from "@raycast/utils";
 import { basename } from "path";
 import {
   extractContent,
@@ -26,10 +27,8 @@ export default async function Command(
   try {
     // Validate input
     if (!source.trim()) {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "Source Required",
-        message: "Please provide a URL or file path to extract content from",
+      await showFailureToast("Please provide a URL or file path to extract content from", { 
+        title: "Source Required" 
       });
       return;
     }
@@ -41,10 +40,8 @@ export default async function Command(
     } else if (validateFile(source).valid && isSupportedFile(source)) {
       sourceType = "file";
     } else {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "Invalid Source",
-        message: "Please provide a valid URL or file path",
+      await showFailureToast("Please provide a valid URL or file path", { 
+        title: "Invalid Source" 
       });
       return;
     }
@@ -53,19 +50,15 @@ export default async function Command(
     if (sourceType === "file") {
       const validation = validateFile(source);
       if (!validation.valid) {
-        await showToast({
-          style: Toast.Style.Failure,
-          title: "File Error",
-          message: validation.error || "File validation failed",
+        await showFailureToast(validation.error || "File validation failed", { 
+          title: "File Error" 
         });
         return;
       }
 
       if (!isSupportedFile(source)) {
-        await showToast({
-          style: Toast.Style.Failure,
-          title: "Unsupported File Type",
-          message: "File type not supported by Content Core",
+        await showFailureToast("File type not supported by Content Core", { 
+          title: "Unsupported File Type" 
         });
         return;
       }
@@ -73,11 +66,8 @@ export default async function Command(
 
     // Check if uvx is available
     if (!checkUvxAvailable()) {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "uvx not found",
-        message:
-          "Please install uv first: brew install uv",
+      await showFailureToast("Please install uv first: brew install uv", { 
+        title: "uvx not found" 
       });
       return;
     }
@@ -112,18 +102,14 @@ export default async function Command(
         message: `Copied ${result.metadata?.contentLength?.toLocaleString()} characters from ${typeDisplay} to clipboard`,
       });
     } else {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "Extraction failed",
-        message: result.error || "Unknown error occurred",
+      await showFailureToast(result.error || "Unknown error occurred", { 
+        title: "Extraction failed" 
       });
     }
   } catch (error) {
-    await showToast({
-      style: Toast.Style.Failure,
-      title: "Error",
-      message:
-        error instanceof Error ? error.message : "Unknown error occurred",
-    });
+    await showFailureToast(
+      error instanceof Error ? error.message : "Unknown error occurred", 
+      { title: "Error" }
+    );
   }
 }

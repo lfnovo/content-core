@@ -2,6 +2,7 @@ import { execFileSync, execSync } from "child_process";
 import { existsSync } from "fs";
 import { basename, extname } from "path";
 import { getPreferenceValues, showToast, Toast } from "@raycast/api";
+import { showFailureToast } from "@raycast/utils";
 import { ContentResult, ProcessingOptions, ApiPreferences } from "./types";
 
 /**
@@ -190,11 +191,7 @@ export async function extractContent(
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
 
-    await showToast({
-      style: Toast.Style.Failure,
-      title: "Extraction failed",
-      message: errorMessage,
-    });
+    await showFailureToast(errorMessage, { title: "Extraction failed" });
 
     return {
       success: false,
@@ -287,11 +284,7 @@ export async function summarizeContent(
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
 
-    await showToast({
-      style: Toast.Style.Failure,
-      title: "Summarization failed",
-      message: errorMessage,
-    });
+    await showFailureToast(errorMessage, { title: "Summarization failed" });
 
     return {
       success: false,
