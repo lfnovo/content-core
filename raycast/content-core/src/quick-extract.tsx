@@ -27,9 +27,12 @@ export default async function Command(
   try {
     // Validate input
     if (!source.trim()) {
-      await showFailureToast("Please provide a URL or file path to extract content from", { 
-        title: "Source Required" 
-      });
+      await showFailureToast(
+        "Please provide a URL or file path to extract content from",
+        {
+          title: "Source Required",
+        },
+      );
       return;
     }
 
@@ -40,8 +43,8 @@ export default async function Command(
     } else if (validateFile(source).valid && isSupportedFile(source)) {
       sourceType = "file";
     } else {
-      await showFailureToast("Please provide a valid URL or file path", { 
-        title: "Invalid Source" 
+      await showFailureToast("Please provide a valid URL or file path", {
+        title: "Invalid Source",
       });
       return;
     }
@@ -50,15 +53,15 @@ export default async function Command(
     if (sourceType === "file") {
       const validation = validateFile(source);
       if (!validation.valid) {
-        await showFailureToast(validation.error || "File validation failed", { 
-          title: "File Error" 
+        await showFailureToast(validation.error || "File validation failed", {
+          title: "File Error",
         });
         return;
       }
 
       if (!isSupportedFile(source)) {
-        await showFailureToast("File type not supported by Content Core", { 
-          title: "Unsupported File Type" 
+        await showFailureToast("File type not supported by Content Core", {
+          title: "Unsupported File Type",
         });
         return;
       }
@@ -66,8 +69,8 @@ export default async function Command(
 
     // Check if uvx is available
     if (!checkUvxAvailable()) {
-      await showFailureToast("Please install uv first: brew install uv", { 
-        title: "uvx not found" 
+      await showFailureToast("Please install uv first: brew install uv", {
+        title: "uvx not found",
       });
       return;
     }
@@ -102,14 +105,14 @@ export default async function Command(
         message: `Copied ${result.metadata?.contentLength?.toLocaleString()} characters from ${typeDisplay} to clipboard`,
       });
     } else {
-      await showFailureToast(result.error || "Unknown error occurred", { 
-        title: "Extraction failed" 
+      await showFailureToast(result.error || "Unknown error occurred", {
+        title: "Extraction failed",
       });
     }
   } catch (error) {
     await showFailureToast(
-      error instanceof Error ? error.message : "Unknown error occurred", 
-      { title: "Error" }
+      error instanceof Error ? error.message : "Unknown error occurred",
+      { title: "Error" },
     );
   }
 }

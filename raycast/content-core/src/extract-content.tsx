@@ -7,8 +7,6 @@ import {
   Detail,
   Icon,
   useNavigation,
-  showToast,
-  Toast,
 } from "@raycast/api";
 import { showFailureToast } from "@raycast/utils";
 import {
@@ -83,7 +81,7 @@ function ExtractContentForm() {
     // Check if uvx is available
     if (!checkUvxAvailable()) {
       await showFailureToast("Please install uv first: brew install uv", {
-        title: "uvx not found"
+        title: "uvx not found",
       });
       return;
     }
@@ -100,7 +98,6 @@ function ExtractContentForm() {
     // Navigate to results
     push(<ResultsView result={result} sourceType={sourceType} />);
   }
-
 
   const sourceTypeIcons: Record<string, string> = {
     url: "🌐",
@@ -119,17 +116,20 @@ function ExtractContentForm() {
   }
 
   function getSourceTypeDescription(): string {
-    return sourceTypeDescriptions[detectedType] || "Enter a URL or file path to auto-detect";
+    return (
+      sourceTypeDescriptions[detectedType] ||
+      "Enter a URL or file path to auto-detect"
+    );
   }
 
   return (
     <Form
       actions={
         <ActionPanel>
-          <Action.SubmitForm 
-            title="Extract Content" 
+          <Action.SubmitForm
+            title="Extract Content"
             icon={Icon.Download}
-            onSubmit={handleSubmit} 
+            onSubmit={handleSubmit}
           />
           <Action.OpenInBrowser
             title="Get Firecrawl Api Key"
@@ -188,7 +188,9 @@ function ResultsView({
 }) {
   const sourceDisplay = sourceType === "url" ? "URL" : "File";
   const sourceName =
-    (result.metadata?.source ? basename(result.metadata.source) : result.metadata?.source) || "";
+    (result.metadata?.source
+      ? basename(result.metadata.source)
+      : result.metadata?.source) || "";
 
   const markdown = result.success
     ? `# Content Extraction Results

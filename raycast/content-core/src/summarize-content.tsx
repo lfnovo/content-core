@@ -7,8 +7,6 @@ import {
   Detail,
   Icon,
   useNavigation,
-  showToast,
-  Toast,
 } from "@raycast/api";
 import { showFailureToast } from "@raycast/utils";
 import {
@@ -132,7 +130,7 @@ function SummarizeContentForm() {
     // Check if uvx is available
     if (!checkUvxAvailable()) {
       await showFailureToast("Please install uv first: brew install uv", {
-        title: "uvx not found"
+        title: "uvx not found",
       });
       return;
     }
@@ -155,7 +153,6 @@ function SummarizeContentForm() {
       />,
     );
   }
-
 
   const contextIcons: Record<string, string> = {
     "bullet points": "•",
@@ -189,17 +186,20 @@ function SummarizeContentForm() {
   }
 
   function getSourceTypeDescription(): string {
-    return sourceTypeDescriptions[detectedType] || "Enter a URL or file path to auto-detect";
+    return (
+      sourceTypeDescriptions[detectedType] ||
+      "Enter a URL or file path to auto-detect"
+    );
   }
 
   return (
     <Form
       actions={
         <ActionPanel>
-          <Action.SubmitForm 
-            title="Generate Summary" 
+          <Action.SubmitForm
+            title="Generate Summary"
             icon={Icon.Sparkles}
-            onSubmit={handleSubmit} 
+            onSubmit={handleSubmit}
           />
           <Action.OpenInBrowser
             title="Get Openai Api Key"
@@ -266,7 +266,9 @@ function ResultsView({
   const contextDisplay = context || "General Summary";
   const sourceDisplay = sourceType === "url" ? "URL" : "File";
   const sourceName =
-    (result.metadata?.source ? basename(result.metadata.source) : result.metadata?.source) || "";
+    (result.metadata?.source
+      ? basename(result.metadata.source)
+      : result.metadata?.source) || "";
 
   const markdown = result.success
     ? `# ${contextDisplay}
