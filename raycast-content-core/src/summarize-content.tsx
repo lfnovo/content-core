@@ -218,7 +218,6 @@ function SummarizeContentForm() {
           <Action.OpenInBrowser
             title="Get Openai Api Key"
             url="https://platform.openai.com/api-keys"
-            shortcut={{ modifiers: ["cmd"], key: "a" }}
           />
           <Action.OpenInBrowser
             title="Get Firecrawl Api Key"

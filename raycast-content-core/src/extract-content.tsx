@@ -145,7 +145,6 @@ function ExtractContentForm() {
           <Action.OpenInBrowser
             title="Get Openai Api Key"
             url="https://platform.openai.com/api-keys"
-            shortcut={{ modifiers: ["cmd"], key: "a" }}
           />
         </ActionPanel>
       }
