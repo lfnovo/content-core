@@ -1,6 +1,6 @@
 [project]
 name = "content-core"
-version = "1.4.1"
+version = "1.4.2"
 description = "Extract what matters from any media source. Available as Python Library, macOS Service, CLI and MCP Server"
 readme = "README.md"
 homepage = "https://github.com/lfnovo/content-core"
