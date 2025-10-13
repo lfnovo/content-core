@@ -247,6 +247,121 @@ Enable OCR enhancement for:
 
 **Note**: The quality improvements (better character rendering, table detection) work automatically without requiring OCR or additional setup.
 
+## Audio Processing Configuration
+
+Content Core optimizes audio and video file processing by using parallel transcription of audio segments. This feature is particularly beneficial for long-form content like podcasts, lectures, or long videos.
+
+### How It Works
+
+1. **Automatic Segmentation**: Audio files longer than 10 minutes are automatically split into segments
+2. **Parallel Transcription**: Multiple segments are transcribed concurrently using OpenAI Whisper
+3. **Concurrency Control**: A semaphore limits the number of simultaneous API calls to prevent rate limiting
+4. **Result Assembly**: Transcriptions are joined in the correct order to produce the complete transcript
+
+### Configuration
+
+#### Via YAML Configuration
+
+Add to your `cc_config.yaml` or custom configuration file:
+
+```yaml
+extraction:
+  audio:
+    concurrency: 3  # Number of concurrent transcriptions (1-10, default: 3)
+```
+
+#### Via Environment Variable
+
+Set in your `.env` file or system environment:
+
+```plaintext
+CCORE_AUDIO_CONCURRENCY=5  # Process 5 segments simultaneously
+```
+
+The environment variable takes precedence over the YAML configuration.
+
+#### Programmatically in Python
+
+```python
+from content_core.config import set_audio_concurrency
+
+# Override audio concurrency for the current session
+set_audio_concurrency(5)
+
+# Now process audio with the new setting
+result = await cc.extract({"file_path": "long_podcast.mp3"})
+```
+
+### Performance Considerations
+
+**Choosing the Right Concurrency Level:**
+
+- **1-2 concurrent**: Conservative approach
+  - Best for: API rate limits, cost management, batch processing
+  - Processing time: Slower, but more reliable
+
+- **3-5 concurrent** (recommended): Balanced approach
+  - Best for: Most use cases, moderate file lengths
+  - Processing time: Good balance between speed and stability
+
+- **6-10 concurrent**: Aggressive approach
+  - Best for: Very long files (>1 hour), premium API tiers
+  - Processing time: Fastest, but higher risk of rate limits
+  - Note: May result in higher API costs
+
+**Example Processing Times** (approximate, for a 60-minute audio file):
+- Concurrency 1: ~15-20 minutes
+- Concurrency 3: ~5-7 minutes
+- Concurrency 10: ~2-3 minutes
+
+### Validation and Error Handling
+
+Content Core validates the concurrency setting and provides safe defaults:
+
+- **Valid range**: 1-10 concurrent transcriptions
+- **Invalid values**: Automatically fall back to default (3) with a warning logged
+- **Invalid types**: Non-integer values are rejected with a warning
+
+Example warning when using invalid value:
+```
+WARNING: Invalid CCORE_AUDIO_CONCURRENCY: '15'. Must be between 1 and 10. Using default from config.
+```
+
+### Use Cases
+
+**Podcasts and Long Interviews:**
+```python
+from content_core.config import set_audio_concurrency
+import content_core as cc
+
+# For a 2-hour podcast, use higher concurrency
+set_audio_concurrency(7)
+result = await cc.extract({"file_path": "podcast_episode_120min.mp3"})
+```
+
+**Batch Processing:**
+```python
+from content_core.config import set_audio_concurrency
+import content_core as cc
+
+# For processing multiple files sequentially, use lower concurrency
+# to avoid rate limits across all files
+set_audio_concurrency(2)
+
+for audio_file in audio_files:
+    result = await cc.extract({"file_path": audio_file})
+    # Process result...
+```
+
+**Video Transcription:**
+```python
+import content_core as cc
+
+# Videos are processed the same way - audio is extracted first, then transcribed
+result = await cc.extract({"file_path": "conference_talk.mp4"})
+print(result.content)  # Full transcript
+```
+
 ## File Type Detection
 
 Content Core uses a pure Python implementation for file type detection, eliminating the need for system dependencies like libmagic. This ensures consistent behavior across all platforms (Windows, macOS, Linux).
