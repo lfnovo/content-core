@@ -45,7 +45,7 @@ async def split_audio(input_file, segment_length_minutes=15, output_prefix=None)
             end_time = min((i + 1) * segment_length_s, audio.duration)
 
             # Extract segment
-            output_filename = f"{output_prefix}_{str(i+1).zfill(3)}.mp3"
+            output_filename = f"{output_prefix}_{str(i + 1).zfill(3)}.mp3"
             output_path = os.path.join(output_dir, output_filename)
 
             # Export segment
@@ -53,7 +53,9 @@ async def split_audio(input_file, segment_length_minutes=15, output_prefix=None)
 
             output_files.append(output_path)
 
-            logger.debug(f"Exported segment {i+1}/{total_segments}: {output_filename}")
+            logger.debug(
+                f"Exported segment {i + 1}/{total_segments}: {output_filename}"
+            )
 
         return output_files
 
@@ -172,7 +174,7 @@ async def extract_audio_data(data: ProcessSourceState):
                     end_time = min((i + 1) * segment_length_s, audio.duration)
 
                     # Extract segment
-                    output_filename = f"{output_prefix}_{str(i+1).zfill(3)}.mp3"
+                    output_filename = f"{output_prefix}_{str(i + 1).zfill(3)}.mp3"
                     output_path = os.path.join(output_dir, output_filename)
 
                     extract_audio(input_audio_path, output_path, start_time, end_time)
@@ -193,7 +195,9 @@ async def extract_audio_data(data: ProcessSourceState):
             concurrency = get_audio_concurrency()
             semaphore = asyncio.Semaphore(concurrency)
 
-            logger.debug(f"Transcribing {len(output_files)} audio segments with concurrency limit of {concurrency}")
+            logger.debug(
+                f"Transcribing {len(output_files)} audio segments with concurrency limit of {concurrency}"
+            )
 
             # Create tasks for parallel transcription
             transcription_tasks = [
