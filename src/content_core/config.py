@@ -70,6 +70,61 @@ def get_url_engine():
         return env_engine
     return CONFIG.get("extraction", {}).get("url_engine", "auto")
 
+def get_audio_concurrency():
+    """
+    Get audio concurrency with environment variable override and validation.
+
+    Returns the configured number of concurrent audio transcriptions, with automatic
+    validation and fallback to safe defaults.
+
+    Configuration priority (highest to lowest):
+    1. CCORE_AUDIO_CONCURRENCY environment variable
+    2. extraction.audio.concurrency in YAML config
+    3. Default value: 3
+
+    Returns:
+        int: Number of concurrent transcriptions (1-10)
+
+    Validation:
+        - Values must be integers between 1 and 10 (inclusive)
+        - Invalid values (out of range, non-integer, etc.) automatically fall back to default
+        - A warning is logged when invalid values are detected
+
+    Examples:
+        >>> import os
+        >>> os.environ["CCORE_AUDIO_CONCURRENCY"] = "5"
+        >>> get_audio_concurrency()
+        5
+
+        >>> os.environ["CCORE_AUDIO_CONCURRENCY"] = "20"  # Too high
+        >>> get_audio_concurrency()  # Falls back to default
+        3
+    """
+    env_concurrency = os.environ.get("CCORE_AUDIO_CONCURRENCY")
+    if env_concurrency:
+        try:
+            concurrency = int(env_concurrency)
+            if concurrency < 1 or concurrency > 10:
+                # Import logger here to avoid circular imports
+                from content_core.logging import logger
+                logger.warning(
+                    f"Invalid CCORE_AUDIO_CONCURRENCY: '{env_concurrency}'. "
+                    f"Must be between 1 and 10. "
+                    f"Using default from config."
+                )
+                return CONFIG.get("extraction", {}).get("audio", {}).get("concurrency", 3)
+            return concurrency
+        except ValueError:
+            # Import logger here to avoid circular imports
+            from content_core.logging import logger
+            logger.warning(
+                f"Invalid CCORE_AUDIO_CONCURRENCY: '{env_concurrency}'. "
+                f"Must be a valid integer. "
+                f"Using default from config."
+            )
+            return CONFIG.get("extraction", {}).get("audio", {}).get("concurrency", 3)
+    return CONFIG.get("extraction", {}).get("audio", {}).get("concurrency", 3)
+
 # Programmatic config overrides: use in notebooks or scripts
 def set_document_engine(engine: str):
     """Override the document extraction engine ('auto', 'simple', or 'docling')."""
@@ -102,3 +157,19 @@ def set_pymupdf_ocr_fallback(enabled: bool):
     extraction = CONFIG.setdefault("extraction", {})
     pymupdf_cfg = extraction.setdefault("pymupdf", {})
     pymupdf_cfg["ocr_fallback"] = enabled
+
+def set_audio_concurrency(concurrency: int):
+    """
+    Override the audio concurrency setting (1-10).
+
+    Args:
+        concurrency (int): Number of concurrent audio transcriptions (1-10)
+
+    Raises:
+        ValueError: If concurrency is not between 1 and 10
+    """
+    if not isinstance(concurrency, int) or concurrency < 1 or concurrency > 10:
+        raise ValueError(f"Audio concurrency must be an integer between 1 and 10, got: {concurrency}")
+    extraction = CONFIG.setdefault("extraction", {})
+    audio_cfg = extraction.setdefault("audio", {})
+    audio_cfg["concurrency"] = concurrency

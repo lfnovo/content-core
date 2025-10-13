@@ -32,6 +32,8 @@ summary_model:
 extraction:
   document_engine: auto  # auto | simple | docling - for files/documents
   url_engine: auto  # auto | simple | firecrawl | jina | docling - for URLs
+  audio:
+    concurrency: 3              # Number of concurrent audio transcriptions (1-10)
   docling:
     output_format: markdown  # markdown | html | json
   pymupdf:

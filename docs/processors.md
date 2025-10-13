@@ -36,11 +36,27 @@ Content Core uses a modular approach to process content from different sources. 
 - **Returned Data**: Extracted text content or transcriptions (for media files), structured according to Content Core's schema.
 - **Location**: `src/content_core/processors/file.py`
 
-### 4. **Media Transcription Processor**
-- **Purpose**: Specifically handles transcription of audio and video files using external services or libraries.
-- **Supported Input**: Audio and video files (e.g., `.mp3`, `.mp4`).
-- **Returned Data**: Transcribed text from the media content.
-- **Location**: `src/content_core/processors/transcription.py`
+### 4. **Media Transcription Processor (Audio/Video)**
+- **Purpose**: Handles transcription of audio and video files using OpenAI Whisper API with parallel processing for improved performance
+- **Supported Input**: Audio files (`.mp3`, `.wav`, `.m4a`, `.flac`, `.ogg`) and video files (`.mp4`, `.avi`, `.mov`, `.mkv`)
+- **Returned Data**: Transcribed text from the media content, with metadata about processed segments
+- **Location**: `src/content_core/processors/audio.py`
+- **Key Features**:
+  - **Automatic Segmentation**: Files longer than 10 minutes are automatically split into segments
+  - **Parallel Processing**: Multiple segments are transcribed concurrently using `asyncio.gather()` with semaphore-based concurrency control
+  - **Configurable Concurrency**: Control the number of simultaneous transcriptions (1-10, default: 3) via `CCORE_AUDIO_CONCURRENCY` environment variable or `extraction.audio.concurrency` in YAML config
+  - **Order Preservation**: Results are assembled in correct order regardless of completion time
+  - **Efficient Resource Usage**: Semaphore prevents API rate limiting while maximizing throughput
+- **Configuration**:
+  ```yaml
+  extraction:
+    audio:
+      concurrency: 3  # Number of concurrent transcriptions (1-10)
+  ```
+- **Performance**:
+  - Short files (<10 min): Processed as single segment, no splitting overhead
+  - Long files (>10 min): Processing time scales sub-linearly with concurrency
+  - Example: 60-minute file with concurrency=3 takes ~5-7 minutes vs ~15-20 minutes with concurrency=1
 
 ### 5. **Enhanced PyMuPDF Processor (Simple Engine)**
 - **Purpose**: Optimized PDF extraction using PyMuPDF with enhanced quality flags, table detection, and optional OCR
