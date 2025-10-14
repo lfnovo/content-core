@@ -36,14 +36,14 @@ async def templated_message(
             prompt_template=input.system_prompt_template,
             template_text=input.system_prompt_text,
         ).render(data=input.data)
-        msgs.append(Message(role="system", content=system_prompt))
+        msgs.append({"role": "system", "content": system_prompt})
 
     if input.user_prompt_template or input.user_prompt_text:
         user_prompt = Prompter(
             prompt_template=input.user_prompt_template,
             template_text=input.user_prompt_text,
         ).render(data=input.data)
-        msgs.append(Message(role="user", content=user_prompt))
+        msgs.append({"role": "user", "content": user_prompt})
 
     result = await model.achat_complete(msgs)
     return result.content

@@ -1,8 +1,6 @@
 """Critical tests for FileDetector class - Top priority test cases."""
 import pytest
-from pathlib import Path
 from content_core.content.identification import FileDetector
-from content_core.common.exceptions import UnsupportedTypeException
 
 
 class TestFileDetectorCritical:

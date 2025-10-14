@@ -1,6 +1,5 @@
 """Tests for configuration functions and environment variable handling."""
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from content_core.config import (
     get_document_engine,
     get_url_engine,

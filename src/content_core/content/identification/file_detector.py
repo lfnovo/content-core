@@ -3,10 +3,9 @@ Pure Python file type detection using magic bytes and content analysis.
 Replaces libmagic dependency with a lightweight implementation.
 """
 
-import os
 import zipfile
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 
 from content_core.common.exceptions import UnsupportedTypeException
 from content_core.logging import logger

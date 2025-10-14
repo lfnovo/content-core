@@ -8,7 +8,7 @@ async def summarize(content: str, context: str) -> str:
     templated_message_fn = partial(templated_message, model=ModelFactory.get_model('summary_model'))
     response = await templated_message_fn(
         TemplatedMessageInput(
-            user_prompt_template="prompts/content/summarize",
+            user_prompt_template="content/summarize",
             data={"content": content, "context": context},
         )
     )

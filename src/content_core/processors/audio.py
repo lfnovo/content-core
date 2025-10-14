@@ -105,6 +105,7 @@ async def transcribe_audio_segment(audio_file, model):
 
 async def extract_audio_data(data: ProcessSourceState):
     input_audio_path = data.file_path
+    audio = None
 
     try:
         # Create a temporary directory for audio segments
@@ -137,6 +138,11 @@ async def extract_audio_data(data: ProcessSourceState):
         else:
             output_files = [input_audio_path]
 
+        # Close audio clip after getting duration
+        if audio:
+            audio.close()
+            audio = None
+
         # Transcribe audio files
         from content_core.models import ModelFactory
 
@@ -156,3 +162,10 @@ async def extract_audio_data(data: ProcessSourceState):
         logger.error(f"Error processing audio: {str(e)}")
         logger.error(traceback.format_exc())
         raise
+    finally:
+        # Ensure audio clip is closed
+        if audio:
+            try:
+                audio.close()
+            except Exception:
+                pass

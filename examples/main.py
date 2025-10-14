@@ -6,10 +6,9 @@ This script processes all files in the input_content/ directory and URLs from ur
 converting them to Markdown format and saving the results to separate files.
 """
 
-import os
 import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import List
 from urllib.parse import urlparse
 
 from loguru import logger

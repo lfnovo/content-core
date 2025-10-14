@@ -1,7 +1,6 @@
 """Performance benchmarks for FileDetector class."""
 import pytest
 import time
-from pathlib import Path
 from content_core.content.identification import FileDetector
 
 

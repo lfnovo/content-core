@@ -147,10 +147,10 @@ async def extract_url_firecrawl(url: str):
         from firecrawl import AsyncFirecrawlApp
 
         app = AsyncFirecrawlApp(api_key=os.environ.get("FIRECRAWL_API_KEY"))
-        scrape_result = await app.scrape_url(url, formats=["markdown", "html"])
+        scrape_result = await app.scrape(url, formats=["markdown", "html"])
         return {
-            "title": scrape_result.metadata["title"] or scrape_result.title,
-            "content": scrape_result.markdown,
+            "title": scrape_result.metadata.title or "",
+            "content": scrape_result.markdown or "",
         }
 
     except Exception as e:
