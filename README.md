@@ -513,6 +513,9 @@ GOOGLE_API_KEY=your-key-here
 # Engine Selection (optional)
 CCORE_DOCUMENT_ENGINE=auto  # auto, simple, docling
 CCORE_URL_ENGINE=auto       # auto, simple, firecrawl, jina
+
+# Audio Processing (optional)
+CCORE_AUDIO_CONCURRENCY=3   # Number of concurrent audio transcriptions (1-10, default: 3)
 ```
 
 ### Engine Selection via Environment Variables
@@ -521,8 +524,19 @@ For deployment scenarios like MCP servers or Raycast extensions, you can overrid
 
 - **`CCORE_DOCUMENT_ENGINE`**: Force document engine (`auto`, `simple`, `docling`)
 - **`CCORE_URL_ENGINE`**: Force URL engine (`auto`, `simple`, `firecrawl`, `jina`)
+- **`CCORE_AUDIO_CONCURRENCY`**: Number of concurrent audio transcriptions (1-10, default: 3)
 
 These variables take precedence over config file settings and provide explicit control for different deployment scenarios.
+
+### Audio Processing Configuration
+
+Content Core processes long audio files by splitting them into segments and transcribing them in parallel for improved performance. You can control the concurrency level to balance speed with API rate limits:
+
+- **Default**: 3 concurrent transcriptions
+- **Range**: 1-10 concurrent transcriptions
+- **Configuration**: Set via `CCORE_AUDIO_CONCURRENCY` environment variable or `extraction.audio.concurrency` in `cc_config.yaml`
+
+Higher concurrency values can speed up processing of long audio/video files but may hit API rate limits. Lower values are more conservative and suitable for accounts with lower API quotas.
 
 ### Custom Prompt Templates
 

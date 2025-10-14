@@ -8,10 +8,8 @@ from functools import partial
 from moviepy import AudioFileClip
 
 from content_core.common import ProcessSourceState
+from content_core.config import get_audio_concurrency
 from content_core.logging import logger
-
-# todo: remove reference to model_manager
-# future: parallelize the transcription process
 
 
 async def split_audio(input_file, segment_length_minutes=15, output_prefix=None):
@@ -98,72 +96,124 @@ def extract_audio(
         raise
 
 
-async def transcribe_audio_segment(audio_file, model):
-    """Transcribe a single audio segment asynchronously"""
-    return (await model.atranscribe(audio_file)).text
+async def transcribe_audio_segment(audio_file, model, semaphore):
+    """
+    Transcribe a single audio segment asynchronously with concurrency control.
+
+    This function uses a semaphore to limit the number of concurrent transcriptions,
+    preventing API rate limits while allowing parallel processing for improved performance.
+
+    Args:
+        audio_file (str): Path to the audio file segment to transcribe
+        model: Speech-to-text model instance with atranscribe() method
+        semaphore (asyncio.Semaphore): Semaphore to control concurrency
+
+    Returns:
+        str: Transcribed text from the audio segment
+
+    Note:
+        Multiple instances of this function can run concurrently, but the semaphore
+        ensures that no more than N transcriptions happen simultaneously, where N
+        is configured via get_audio_concurrency() (default: 3, range: 1-10).
+    """
+    async with semaphore:
+        return (await model.atranscribe(audio_file)).text
 
 
 async def extract_audio_data(data: ProcessSourceState):
+    """
+    Extract and transcribe audio from a file with automatic segmentation and parallel processing.
+
+    This function handles the complete audio processing pipeline:
+    1. Splits long audio files (>10 minutes) into segments
+    2. Transcribes segments in parallel using configurable concurrency
+    3. Joins transcriptions in correct order
+
+    For files longer than 10 minutes, segments are processed concurrently with a
+    configurable concurrency limit to balance performance and API rate limits.
+
+    Args:
+        data (ProcessSourceState): State object containing file_path to audio/video file
+
+    Returns:
+        dict: Dictionary containing:
+            - metadata: Information about processed segments count
+            - content: Complete transcribed text
+
+    Configuration:
+        Concurrency is controlled via:
+        - Environment variable: CCORE_AUDIO_CONCURRENCY (1-10, default: 3)
+        - YAML config: extraction.audio.concurrency
+
+    Raises:
+        Exception: If audio extraction or transcription fails
+    """
     input_audio_path = data.file_path
     audio = None
 
     try:
-        # Create a temporary directory for audio segments
-        temp_dir = tempfile.mkdtemp()
-        output_prefix = os.path.splitext(os.path.basename(input_audio_path))[0]
-        output_dir = temp_dir
-        os.makedirs(output_dir, exist_ok=True)
+        # Use TemporaryDirectory context manager for automatic cleanup
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_prefix = os.path.splitext(os.path.basename(input_audio_path))[0]
+            output_dir = temp_dir
 
-        # Split audio into segments if longer than 10 minutes
-        audio = AudioFileClip(input_audio_path)
-        duration_s = audio.duration
-        segment_length_s = 10 * 60  # 10 minutes in seconds
-        output_files = []
+            # Split audio into segments if longer than 10 minutes
+            audio = AudioFileClip(input_audio_path)
+            duration_s = audio.duration
+            segment_length_s = 10 * 60  # 10 minutes in seconds
+            output_files = []
 
-        if duration_s > segment_length_s:
-            logger.info(
-                f"Audio is longer than 10 minutes ({duration_s}s), splitting into {math.ceil(duration_s / segment_length_s)} segments"
-            )
-            for i in range(math.ceil(duration_s / segment_length_s)):
-                start_time = i * segment_length_s
-                end_time = min((i + 1) * segment_length_s, audio.duration)
+            if duration_s > segment_length_s:
+                logger.info(
+                    f"Audio is longer than 10 minutes ({duration_s}s), splitting into {math.ceil(duration_s / segment_length_s)} segments"
+                )
+                for i in range(math.ceil(duration_s / segment_length_s)):
+                    start_time = i * segment_length_s
+                    end_time = min((i + 1) * segment_length_s, audio.duration)
 
-                # Extract segment
-                output_filename = f"{output_prefix}_{str(i+1).zfill(3)}.mp3"
-                output_path = os.path.join(output_dir, output_filename)
+                    # Extract segment
+                    output_filename = f"{output_prefix}_{str(i+1).zfill(3)}.mp3"
+                    output_path = os.path.join(output_dir, output_filename)
 
-                extract_audio(input_audio_path, output_path, start_time, end_time)
+                    extract_audio(input_audio_path, output_path, start_time, end_time)
 
-                output_files.append(output_path)
-        else:
-            output_files = [input_audio_path]
+                    output_files.append(output_path)
+            else:
+                output_files = [input_audio_path]
 
-        # Close audio clip after getting duration
-        if audio:
-            audio.close()
-            audio = None
+            # Close audio clip after determining segments
+            if audio:
+                audio.close()
+                audio = None
 
-        # Transcribe audio files
-        from content_core.models import ModelFactory
+            # Transcribe audio files in parallel with concurrency limit
+            from content_core.models import ModelFactory
 
-        speech_to_text_model = ModelFactory.get_model("speech_to_text")
-        transcriptions = []
-        for audio_file in output_files:
-            transcription = await transcribe_audio_segment(
-                audio_file, speech_to_text_model
-            )
-            transcriptions.append(transcription)
+            speech_to_text_model = ModelFactory.get_model("speech_to_text")
+            concurrency = get_audio_concurrency()
+            semaphore = asyncio.Semaphore(concurrency)
 
-        return {
-            "metadata": {"audio_files": output_files},
-            "content": " ".join(transcriptions),
-        }
+            logger.debug(f"Transcribing {len(output_files)} audio segments with concurrency limit of {concurrency}")
+
+            # Create tasks for parallel transcription
+            transcription_tasks = [
+                transcribe_audio_segment(audio_file, speech_to_text_model, semaphore)
+                for audio_file in output_files
+            ]
+
+            # Execute all transcriptions concurrently (limited by semaphore)
+            transcriptions = await asyncio.gather(*transcription_tasks)
+
+            return {
+                "metadata": {"segments_count": len(output_files)},
+                "content": " ".join(transcriptions),
+            }
     except Exception as e:
         logger.error(f"Error processing audio: {str(e)}")
         logger.error(traceback.format_exc())
         raise
     finally:
-        # Ensure audio clip is closed
+        # Ensure audio clip is closed even if an error occurs
         if audio:
             try:
                 audio.close()
