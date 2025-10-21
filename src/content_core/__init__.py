@@ -214,5 +214,3 @@ def csum():
 
 if __name__ == "__main__":
     ccore()
-if __name__ == "__main__":
-    ccore()
