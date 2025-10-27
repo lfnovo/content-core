@@ -364,18 +364,90 @@ class FileDetector:
     
     
     def _looks_like_csv(self, content: str) -> bool:
-        """Check if content looks like CSV format."""
-        lines = content.split('\n', 5)[:5]  # Check first 5 lines
-        if len(lines) < 2:
+        """Check if content looks like CSV format with improved heuristics."""
+        lines = content.split('\n', 10)[:10]  # Check first 10 lines for better accuracy
+        non_empty_lines = [line for line in lines if line.strip()]
+
+        if len(non_empty_lines) < 2:
             return False
-        
+
         # Count commas in each line
-        comma_counts = [line.count(',') for line in lines if line.strip()]
-        if not comma_counts:
+        comma_counts = [line.count(',') for line in non_empty_lines]
+
+        # Must have at least one comma per line
+        if not all(count > 0 for count in comma_counts):
             return False
-        
-        # CSV should have consistent comma counts
-        return len(set(comma_counts)) == 1 and comma_counts[0] > 0
+
+        # CSV should have consistent comma counts across lines
+        if len(set(comma_counts)) != 1:
+            return False
+
+        num_fields = comma_counts[0] + 1  # Number of fields = commas + 1
+
+        # Must have at least 2 fields to be CSV
+        if num_fields < 2:
+            return False
+
+        # Check if fields look like CSV data (not prose)
+        first_line = non_empty_lines[0]
+        fields = first_line.split(',')
+
+        # CSV fields should be relatively short (not long sentences)
+        # Average field length should be reasonable (not paragraphs)
+        avg_field_length = sum(len(f.strip()) for f in fields) / len(fields)
+        if avg_field_length > 100:  # Too long to be typical CSV fields
+            return False
+
+        # Check for CSV-like patterns:
+        # 1. Fields that look like headers (short, alphanumeric)
+        # 2. Quoted fields (common in CSV)
+        # 3. Numeric fields
+        has_quoted_fields = any('"' in line or "'" in line for line in non_empty_lines[:3])
+
+        first_line_fields = [f.strip() for f in fields]
+        # Check if first line looks like a header (short, no sentence-ending punctuation)
+        looks_like_header = all(
+            len(f) < 50 and not f.endswith('.') and not f.endswith('!')
+            for f in first_line_fields
+        )
+
+        # Check if subsequent lines have similar field structure
+        # Real CSV tends to have consistent field lengths
+        if len(non_empty_lines) >= 3:
+            field_lengths_per_line = []
+            for line in non_empty_lines[:5]:
+                line_fields = line.split(',')
+                field_lengths = [len(f.strip()) for f in line_fields]
+                field_lengths_per_line.append(field_lengths)
+
+            # Calculate variance in field positions
+            # CSV data should have relatively consistent field lengths at each position
+            # Natural text with commas will have much more variance
+            position_variances = []
+            for i in range(num_fields):
+                lengths_at_position = [fl[i] if i < len(fl) else 0 for fl in field_lengths_per_line]
+                if lengths_at_position:
+                    avg = sum(lengths_at_position) / len(lengths_at_position)
+                    variance = sum((x - avg) ** 2 for x in lengths_at_position) / len(lengths_at_position)
+                    position_variances.append(variance)
+
+            # High variance suggests natural text, not structured CSV
+            if position_variances:
+                avg_variance = sum(position_variances) / len(position_variances)
+                if avg_variance > 500:  # Very high variance = likely prose
+                    return False
+
+        # Require at least some CSV-like characteristics
+        csv_score = 0
+        if looks_like_header:
+            csv_score += 1
+        if has_quoted_fields:
+            csv_score += 1
+        if num_fields >= 3:  # Multiple fields is more CSV-like
+            csv_score += 1
+
+        # Need at least 2 positive indicators to confidently say it's CSV
+        return csv_score >= 2
     
     
     def _is_text_file(self, content: str) -> bool:
