@@ -13,10 +13,17 @@ from content_core.logging import logger
 
 class FileDetector:
     """Pure Python file type detection using magic bytes and content analysis."""
-    
-    # Configuration constants
+
+    # Configuration constants for binary/text detection
     SIGNATURE_READ_SIZE = 512  # Bytes to read for binary signature detection
     TEXT_READ_SIZE = 1024      # Bytes to read for text content analysis
+
+    # Configuration constants for CSV detection
+    CSV_MAX_FIELD_LENGTH = 100  # Maximum average field length for CSV (longer suggests prose)
+    CSV_MAX_VARIANCE = 500      # Maximum variance in field lengths (higher suggests natural text)
+    CSV_MIN_SCORE = 2           # Minimum score required to classify as CSV
+    CSV_MIN_FIELDS = 2          # Minimum number of fields required for CSV
+    CSV_MAX_HEADER_FIELD_LENGTH = 50  # Maximum length for individual header fields
     
     def __init__(self):
         """Initialize the FileDetector with signature mappings."""
@@ -364,18 +371,102 @@ class FileDetector:
     
     
     def _looks_like_csv(self, content: str) -> bool:
-        """Check if content looks like CSV format."""
-        lines = content.split('\n', 5)[:5]  # Check first 5 lines
-        if len(lines) < 2:
+        """
+        Check if content looks like CSV format with improved heuristics.
+
+        Uses a multi-stage approach with performance optimization:
+        1. Basic structural checks (cheap)
+        2. Field length analysis (cheap, early exit)
+        3. Pattern matching (moderate cost)
+        4. Variance analysis (expensive, only if needed)
+        """
+        lines = content.split('\n', 10)[:10]  # Check first 10 lines for better accuracy
+        non_empty_lines = [line for line in lines if line.strip()]
+
+        # Stage 1: Basic structural checks
+        if len(non_empty_lines) < 2:
             return False
-        
+
         # Count commas in each line
-        comma_counts = [line.count(',') for line in lines if line.strip()]
-        if not comma_counts:
+        comma_counts = [line.count(',') for line in non_empty_lines]
+
+        # Must have at least one comma per line
+        if not all(count > 0 for count in comma_counts):
             return False
-        
-        # CSV should have consistent comma counts
-        return len(set(comma_counts)) == 1 and comma_counts[0] > 0
+
+        # CSV should have consistent comma counts across lines
+        if len(set(comma_counts)) != 1:
+            return False
+
+        num_fields = comma_counts[0] + 1  # Number of fields = commas + 1
+
+        # Must have minimum number of fields to be CSV
+        if num_fields < self.CSV_MIN_FIELDS:
+            return False
+
+        # Stage 2: Field length analysis (PERFORMANCE OPTIMIZATION: early exit)
+        first_line = non_empty_lines[0]
+        fields = first_line.split(',')
+
+        # CSV fields should be relatively short (not long sentences)
+        # Average field length should be reasonable (not paragraphs)
+        # Early exit avoids expensive variance calculations for obvious prose
+        avg_field_length = sum(len(f.strip()) for f in fields) / len(fields)
+        if avg_field_length > self.CSV_MAX_FIELD_LENGTH:
+            return False  # Too long to be typical CSV fields - exit early
+
+        # Stage 3: Pattern matching
+        # Check for CSV-like patterns:
+        # 1. Fields that look like headers (short, alphanumeric)
+        # 2. Quoted fields (common in CSV)
+        # 3. Numeric fields
+        has_quoted_fields = any('"' in line or "'" in line for line in non_empty_lines[:3])
+
+        first_line_fields = [f.strip() for f in fields]
+        # Check if first line looks like a header (short, no sentence-ending punctuation)
+        looks_like_header = all(
+            len(f) < self.CSV_MAX_HEADER_FIELD_LENGTH and not f.endswith('.') and not f.endswith('!')
+            for f in first_line_fields
+        )
+
+        # Stage 4: Variance analysis (EXPENSIVE - only if we have enough data)
+        # Check if subsequent lines have similar field structure
+        # Real CSV tends to have consistent field lengths
+        if len(non_empty_lines) >= 3:
+            field_lengths_per_line = []
+            for line in non_empty_lines[:5]:
+                line_fields = line.split(',')
+                field_lengths = [len(f.strip()) for f in line_fields]
+                field_lengths_per_line.append(field_lengths)
+
+            # Calculate variance in field positions
+            # CSV data should have relatively consistent field lengths at each position
+            # Natural text with commas will have much more variance
+            position_variances = []
+            for i in range(num_fields):
+                lengths_at_position = [fl[i] if i < len(fl) else 0 for fl in field_lengths_per_line]
+                if lengths_at_position:
+                    avg = sum(lengths_at_position) / len(lengths_at_position)
+                    variance = sum((x - avg) ** 2 for x in lengths_at_position) / len(lengths_at_position)
+                    position_variances.append(variance)
+
+            # High variance suggests natural text, not structured CSV
+            if position_variances:
+                avg_variance = sum(position_variances) / len(position_variances)
+                if avg_variance > self.CSV_MAX_VARIANCE:
+                    return False  # Very high variance = likely prose
+
+        # Scoring: Require at least some CSV-like characteristics
+        csv_score = 0
+        if looks_like_header:
+            csv_score += 1
+        if has_quoted_fields:
+            csv_score += 1
+        if num_fields >= 3:  # Multiple fields is more CSV-like
+            csv_score += 1
+
+        # Need minimum score to confidently classify as CSV
+        return csv_score >= self.CSV_MIN_SCORE
     
     
     def _is_text_file(self, content: str) -> bool:
