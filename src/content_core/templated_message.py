@@ -2,7 +2,6 @@ from typing import Dict, Optional, Union
 
 from ai_prompter import Prompter
 from esperanto import LanguageModel
-from esperanto.common_types import Message
 from pydantic import BaseModel, Field
 
 from content_core.models import ModelFactory

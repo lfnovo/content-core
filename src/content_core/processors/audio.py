@@ -190,8 +190,39 @@ async def extract_audio_data(data: ProcessSourceState):
 
             # Transcribe audio files in parallel with concurrency limit
             from content_core.models import ModelFactory
+            from esperanto import AIFactory
 
-            speech_to_text_model = ModelFactory.get_model("speech_to_text")
+            # Determine which model to use based on state parameters
+            if data.audio_provider and data.audio_model:
+                # Custom model provided - create new instance
+                try:
+                    logger.info(
+                        f"Using custom audio model: {data.audio_provider}/{data.audio_model}"
+                    )
+                    speech_to_text_model = AIFactory.create_speech_to_text(
+                        data.audio_provider, data.audio_model
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to create custom audio model '{data.audio_provider}/{data.audio_model}': {e}. "
+                        f"Check that the provider and model are supported by Esperanto. "
+                        f"Falling back to default model."
+                    )
+                    speech_to_text_model = ModelFactory.get_model("speech_to_text")
+            elif data.audio_provider or data.audio_model:
+                # Only one parameter provided - log warning and use default
+                missing = "audio_model" if data.audio_provider else "audio_provider"
+                provided = "audio_provider" if data.audio_provider else "audio_model"
+                logger.warning(
+                    f"{provided} provided without {missing}. "
+                    f"Both audio_provider and audio_model must be specified together. "
+                    f"Falling back to default model."
+                )
+                speech_to_text_model = ModelFactory.get_model("speech_to_text")
+            else:
+                # No custom parameters - use default (backward compatible)
+                speech_to_text_model = ModelFactory.get_model("speech_to_text")
+
             concurrency = get_audio_concurrency()
             semaphore = asyncio.Semaphore(concurrency)
 

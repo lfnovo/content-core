@@ -362,6 +362,203 @@ result = await cc.extract({"file_path": "conference_talk.mp4"})
 print(result.content)  # Full transcript
 ```
 
+## Custom Audio Model Configuration
+
+Content Core allows you to override the default speech-to-text model at runtime, enabling you to choose different AI providers and models based on your specific needs (language support, cost, accuracy, etc.).
+
+### Overview
+
+By default, audio and video files are transcribed using the model configured in `models_config.yaml` (typically OpenAI Whisper-1). You can override this on a per-call basis by specifying both `audio_provider` and `audio_model` parameters.
+
+**Key Features:**
+- ✅ **Runtime flexibility**: Choose different models for different use cases
+- ✅ **Backward compatible**: Existing code works unchanged
+- ✅ **Multiple providers**: Support for any provider supported by Esperanto
+- ✅ **Automatic fallback**: Graceful handling of invalid configurations
+
+### Basic Usage
+
+```python
+from content_core.common import ProcessSourceInput
+import content_core as cc
+
+# Use custom audio model for transcription
+result = await cc.extract(ProcessSourceInput(
+    file_path="interview.mp3",
+    audio_provider="openai",
+    audio_model="whisper-1"
+))
+
+print(result.content)  # Transcribed text using specified model
+```
+
+### Supported Providers
+
+Content Core uses the Esperanto library for AI model abstraction, which supports multiple providers:
+
+- **OpenAI**: `provider="openai"`, models: `whisper-1`
+- **Google**: `provider="google"`, models: `chirp` (if available)
+- **Other providers**: Any provider supported by Esperanto
+
+Check the [Esperanto documentation](https://github.com/yourusername/esperanto) for the full list of supported providers and models.
+
+### Use Cases
+
+**Multilingual Transcription:**
+```python
+from content_core.common import ProcessSourceInput
+import content_core as cc
+
+# Use a model optimized for a specific language
+result = await cc.extract(ProcessSourceInput(
+    file_path="spanish_interview.mp3",
+    audio_provider="openai",
+    audio_model="whisper-1"  # Whisper supports 99 languages
+))
+```
+
+**Cost Optimization:**
+```python
+from content_core.common import ProcessSourceInput
+import content_core as cc
+
+# Use different models based on quality requirements
+# For high-value content, use premium model
+premium_result = await cc.extract(ProcessSourceInput(
+    file_path="important_meeting.mp3",
+    audio_provider="openai",
+    audio_model="whisper-1"
+))
+
+# For casual content, use default or cost-effective model
+casual_result = await cc.extract(ProcessSourceInput(
+    file_path="casual_recording.mp3"
+    # No custom params = uses default configured model
+))
+```
+
+**Video Transcription with Custom Model:**
+```python
+from content_core.common import ProcessSourceInput
+import content_core as cc
+
+# Custom model works for video files too (audio is extracted automatically)
+result = await cc.extract(ProcessSourceInput(
+    file_path="conference_presentation.mp4",
+    audio_provider="openai",
+    audio_model="whisper-1"
+))
+```
+
+### Parameter Requirements
+
+Both `audio_provider` and `audio_model` must be specified together:
+
+```python
+# ✅ CORRECT: Both parameters provided
+result = await cc.extract(ProcessSourceInput(
+    file_path="audio.mp3",
+    audio_provider="openai",
+    audio_model="whisper-1"
+))
+
+# ✅ CORRECT: Neither parameter (uses default)
+result = await cc.extract(ProcessSourceInput(
+    file_path="audio.mp3"
+))
+
+# ⚠️ WARNING: Only one parameter (logs warning, uses default)
+result = await cc.extract(ProcessSourceInput(
+    file_path="audio.mp3",
+    audio_provider="openai"  # Missing audio_model
+))
+# Logs: "audio_provider provided without audio_model. Both must be specified together. Falling back to default model."
+```
+
+### Error Handling
+
+Content Core gracefully handles invalid model configurations:
+
+**Invalid Provider:**
+```python
+result = await cc.extract(ProcessSourceInput(
+    file_path="audio.mp3",
+    audio_provider="invalid_provider",
+    audio_model="whisper-1"
+))
+# Logs error and falls back to default model
+# Transcription continues successfully
+```
+
+**Invalid Model Name:**
+```python
+result = await cc.extract(ProcessSourceInput(
+    file_path="audio.mp3",
+    audio_provider="openai",
+    audio_model="nonexistent-model"
+))
+# Logs error and falls back to default model
+# Transcription continues successfully
+```
+
+**Error Message Example:**
+```
+ERROR: Failed to create custom audio model 'invalid_provider/whisper-1': Unsupported provider.
+Check that the provider and model are supported by Esperanto. Falling back to default model.
+```
+
+### Concurrency Control
+
+Custom audio models respect the same concurrency limits as the default model (configured via `CCORE_AUDIO_CONCURRENCY` or `set_audio_concurrency()`). This ensures consistent API rate limit handling regardless of which model you use.
+
+```python
+from content_core.config import set_audio_concurrency
+from content_core.common import ProcessSourceInput
+import content_core as cc
+
+# Set concurrency for all transcriptions (default and custom models)
+set_audio_concurrency(5)
+
+# Both use the same concurrency limit
+default_result = await cc.extract(ProcessSourceInput(file_path="audio1.mp3"))
+custom_result = await cc.extract(ProcessSourceInput(
+    file_path="audio2.mp3",
+    audio_provider="openai",
+    audio_model="whisper-1"
+))
+```
+
+### Backward Compatibility
+
+All existing code continues to work without any changes:
+
+```python
+import content_core as cc
+
+# Old code (no custom params) - still works perfectly
+result = await cc.extract("audio.mp3")
+result = await cc.extract({"file_path": "audio.mp3"})
+
+# New capability (optional custom params)
+from content_core.common import ProcessSourceInput
+result = await cc.extract(ProcessSourceInput(
+    file_path="audio.mp3",
+    audio_provider="openai",
+    audio_model="whisper-1"
+))
+```
+
+### Troubleshooting
+
+**Issue**: "Both audio_provider and audio_model must be specified together"
+- **Solution**: Provide both parameters or neither. Don't specify just one.
+
+**Issue**: "Failed to create custom audio model"
+- **Solution**: Verify the provider and model are supported by Esperanto. Check your API keys are configured correctly.
+
+**Issue**: Custom model seems to be ignored
+- **Solution**: Ensure you're using `ProcessSourceInput` class (not plain dict) when passing custom parameters.
+
 ## File Type Detection
 
 Content Core uses a pure Python implementation for file type detection, eliminating the need for system dependencies like libmagic. This ensures consistent behavior across all platforms (Windows, macOS, Linux).
