@@ -27,6 +27,14 @@ class ProcessSourceState(BaseModel):
         default=None,
         description="Override Docling output format: 'markdown', 'html', or 'json'",
     )
+    audio_provider: Optional[str] = Field(
+        default=None,
+        description="Override speech-to-text provider (e.g., 'openai', 'google')",
+    )
+    audio_model: Optional[str] = Field(
+        default=None,
+        description="Override speech-to-text model name (e.g., 'whisper-1', 'chirp')",
+    )
 
 
 class ProcessSourceInput(BaseModel):
@@ -36,6 +44,8 @@ class ProcessSourceInput(BaseModel):
     document_engine: Optional[str] = None
     url_engine: Optional[str] = None
     output_format: Optional[str] = None
+    audio_provider: Optional[str] = None
+    audio_model: Optional[str] = None
 
 
 class ProcessSourceOutput(BaseModel):

@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pure Python file type detection via the new `FileDetector` class
 - Comprehensive file signature detection for 25+ file formats
 - Smart detection for ZIP-based formats (DOCX, XLSX, PPTX, EPUB)
+- Custom audio model configuration - override speech-to-text provider and model at runtime
+  - Pass `audio_provider` and `audio_model` parameters through `extract_content()` API
+  - Supports any provider/model combination available through Esperanto library
+  - Maintains full backward compatibility - existing code works unchanged
+  - Includes validation with helpful warnings and error messages
 
 ### Changed
 - File type detection now uses pure Python implementation instead of libmagic

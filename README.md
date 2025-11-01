@@ -228,6 +228,14 @@ cleaned_text = await cc.clean("...messy text with [brackets] and extra spaces...
 
 # Summarize content with optional context
 summary = await cc.summarize_content("long article text", context="explain to a child")
+
+# Extract audio with custom speech-to-text model
+from content_core.common import ProcessSourceInput
+result = await cc.extract(ProcessSourceInput(
+    file_path="interview.mp3",
+    audio_provider="openai",
+    audio_model="whisper-1"
+))
 ```
 
 ## Documentation

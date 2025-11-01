@@ -1,7 +1,6 @@
 """Pytest configuration for integration tests."""
 import asyncio
 import gc
-import warnings
 
 import pytest
 
