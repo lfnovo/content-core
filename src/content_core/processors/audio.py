@@ -189,6 +189,7 @@ async def extract_audio_data(data: ProcessSourceState):
                 audio = None
 
             # Transcribe audio files in parallel with concurrency limit
+            from content_core.config import CONFIG
             from content_core.models import ModelFactory
             from esperanto import AIFactory
 
@@ -199,9 +200,11 @@ async def extract_audio_data(data: ProcessSourceState):
                     logger.info(
                         f"Using custom audio model: {data.audio_provider}/{data.audio_model}"
                     )
-                    # Pass timeout in config dict for STT models
+                    # Get timeout from config (same as default model) or use fallback
+                    timeout = CONFIG.get('speech_to_text', {}).get('timeout', 3600)
+                    stt_config = {'timeout': timeout} if timeout else {}
                     speech_to_text_model = AIFactory.create_speech_to_text(
-                        data.audio_provider, data.audio_model, {'timeout': 3600}
+                        data.audio_provider, data.audio_model, stt_config
                     )
                 except Exception as e:
                     logger.error(
