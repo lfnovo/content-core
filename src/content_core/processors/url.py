@@ -162,7 +162,7 @@ async def extract_url_jina(url: str):
             return {"content": text}
     except Exception as e:
         logger.error(f"Jina extraction failed for {url} after retries: {e}")
-        return None
+        raise
 
 
 @retry_url_api()
