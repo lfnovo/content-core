@@ -191,14 +191,22 @@ class TestErrorHandling:
 
     @pytest.mark.asyncio
     async def test_single_failure_doesnt_stop_others(self):
-        """Test that one failed transcription doesn't prevent others from completing"""
+        """Test that one failed transcription doesn't prevent others from completing.
+
+        Note: With retry logic enabled, the failing segment will be retried
+        (default: 3 attempts) IF the exception is transient (network error, timeout).
+        Total calls = 2 successful + 3 retries = 5.
+        """
         call_count = 0
+        fail_count = 0
 
         async def mock_atranscribe(audio_file):
-            nonlocal call_count
+            nonlocal call_count, fail_count
             call_count += 1
             if "fail" in audio_file:
-                raise Exception("Transcription failed")
+                fail_count += 1
+                # Use a transient error message so it triggers retry
+                raise TimeoutError("Transcription service timeout")
             await asyncio.sleep(0.01)
             return MagicMock(text=f"transcript_{audio_file}")
 
@@ -216,10 +224,15 @@ class TestErrorHandling:
         # gather with return_exceptions=True to handle the failure
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Verify all were called
-        assert call_count == 3
+        # Verify successful segments called once, failed segment retried
+        # Default retry config is 3 attempts for audio, so:
+        # - 2 successful calls (audio_1.mp3, audio_3.mp3)
+        # - 3 retry attempts for audio_fail.mp3
+        # Total = 5 calls
+        assert call_count == 5
+        assert fail_count == 3  # Retried 3 times
 
         # Verify we got results for successful ones and exception for failed one
         assert isinstance(results[0], str)  # Success
-        assert isinstance(results[1], Exception)  # Failed
+        assert isinstance(results[1], Exception)  # Failed after retries
         assert isinstance(results[2], str)  # Success

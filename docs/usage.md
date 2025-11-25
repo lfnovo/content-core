@@ -559,6 +559,369 @@ result = await cc.extract(ProcessSourceInput(
 **Issue**: Custom model seems to be ignored
 - **Solution**: Ensure you're using `ProcessSourceInput` class (not plain dict) when passing custom parameters.
 
+## Timeout Configuration
+
+Content Core uses the Esperanto library for AI model interactions and provides configurable timeout settings to prevent requests from hanging indefinitely. Timeouts are essential for reliable processing, especially with long-running operations like audio transcription or large document processing.
+
+### Understanding Timeouts
+
+Timeouts define the maximum time (in seconds) that Content Core will wait for an AI model operation to complete before timing out. Different operations have different timeout requirements:
+
+- **Speech-to-Text (audio transcription)**: Requires longer timeouts due to large file processing
+- **Language Models (text generation)**: Requires moderate timeouts for content cleanup and summarization
+- **Complex operations**: Operations processing large content (8000+ tokens) need extended timeouts
+
+### Default Timeout Values
+
+Content Core includes optimized timeout defaults for each model type:
+
+| Model Type | Timeout | Use Case |
+|------------|---------|----------|
+| **speech_to_text** | 3600 seconds (1 hour) | Very long audio files, conference recordings |
+| **default_model** | 300 seconds (5 minutes) | General language model operations |
+| **cleanup_model** | 600 seconds (10 minutes) | Large content cleanup (8000 max tokens) |
+| **summary_model** | 300 seconds (5 minutes) | Content summarization |
+
+### Configuration Methods
+
+Esperanto (and Content Core) support multiple timeout configuration approaches with clear priority ordering:
+
+#### 1. Config Files (Highest Priority)
+
+Timeouts are defined in `cc_config.yaml` or `models_config.yaml`:
+
+```yaml
+speech_to_text:
+  provider: openai
+  model_name: whisper-1
+  timeout: 3600  # 1 hour for very long audio files
+
+default_model:
+  provider: openai
+  model_name: gpt-4o-mini
+  config:
+    temperature: 0.5
+    max_tokens: 2000
+    timeout: 300  # 5 minutes
+
+cleanup_model:
+  provider: openai
+  model_name: gpt-4o-mini
+  config:
+    temperature: 0
+    max_tokens: 8000
+    timeout: 600  # 10 minutes for large content
+
+summary_model:
+  provider: openai
+  model_name: gpt-4o-mini
+  config:
+    temperature: 0
+    max_tokens: 2000
+    timeout: 300  # 5 minutes
+```
+
+**Note**: For speech-to-text models, `timeout` is a top-level parameter (not under `config`). For language models, `timeout` goes inside the `config` dictionary.
+
+#### 2. Environment Variables (Fallback Defaults)
+
+Set global timeout defaults that apply to all models of a given type when a timeout is not defined in the YAML configuration:
+
+```bash
+# Language model timeout default (applies when config files omit a timeout)
+export ESPERANTO_LLM_TIMEOUT=300
+
+# Speech-to-text timeout default (applies when config files omit a timeout)
+export ESPERANTO_STT_TIMEOUT=3600
+```
+
+Add to your `.env` file:
+
+```plaintext
+# Override language model timeout globally (fallback default)
+ESPERANTO_LLM_TIMEOUT=300
+
+# Override speech-to-text timeout globally (fallback default)
+ESPERANTO_STT_TIMEOUT=3600
+```
+
+### Validation and Constraints
+
+**Valid Range:** 1 to 3600 seconds (1 hour maximum)
+
+**Type Requirements:** Must be an integer number of seconds.
+
+Examples of **invalid** timeouts that will raise errors:
+- String values: `"30"`
+- Negative values: `-1`
+- Zero: `0`
+- Exceeds maximum: `4000`
+
+### Use Case Examples
+
+#### Production Deployment
+
+For production environments with strict reliability requirements:
+
+```yaml
+# Production cc_config.yaml
+speech_to_text:
+  provider: openai
+  model_name: whisper-1
+  timeout: 1800  # 30 minutes - sufficient for most podcasts
+
+default_model:
+  provider: openai
+  model_name: gpt-4o-mini
+  config:
+    timeout: 120  # 2 minutes - faster failures for user-facing features
+
+cleanup_model:
+  provider: openai
+  model_name: gpt-4o-mini
+  config:
+    timeout: 300  # 5 minutes - balance between reliability and patience
+
+summary_model:
+  provider: openai
+  model_name: gpt-4o-mini
+  config:
+    timeout: 120  # 2 minutes - quick summaries
+```
+
+#### Development Environment
+
+For development with generous timeouts for debugging:
+
+```yaml
+# Development cc_config.yaml
+speech_to_text:
+  timeout: 3600  # 1 hour - no rush during development
+
+default_model:
+  config:
+    timeout: 600  # 10 minutes - plenty of time to debug
+
+cleanup_model:
+  config:
+    timeout: 900  # 15 minutes
+
+summary_model:
+  config:
+    timeout: 600  # 10 minutes
+```
+
+#### Batch Processing
+
+For processing large batches with maximum timeouts:
+
+```bash
+# Set environment variables for batch jobs
+export ESPERANTO_LLM_TIMEOUT=600     # 10 minutes per document
+export ESPERANTO_STT_TIMEOUT=3600    # 1 hour per audio file
+```
+
+### Troubleshooting Timeouts
+
+**Issue**: "Request timed out after N seconds"
+- **Solution**: Increase the timeout for the specific model type in your config file
+- **Check**: Verify your API keys are valid and the service is responding
+- **Consider**: Breaking large content into smaller chunks
+
+**Issue**: Timeout seems to be ignored
+- **Solution**: Check configuration priority - config file overrides environment variables
+- **Verify**: Ensure the timeout value is within the valid range (1-3600)
+- **Check**: Look for YAML syntax errors in your config file
+
+**Issue**: Different timeout behavior across environments
+- **Solution**: Use explicit config files instead of relying on environment variables
+- **Best practice**: Commit `cc_config.yaml` to version control for consistency
+
+### Best Practices
+
+1. **Start Conservative**: Begin with moderate timeouts and increase only if needed
+2. **Monitor Actual Duration**: Log actual operation times to set realistic timeouts
+3. **Environment-Specific**: Use different timeouts for development vs production
+4. **Consider API Limits**: Higher timeouts don't help if you hit API rate limits
+5. **Balance Reliability**: Very long timeouts may hide underlying issues
+
+### Related Configuration
+
+Timeouts work in conjunction with other performance settings:
+
+- **Audio Concurrency** (`CCORE_AUDIO_CONCURRENCY`): Controls parallel transcription, affects total processing time
+- **Max Tokens** (`max_tokens` in config): Affects how much content the model processes
+- **Temperature** (`temperature` in config): Affects generation quality and potentially speed
+
+For more details on Esperanto timeout configuration, see the [Esperanto Timeout Documentation](https://github.com/lfnovo/esperanto/blob/main/docs/advanced/timeout-configuration.md).
+
+## Retry Configuration
+
+Content Core includes automatic retry logic for handling transient failures in external operations. Built on the [tenacity](https://tenacity.readthedocs.io/) library, retries use exponential backoff with jitter to gracefully handle temporary issues like network timeouts, API rate limits, and service unavailability.
+
+### How It Works
+
+When an external operation fails with a retryable error (network timeout, connection error, API error), Content Core automatically retries the operation with increasing delays between attempts. The backoff uses randomized exponential delays to prevent thundering herd problems when multiple requests fail simultaneously.
+
+### Supported Operation Types
+
+| Operation Type | Default Retries | Base Delay | Max Delay | Use Cases |
+|---------------|-----------------|------------|-----------|-----------|
+| `youtube` | 5 | 2s | 60s | Video title/transcript fetching (YouTube has aggressive rate limiting) |
+| `url_api` | 3 | 1s | 30s | Jina, Firecrawl API extraction |
+| `url_network` | 3 | 0.5s | 10s | HEAD requests, BeautifulSoup fetching |
+| `audio` | 3 | 2s | 30s | Speech-to-text API calls |
+| `llm` | 3 | 1s | 30s | LLM API calls (cleanup, summary) |
+| `download` | 3 | 1s | 15s | Remote file downloads |
+
+### Configuration Methods
+
+#### Via YAML Configuration
+
+Add to your `cc_config.yaml`:
+
+```yaml
+retry:
+  youtube:
+    max_attempts: 5      # Number of retry attempts
+    base_delay: 2        # Base delay in seconds
+    max_delay: 60        # Maximum delay between retries
+  url_api:
+    max_attempts: 3
+    base_delay: 1
+    max_delay: 30
+  url_network:
+    max_attempts: 3
+    base_delay: 0.5
+    max_delay: 10
+  audio:
+    max_attempts: 3
+    base_delay: 2
+    max_delay: 30
+  llm:
+    max_attempts: 3
+    base_delay: 1
+    max_delay: 30
+  download:
+    max_attempts: 3
+    base_delay: 1
+    max_delay: 15
+```
+
+#### Via Environment Variables
+
+Override retry settings using environment variables with the pattern `CCORE_{TYPE}_{PARAM}`:
+
+```bash
+# YouTube retry settings
+CCORE_YOUTUBE_MAX_RETRIES=10     # Max retry attempts (1-20)
+CCORE_YOUTUBE_BASE_DELAY=3       # Base delay in seconds (0.1-60)
+CCORE_YOUTUBE_MAX_DELAY=120      # Max delay in seconds (1-300)
+
+# URL API retry settings (for Jina, Firecrawl)
+CCORE_URL_API_MAX_RETRIES=5
+CCORE_URL_API_BASE_DELAY=2
+CCORE_URL_API_MAX_DELAY=60
+
+# URL network retry settings (for BeautifulSoup, HEAD requests)
+CCORE_URL_NETWORK_MAX_RETRIES=5
+CCORE_URL_NETWORK_BASE_DELAY=1
+CCORE_URL_NETWORK_MAX_DELAY=20
+
+# Audio transcription retry settings
+CCORE_AUDIO_MAX_RETRIES=5
+CCORE_AUDIO_BASE_DELAY=3
+CCORE_AUDIO_MAX_DELAY=60
+
+# LLM retry settings (cleanup, summary)
+CCORE_LLM_MAX_RETRIES=5
+CCORE_LLM_BASE_DELAY=2
+CCORE_LLM_MAX_DELAY=60
+
+# Download retry settings
+CCORE_DOWNLOAD_MAX_RETRIES=5
+CCORE_DOWNLOAD_BASE_DELAY=2
+CCORE_DOWNLOAD_MAX_DELAY=30
+```
+
+Environment variables take precedence over YAML configuration.
+
+### Validation and Constraints
+
+**Valid Ranges (for environment variable overrides):**
+- `max_retries`: 1-20 attempts
+- `base_delay`: 0.1-60 seconds
+- `max_delay`: 1-300 seconds
+
+Invalid environment variable values are ignored with a warning, and the system falls back to YAML or defaults. YAML configuration values are used as-is and must be valid.
+
+### Behavior After Retries Exhausted
+
+When all retry attempts are exhausted, Content Core maintains backward compatibility:
+- Functions return `None` or empty content (not exceptions)
+- Errors are logged with detailed information
+- Processing continues for remaining operations
+
+This ensures that a single transient failure doesn't crash your entire pipeline.
+
+### Logging
+
+Retry attempts are logged at WARNING level with details:
+```
+WARNING: Retry 2 for _fetch_video_title: ClientError: Connection timeout
+```
+
+When all retries are exhausted:
+```
+ERROR: All 5 retries exhausted for _fetch_video_title: ClientError: Service unavailable
+```
+
+### Use Cases
+
+**High-Reliability Batch Processing:**
+```bash
+# Increase retries for batch jobs where reliability is critical
+CCORE_YOUTUBE_MAX_RETRIES=10
+CCORE_URL_API_MAX_RETRIES=5
+CCORE_AUDIO_MAX_RETRIES=5
+```
+
+**Fast-Fail Development:**
+```bash
+# Reduce retries for faster feedback during development
+CCORE_YOUTUBE_MAX_RETRIES=2
+CCORE_URL_API_MAX_RETRIES=1
+CCORE_AUDIO_MAX_RETRIES=1
+```
+
+**Rate-Limited APIs:**
+```bash
+# Increase delays for APIs with strict rate limits
+CCORE_URL_API_BASE_DELAY=5
+CCORE_URL_API_MAX_DELAY=120
+```
+
+### Technical Details
+
+The retry decorators are available for advanced use in custom code:
+
+```python
+from content_core.common.retry import (
+    retry_youtube,
+    retry_url_api,
+    retry_url_network,
+    retry_audio_transcription,
+    retry_llm,
+    retry_download,
+)
+
+# Use decorators on your own functions
+@retry_url_api(max_attempts=5, base_delay=2, max_delay=60)
+async def my_custom_api_call():
+    # Your API call logic here
+    pass
+```
+
 ## File Type Detection
 
 Content Core uses a pure Python implementation for file type detection, eliminating the need for system dependencies like libmagic. This ensures consistent behavior across all platforms (Windows, macOS, Linux).

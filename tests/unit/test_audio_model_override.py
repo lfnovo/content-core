@@ -11,7 +11,7 @@ Tests verify that:
 """
 
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -53,8 +53,9 @@ class TestCustomAudioModel:
                     result = await extract_audio_data(state)
 
                     # Verify AIFactory was called with correct parameters
+                    # Timeout is configurable, so we use ANY to match any timeout value
                     mock_ai_factory.create_speech_to_text.assert_called_once_with(
-                        "openai", "whisper-1"
+                        "openai", "whisper-1", {"timeout": ANY}
                     )
 
                     # Verify ModelFactory was NOT called (custom model used)
@@ -88,8 +89,9 @@ class TestCustomAudioModel:
                     await extract_audio_data(state)
 
                     # Verify correct provider and model passed
+                    # Timeout is configurable, so we use ANY to match any timeout value
                     mock_ai_factory.create_speech_to_text.assert_called_once_with(
-                        "google", "chirp"
+                        "google", "chirp", {"timeout": ANY}
                     )
 
     @pytest.mark.asyncio
@@ -399,10 +401,10 @@ class TestCustomAudioModel:
                         # Extract content (goes through full graph)
                         result = await extract_content(input_data)
 
-                        # Verify AIFactory was called with the custom parameters
+                        # Verify AIFactory was called with the custom parameters (including timeout config)
                         # This proves the parameters flowed through the state correctly
                         mock_ai_factory.create_speech_to_text.assert_called_with(
-                            "openai", "whisper-1"
+                            "openai", "whisper-1", {"timeout": 3600}
                         )
 
                         # Verify we got a result

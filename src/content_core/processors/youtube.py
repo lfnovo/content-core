@@ -8,28 +8,35 @@ from youtube_transcript_api.formatters import TextFormatter  # type: ignore
 
 from content_core.common import ProcessSourceState
 from content_core.common.exceptions import NoTranscriptFound
+from content_core.common.retry import retry_youtube
 from content_core.config import CONFIG
 from content_core.logging import logger
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
 
+@retry_youtube()
+async def _fetch_video_title(video_id):
+    """Internal function that fetches video title - wrapped with retry logic."""
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            html = await response.text()
+
+    # BeautifulSoup doesn't support async operations
+    soup = BeautifulSoup(html, "html.parser")
+
+    # YouTube stores title in a meta tag
+    title = soup.find("meta", property="og:title")["content"]
+    return title
+
+
 async def get_video_title(video_id):
+    """Get video title from YouTube, with retry logic for transient failures."""
     try:
-        url = f"https://www.youtube.com/watch?v={video_id}"
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
-                html = await response.text()
-
-        # BeautifulSoup doesn't support async operations
-        soup = BeautifulSoup(html, "html.parser")
-
-        # YouTube stores title in a meta tag
-        title = soup.find("meta", property="og:title")["content"]
-        return title
-
+        return await _fetch_video_title(video_id)
     except Exception as e:
-        logger.error(f"Failed to get video title: {e}")
+        logger.error(f"Failed to get video title after retries: {e}")
         return None
 
 
@@ -67,73 +74,81 @@ async def _extract_youtube_id(url):
     return match.group(1) if match else None
 
 
-async def get_best_transcript(video_id, preferred_langs=["en", "es", "pt"]):
+@retry_youtube()
+async def _fetch_best_transcript(video_id, preferred_langs=["en", "es", "pt"]):
+    """Internal function that fetches transcript - wrapped with retry logic."""
+    transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+
+    # First try: Manual transcripts in preferred languages
+    manual_transcripts = []
     try:
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        for transcript in transcript_list:
+            if not transcript.is_generated and not transcript.is_translatable:
+                manual_transcripts.append(transcript)
 
-        # First try: Manual transcripts in preferred languages
-        manual_transcripts = []
-        try:
-            for transcript in transcript_list:
-                if not transcript.is_generated and not transcript.is_translatable:
-                    manual_transcripts.append(transcript)
+        if manual_transcripts:
+            # Sort based on preferred language order
+            for lang in preferred_langs:
+                for transcript in manual_transcripts:
+                    if transcript.language_code == lang:
+                        return transcript.fetch()
+            # If no preferred language found, return first manual transcript
+            return manual_transcripts[0].fetch()
+    except NoTranscriptFound:
+        pass
 
-            if manual_transcripts:
-                # Sort based on preferred language order
-                for lang in preferred_langs:
-                    for transcript in manual_transcripts:
-                        if transcript.language_code == lang:
-                            return transcript.fetch()
-                # If no preferred language found, return first manual transcript
-                return manual_transcripts[0].fetch()
-        except NoTranscriptFound:
-            pass
+    # Second try: Auto-generated transcripts in preferred languages
+    generated_transcripts = []
+    try:
+        for transcript in transcript_list:
+            if transcript.is_generated and not transcript.is_translatable:
+                generated_transcripts.append(transcript)
 
-        # Second try: Auto-generated transcripts in preferred languages
-        generated_transcripts = []
-        try:
-            for transcript in transcript_list:
-                if transcript.is_generated and not transcript.is_translatable:
-                    generated_transcripts.append(transcript)
+        if generated_transcripts:
+            # Sort based on preferred language order
+            for lang in preferred_langs:
+                for transcript in generated_transcripts:
+                    if transcript.language_code == lang:
+                        return transcript.fetch()
+            # If no preferred language found, return first generated transcript
+            return generated_transcripts[0].fetch()
+    except NoTranscriptFound:
+        pass
 
-            if generated_transcripts:
-                # Sort based on preferred language order
-                for lang in preferred_langs:
-                    for transcript in generated_transcripts:
-                        if transcript.language_code == lang:
-                            return transcript.fetch()
-                # If no preferred language found, return first generated transcript
-                return generated_transcripts[0].fetch()
-        except NoTranscriptFound:
-            pass
+    # Last try: Translated transcripts in preferred languages
+    translated_transcripts = []
+    try:
+        for transcript in transcript_list:
+            if transcript.is_translatable:
+                translated_transcripts.append(transcript)
 
-        # Last try: Translated transcripts in preferred languages
-        translated_transcripts = []
-        try:
-            for transcript in transcript_list:
-                if transcript.is_translatable:
-                    translated_transcripts.append(transcript)
+        if translated_transcripts:
+            # Sort based on preferred language order
+            for lang in preferred_langs:
+                for transcript in translated_transcripts:
+                    if transcript.language_code == lang:
+                        return transcript.fetch()
+            # If no preferred language found, return translation to first preferred language
+            translation = translated_transcripts[0].translate(preferred_langs[0])
+            return translation.fetch()
+    except NoTranscriptFound:
+        pass
 
-            if translated_transcripts:
-                # Sort based on preferred language order
-                for lang in preferred_langs:
-                    for transcript in translated_transcripts:
-                        if transcript.language_code == lang:
-                            return transcript.fetch()
-                # If no preferred language found, return translation to first preferred language
-                translation = translated_transcripts[0].translate(preferred_langs[0])
-                return translation.fetch()
-        except NoTranscriptFound:
-            pass
+    raise NoTranscriptFound("No suitable transcript found for this video")
 
-        raise Exception("No suitable transcript found")
 
+async def get_best_transcript(video_id, preferred_langs=["en", "es", "pt"]):
+    """Get best available transcript with retry logic for transient failures."""
+    try:
+        return await _fetch_best_transcript(video_id, preferred_langs)
     except Exception as e:
-        logger.error(f"Failed to get transcript for video {video_id}: {e}")
+        logger.error(f"Failed to get transcript for video {video_id} after retries: {e}")
         return None
 
 
-def extract_transcript_pytubefix(url, languages=["en", "es", "pt"]):
+@retry_youtube()
+def _fetch_transcript_pytubefix(url, languages=["en", "es", "pt"]):
+    """Internal function that fetches transcript via pytubefix - wrapped with retry logic."""
     from pytubefix import YouTube
 
     yt = YouTube(url)
@@ -151,20 +166,21 @@ def extract_transcript_pytubefix(url, languages=["en", "es", "pt"]):
         else:  # No preferred language found, use the first available
             caption_key = list(yt.captions.keys())[0]
             caption = yt.captions[caption_key.code]
-        try:
-            srt_captions = caption.generate_srt_captions()
-            txt_captions = caption.generate_txt_captions()
-            return txt_captions, srt_captions
-        except KeyError as e:
-            logger.error(f"KeyError while generating captions for {caption}: {e}")
-            return None, None
-        except Exception as e:
-            logger.error(
-                f"Unexpected error while generating captions for {caption}: {e}"
-            )
-            return None, None
+
+        srt_captions = caption.generate_srt_captions()
+        txt_captions = caption.generate_txt_captions()
+        return txt_captions, srt_captions
 
     return None, None
+
+
+def extract_transcript_pytubefix(url, languages=["en", "es", "pt"]):
+    """Extract transcript via pytubefix with retry logic for transient failures."""
+    try:
+        return _fetch_transcript_pytubefix(url, languages)
+    except Exception as e:
+        logger.error(f"Failed to extract transcript via pytubefix after retries: {e}")
+        return None, None
 
 
 async def extract_youtube_transcript(state: ProcessSourceState):

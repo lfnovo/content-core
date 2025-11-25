@@ -4,6 +4,8 @@ from ai_prompter import Prompter
 from esperanto import LanguageModel
 from pydantic import BaseModel, Field
 
+from content_core.common.retry import retry_llm
+from content_core.logging import logger
 from content_core.models import ModelFactory
 
 
@@ -23,9 +25,26 @@ class TemplatedMessageInput(BaseModel):
     )
 
 
+@retry_llm()
+async def _execute_llm_call(model: LanguageModel, msgs: list) -> str:
+    """Internal function to execute LLM call - wrapped with retry logic."""
+    result = await model.achat_complete(msgs)
+    return result.content
+
+
 async def templated_message(
     input: TemplatedMessageInput, model: Optional[LanguageModel] = None
-) -> str:
+) -> Optional[str]:
+    """
+    Execute a templated LLM message with retry logic for transient failures.
+
+    Args:
+        input: TemplatedMessageInput with prompt templates and data
+        model: Optional LanguageModel instance (defaults to factory model)
+
+    Returns:
+        Optional[str]: LLM response content, or None if all retries exhausted
+    """
     if not model:
         model = ModelFactory.get_model("default_model")
 
@@ -44,5 +63,8 @@ async def templated_message(
         ).render(data=input.data)
         msgs.append({"role": "user", "content": user_prompt})
 
-    result = await model.achat_complete(msgs)
-    return result.content
+    try:
+        return await _execute_llm_call(model, msgs)
+    except Exception as e:
+        logger.error(f"LLM call failed after retries: {e}")
+        return None

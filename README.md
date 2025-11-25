@@ -524,6 +524,10 @@ CCORE_URL_ENGINE=auto       # auto, simple, firecrawl, jina
 
 # Audio Processing (optional)
 CCORE_AUDIO_CONCURRENCY=3   # Number of concurrent audio transcriptions (1-10, default: 3)
+
+# Esperanto Timeout Configuration (optional)
+ESPERANTO_LLM_TIMEOUT=300   # Language model timeout in seconds (default: 300, max: 3600)
+ESPERANTO_STT_TIMEOUT=3600  # Speech-to-text timeout in seconds (default: 3600, max: 3600)
 ```
 
 ### Engine Selection via Environment Variables
@@ -545,6 +549,64 @@ Content Core processes long audio files by splitting them into segments and tran
 - **Configuration**: Set via `CCORE_AUDIO_CONCURRENCY` environment variable or `extraction.audio.concurrency` in `cc_config.yaml`
 
 Higher concurrency values can speed up processing of long audio/video files but may hit API rate limits. Lower values are more conservative and suitable for accounts with lower API quotas.
+
+### Retry Configuration
+
+Content Core includes automatic retry logic for transient failures in external operations (network requests, API calls, transcription). Retries use exponential backoff with jitter to handle temporary issues gracefully.
+
+**Supported operations:**
+- `youtube` - YouTube video title and transcript fetching (5 retries, 2-60s backoff)
+- `url_api` - URL extraction via Jina/Firecrawl APIs (3 retries, 1-30s backoff)
+- `url_network` - Network operations like HEAD requests, BeautifulSoup (3 retries, 0.5-10s backoff)
+- `audio` - Audio transcription API calls (3 retries, 2-30s backoff)
+- `llm` - LLM API calls for cleanup/summary (3 retries, 1-30s backoff)
+- `download` - Remote file downloads (3 retries, 1-15s backoff)
+
+**Environment variable overrides:**
+```bash
+# Override retry settings per operation type
+CCORE_YOUTUBE_MAX_RETRIES=10     # Max retry attempts (1-20)
+CCORE_YOUTUBE_BASE_DELAY=3       # Base delay in seconds (0.1-60)
+CCORE_YOUTUBE_MAX_DELAY=120      # Max delay in seconds (1-300)
+
+# Same pattern for other operations:
+CCORE_URL_API_MAX_RETRIES=5
+CCORE_AUDIO_MAX_RETRIES=5
+CCORE_LLM_MAX_RETRIES=5
+CCORE_DOWNLOAD_MAX_RETRIES=5
+```
+
+For detailed configuration, see our [Usage Documentation](docs/usage.md#retry-configuration).
+
+### Timeout Configuration
+
+Content Core uses the Esperanto library for AI model interactions and supports configurable timeouts for different operations. Timeouts prevent requests from hanging indefinitely and ensure reliable processing.
+
+**Configuration Methods** (in priority order):
+
+1. **Config Files** (highest priority): Set in `cc_config.yaml` or `models_config.yaml`
+2. **Environment Variables**: Provide global defaults via `ESPERANTO_LLM_TIMEOUT` and `ESPERANTO_STT_TIMEOUT` when a timeout isn't specified in configuration files
+
+**Default Timeouts:**
+
+- **Speech-to-Text**: 3600 seconds (1 hour) - for very long audio files
+- **Language Models**: 300-600 seconds - for content processing operations
+- **Cleanup Model**: 600 seconds (10 minutes) - handles large content with 8000 max tokens
+- **Summary Model**: 300 seconds (5 minutes) - for content summarization
+
+**Environment Variable Overrides:**
+
+```bash
+# Override language model timeout globally (used when config files omit a timeout)
+export ESPERANTO_LLM_TIMEOUT=300
+
+# Override speech-to-text timeout globally (used when config files omit a timeout)
+export ESPERANTO_STT_TIMEOUT=3600
+```
+
+**Valid Range:** 1 to 3600 seconds (1 hour maximum)
+
+For more details on Esperanto timeout configuration, see the [Esperanto documentation](https://github.com/lfnovo/esperanto/blob/main/docs/advanced/timeout-configuration.md).
 
 ### Custom Prompt Templates
 
