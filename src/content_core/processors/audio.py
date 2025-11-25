@@ -8,6 +8,7 @@ from functools import partial
 from moviepy import AudioFileClip
 
 from content_core.common import ProcessSourceState
+from content_core.common.retry import retry_audio_transcription
 from content_core.config import get_audio_concurrency
 from content_core.logging import logger
 
@@ -98,12 +99,19 @@ def extract_audio(
         raise
 
 
+@retry_audio_transcription()
+async def _transcribe_segment(audio_file, model):
+    """Internal function to transcribe a single segment - wrapped with retry logic."""
+    return (await model.atranscribe(audio_file)).text
+
+
 async def transcribe_audio_segment(audio_file, model, semaphore):
     """
-    Transcribe a single audio segment asynchronously with concurrency control.
+    Transcribe a single audio segment asynchronously with concurrency control and retry logic.
 
     This function uses a semaphore to limit the number of concurrent transcriptions,
     preventing API rate limits while allowing parallel processing for improved performance.
+    Includes retry logic for transient API failures.
 
     Args:
         audio_file (str): Path to the audio file segment to transcribe
@@ -119,7 +127,7 @@ async def transcribe_audio_segment(audio_file, model, semaphore):
         is configured via get_audio_concurrency() (default: 3, range: 1-10).
     """
     async with semaphore:
-        return (await model.atranscribe(audio_file)).text
+        return await _transcribe_segment(audio_file, model)
 
 
 async def extract_audio_data(data: ProcessSourceState):

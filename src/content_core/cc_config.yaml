@@ -47,4 +47,32 @@ extraction:
 
 youtube_transcripts:
   preferred_languages: ["en", "es", "pt"]
-  
+
+# Retry configuration for transient failures
+# Each operation type can be configured independently
+# Environment variables override these settings (e.g., CCORE_YOUTUBE_MAX_RETRIES)
+retry:
+  youtube:
+    max_attempts: 5       # Number of retry attempts (YouTube has aggressive rate limiting)
+    base_delay: 2         # Base delay in seconds for exponential backoff
+    max_delay: 60         # Maximum delay between retries
+  url_api:
+    max_attempts: 3       # For API-based URL extraction (Jina, Firecrawl)
+    base_delay: 1
+    max_delay: 30
+  url_network:
+    max_attempts: 3       # For network-only operations (BeautifulSoup, HEAD requests)
+    base_delay: 0.5
+    max_delay: 10
+  audio:
+    max_attempts: 3       # For speech-to-text API calls
+    base_delay: 2
+    max_delay: 30
+  llm:
+    max_attempts: 3       # For LLM API calls (summary, cleanup)
+    base_delay: 1
+    max_delay: 30
+  download:
+    max_attempts: 3       # For remote file downloads
+    base_delay: 1
+    max_delay: 15

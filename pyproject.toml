@@ -1,6 +1,6 @@
 [project]
 name = "content-core"
-version = "1.7.0"
+version = "1.8.0"
 description = "Extract what matters from any media source. Available as Python Library, macOS Service, CLI and MCP Server"
 readme = "README.md"
 homepage = "https://github.com/lfnovo/content-core"
@@ -33,6 +33,7 @@ dependencies = [
     "asciidoc>=10.2.1",
     "pytubefix>=9.1.1",
     "fastmcp>=2.10.0",
+    "tenacity>=8.0.0",
 ]
 
 [project.optional-dependencies]

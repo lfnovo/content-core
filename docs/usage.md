@@ -623,25 +623,25 @@ summary_model:
 
 **Note**: For speech-to-text models, `timeout` is a top-level parameter (not under `config`). For language models, `timeout` goes inside the `config` dictionary.
 
-#### 2. Environment Variables (Lower Priority)
+#### 2. Environment Variables (Fallback Defaults)
 
-Set global timeout defaults that apply to all models of a given type:
+Set global timeout defaults that apply to all models of a given type when a timeout is not defined in the YAML configuration:
 
 ```bash
-# Language model timeout (applies to default_model, cleanup_model, summary_model)
+# Language model timeout default (applies when config files omit a timeout)
 export ESPERANTO_LLM_TIMEOUT=300
 
-# Speech-to-text timeout (applies to speech_to_text model)
+# Speech-to-text timeout default (applies when config files omit a timeout)
 export ESPERANTO_STT_TIMEOUT=3600
 ```
 
 Add to your `.env` file:
 
 ```plaintext
-# Override language model timeout globally
+# Override language model timeout globally (fallback default)
 ESPERANTO_LLM_TIMEOUT=300
 
-# Override speech-to-text timeout globally
+# Override speech-to-text timeout globally (fallback default)
 ESPERANTO_STT_TIMEOUT=3600
 ```
 
@@ -754,6 +754,173 @@ Timeouts work in conjunction with other performance settings:
 - **Temperature** (`temperature` in config): Affects generation quality and potentially speed
 
 For more details on Esperanto timeout configuration, see the [Esperanto Timeout Documentation](https://github.com/lfnovo/esperanto/blob/main/docs/advanced/timeout-configuration.md).
+
+## Retry Configuration
+
+Content Core includes automatic retry logic for handling transient failures in external operations. Built on the [tenacity](https://tenacity.readthedocs.io/) library, retries use exponential backoff with jitter to gracefully handle temporary issues like network timeouts, API rate limits, and service unavailability.
+
+### How It Works
+
+When an external operation fails with a retryable error (network timeout, connection error, API error), Content Core automatically retries the operation with increasing delays between attempts. The backoff uses randomized exponential delays to prevent thundering herd problems when multiple requests fail simultaneously.
+
+### Supported Operation Types
+
+| Operation Type | Default Retries | Base Delay | Max Delay | Use Cases |
+|---------------|-----------------|------------|-----------|-----------|
+| `youtube` | 5 | 2s | 60s | Video title/transcript fetching (YouTube has aggressive rate limiting) |
+| `url_api` | 3 | 1s | 30s | Jina, Firecrawl API extraction |
+| `url_network` | 3 | 0.5s | 10s | HEAD requests, BeautifulSoup fetching |
+| `audio` | 3 | 2s | 30s | Speech-to-text API calls |
+| `llm` | 3 | 1s | 30s | LLM API calls (cleanup, summary) |
+| `download` | 3 | 1s | 15s | Remote file downloads |
+
+### Configuration Methods
+
+#### Via YAML Configuration
+
+Add to your `cc_config.yaml`:
+
+```yaml
+retry:
+  youtube:
+    max_attempts: 5      # Number of retry attempts
+    base_delay: 2        # Base delay in seconds
+    max_delay: 60        # Maximum delay between retries
+  url_api:
+    max_attempts: 3
+    base_delay: 1
+    max_delay: 30
+  url_network:
+    max_attempts: 3
+    base_delay: 0.5
+    max_delay: 10
+  audio:
+    max_attempts: 3
+    base_delay: 2
+    max_delay: 30
+  llm:
+    max_attempts: 3
+    base_delay: 1
+    max_delay: 30
+  download:
+    max_attempts: 3
+    base_delay: 1
+    max_delay: 15
+```
+
+#### Via Environment Variables
+
+Override retry settings using environment variables with the pattern `CCORE_{TYPE}_{PARAM}`:
+
+```bash
+# YouTube retry settings
+CCORE_YOUTUBE_MAX_RETRIES=10     # Max retry attempts (1-20)
+CCORE_YOUTUBE_BASE_DELAY=3       # Base delay in seconds (0.1-60)
+CCORE_YOUTUBE_MAX_DELAY=120      # Max delay in seconds (1-300)
+
+# URL API retry settings (for Jina, Firecrawl)
+CCORE_URL_API_MAX_RETRIES=5
+CCORE_URL_API_BASE_DELAY=2
+CCORE_URL_API_MAX_DELAY=60
+
+# URL network retry settings (for BeautifulSoup, HEAD requests)
+CCORE_URL_NETWORK_MAX_RETRIES=5
+CCORE_URL_NETWORK_BASE_DELAY=1
+CCORE_URL_NETWORK_MAX_DELAY=20
+
+# Audio transcription retry settings
+CCORE_AUDIO_MAX_RETRIES=5
+CCORE_AUDIO_BASE_DELAY=3
+CCORE_AUDIO_MAX_DELAY=60
+
+# LLM retry settings (cleanup, summary)
+CCORE_LLM_MAX_RETRIES=5
+CCORE_LLM_BASE_DELAY=2
+CCORE_LLM_MAX_DELAY=60
+
+# Download retry settings
+CCORE_DOWNLOAD_MAX_RETRIES=5
+CCORE_DOWNLOAD_BASE_DELAY=2
+CCORE_DOWNLOAD_MAX_DELAY=30
+```
+
+Environment variables take precedence over YAML configuration.
+
+### Validation and Constraints
+
+**Valid Ranges:**
+- `max_retries`: 1-20 attempts
+- `base_delay`: 0.1-60 seconds
+- `max_delay`: 1-300 seconds
+
+Invalid values are ignored with a warning, and the system falls back to defaults.
+
+### Behavior After Retries Exhausted
+
+When all retry attempts are exhausted, Content Core maintains backward compatibility:
+- Functions return `None` or empty content (not exceptions)
+- Errors are logged with detailed information
+- Processing continues for remaining operations
+
+This ensures that a single transient failure doesn't crash your entire pipeline.
+
+### Logging
+
+Retry attempts are logged at WARNING level with details:
+```
+WARNING: Retry 2 for _fetch_video_title: ClientError: Connection timeout
+```
+
+When all retries are exhausted:
+```
+ERROR: All 5 retries exhausted for _fetch_video_title: ClientError: Service unavailable
+```
+
+### Use Cases
+
+**High-Reliability Batch Processing:**
+```bash
+# Increase retries for batch jobs where reliability is critical
+CCORE_YOUTUBE_MAX_RETRIES=10
+CCORE_URL_API_MAX_RETRIES=5
+CCORE_AUDIO_MAX_RETRIES=5
+```
+
+**Fast-Fail Development:**
+```bash
+# Reduce retries for faster feedback during development
+CCORE_YOUTUBE_MAX_RETRIES=2
+CCORE_URL_API_MAX_RETRIES=1
+CCORE_AUDIO_MAX_RETRIES=1
+```
+
+**Rate-Limited APIs:**
+```bash
+# Increase delays for APIs with strict rate limits
+CCORE_URL_API_BASE_DELAY=5
+CCORE_URL_API_MAX_DELAY=120
+```
+
+### Technical Details
+
+The retry decorators are available for advanced use in custom code:
+
+```python
+from content_core.common.retry import (
+    retry_youtube,
+    retry_url_api,
+    retry_url_network,
+    retry_audio_transcription,
+    retry_llm,
+    retry_download,
+)
+
+# Use decorators on your own functions
+@retry_url_api(max_attempts=5, base_delay=2, max_delay=60)
+async def my_custom_api_call():
+    # Your API call logic here
+    pass
+```
 
 ## File Type Detection
 
