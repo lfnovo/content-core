@@ -649,7 +649,7 @@ ESPERANTO_STT_TIMEOUT=3600
 
 **Valid Range:** 1 to 3600 seconds (1 hour maximum)
 
-**Type Requirements:** Must be numeric (int or float)
++**Type Requirements:** Must be an integer number of seconds.
 
 Examples of **invalid** timeouts that will raise errors:
 - String values: `"30"`
