@@ -16,7 +16,10 @@ class ModelFactory:
             model_config = config.get('config', {})
 
             if model_alias == 'speech_to_text':
-                ModelFactory._instances[model_alias] = AIFactory.create_speech_to_text(provider, model_name)
+                # For STT models, pass timeout in config dict
+                timeout = config.get('timeout')
+                stt_config = {'timeout': timeout} if timeout else {}
+                ModelFactory._instances[model_alias] = AIFactory.create_speech_to_text(provider, model_name, stt_config)
             else:
                 ModelFactory._instances[model_alias] = AIFactory.create_language(provider, model_name, config=model_config)
 

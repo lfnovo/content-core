@@ -52,9 +52,9 @@ class TestCustomAudioModel:
                     # Execute
                     result = await extract_audio_data(state)
 
-                    # Verify AIFactory was called with correct parameters
+                    # Verify AIFactory was called with correct parameters (including timeout config)
                     mock_ai_factory.create_speech_to_text.assert_called_once_with(
-                        "openai", "whisper-1"
+                        "openai", "whisper-1", {"timeout": 3600}
                     )
 
                     # Verify ModelFactory was NOT called (custom model used)
@@ -87,9 +87,9 @@ class TestCustomAudioModel:
                 with patch("content_core.models.ModelFactory"):
                     await extract_audio_data(state)
 
-                    # Verify correct provider and model passed
+                    # Verify correct provider and model passed (including timeout config)
                     mock_ai_factory.create_speech_to_text.assert_called_once_with(
-                        "google", "chirp"
+                        "google", "chirp", {"timeout": 3600}
                     )
 
     @pytest.mark.asyncio
@@ -399,10 +399,10 @@ class TestCustomAudioModel:
                         # Extract content (goes through full graph)
                         result = await extract_content(input_data)
 
-                        # Verify AIFactory was called with the custom parameters
+                        # Verify AIFactory was called with the custom parameters (including timeout config)
                         # This proves the parameters flowed through the state correctly
                         mock_ai_factory.create_speech_to_text.assert_called_with(
-                            "openai", "whisper-1"
+                            "openai", "whisper-1", {"timeout": 3600}
                         )
 
                         # Verify we got a result

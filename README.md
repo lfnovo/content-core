@@ -524,6 +524,10 @@ CCORE_URL_ENGINE=auto       # auto, simple, firecrawl, jina
 
 # Audio Processing (optional)
 CCORE_AUDIO_CONCURRENCY=3   # Number of concurrent audio transcriptions (1-10, default: 3)
+
+# Esperanto Timeout Configuration (optional)
+ESPERANTO_LLM_TIMEOUT=300   # Language model timeout in seconds (default: 60, max: 3600)
+ESPERANTO_STT_TIMEOUT=3600  # Speech-to-text timeout in seconds (default: 300, max: 3600)
 ```
 
 ### Engine Selection via Environment Variables
@@ -545,6 +549,36 @@ Content Core processes long audio files by splitting them into segments and tran
 - **Configuration**: Set via `CCORE_AUDIO_CONCURRENCY` environment variable or `extraction.audio.concurrency` in `cc_config.yaml`
 
 Higher concurrency values can speed up processing of long audio/video files but may hit API rate limits. Lower values are more conservative and suitable for accounts with lower API quotas.
+
+### Timeout Configuration
+
+Content Core uses the Esperanto library for AI model interactions and supports configurable timeouts for different operations. Timeouts prevent requests from hanging indefinitely and ensure reliable processing.
+
+**Configuration Methods** (in priority order):
+
+1. **Config Files** (highest priority): Set in `cc_config.yaml` or `models_config.yaml`
+2. **Environment Variables**: Global defaults via `ESPERANTO_LLM_TIMEOUT` and `ESPERANTO_STT_TIMEOUT`
+
+**Default Timeouts:**
+
+- **Speech-to-Text**: 3600 seconds (1 hour) - for very long audio files
+- **Language Models**: 300-600 seconds - for content processing operations
+- **Cleanup Model**: 600 seconds (10 minutes) - handles large content with 8000 max tokens
+- **Summary Model**: 300 seconds (5 minutes) - for content summarization
+
+**Environment Variable Overrides:**
+
+```bash
+# Override language model timeout globally (for all LLM operations)
+export ESPERANTO_LLM_TIMEOUT=300
+
+# Override speech-to-text timeout globally (for all audio transcriptions)
+export ESPERANTO_STT_TIMEOUT=3600
+```
+
+**Valid Range:** 1 to 3600 seconds (1 hour maximum)
+
+For more details on Esperanto timeout configuration, see the [Esperanto documentation](https://github.com/lfnovo/esperanto/blob/main/docs/advanced/timeout-configuration.md).
 
 ### Custom Prompt Templates
 

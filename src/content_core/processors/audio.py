@@ -199,8 +199,9 @@ async def extract_audio_data(data: ProcessSourceState):
                     logger.info(
                         f"Using custom audio model: {data.audio_provider}/{data.audio_model}"
                     )
+                    # Pass timeout in config dict for STT models
                     speech_to_text_model = AIFactory.create_speech_to_text(
-                        data.audio_provider, data.audio_model
+                        data.audio_provider, data.audio_model, {'timeout': 3600}
                     )
                 except Exception as e:
                     logger.error(

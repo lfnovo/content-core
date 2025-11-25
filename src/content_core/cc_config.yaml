@@ -3,7 +3,8 @@
 
 speech_to_text:
   provider: openai
-  model_name: whisper-1
+  model_name: gpt-4o-transcribe-diarize
+  timeout: 3600  # 1 hour - for processing very long audio files
 
 default_model:
   provider: openai
@@ -12,6 +13,7 @@ default_model:
     temperature: 0.5
     top_p: 1
     max_tokens: 2000
+    timeout: 300  # 5 minutes - for general language model operations
 
 cleanup_model:
   provider: openai
@@ -20,6 +22,7 @@ cleanup_model:
     temperature: 0
     max_tokens: 8000
     output_format: json
+    timeout: 600  # 10 minutes - for complex content cleaning with large inputs
 
 summary_model:
   provider: openai
@@ -28,6 +31,7 @@ summary_model:
     temperature: 0
     top_p: 1
     max_tokens: 2000
+    timeout: 300  # 5 minutes - for content summarization
 
 extraction:
   document_engine: auto  # auto | simple | docling - for files/documents
