@@ -24,13 +24,54 @@ import aiohttp
 from tenacity import (
     RetryError,
     retry,
+    retry_if_exception,
     retry_if_exception_type,
     stop_after_attempt,
     wait_random_exponential,
 )
 
+from content_core.common.exceptions import NoTranscriptFound, NotFoundError
 from content_core.config import get_retry_config
 from content_core.logging import logger
+
+
+# Exceptions that should NOT be retried (permanent failures)
+NON_RETRYABLE_EXCEPTIONS = (
+    NoTranscriptFound,
+    NotFoundError,
+    ValueError,
+    TypeError,
+    KeyError,
+    AttributeError,
+)
+
+
+def is_retryable_exception(exception: BaseException) -> bool:
+    """
+    Determine if an exception should trigger a retry.
+
+    Returns True for transient/network errors, False for permanent failures.
+    """
+    # Never retry these - they indicate permanent failures
+    if isinstance(exception, NON_RETRYABLE_EXCEPTIONS):
+        return False
+
+    # Always retry network-related errors
+    if isinstance(exception, (aiohttp.ClientError, ConnectionError, TimeoutError, OSError)):
+        # But not if it's a client error (4xx) - those are usually permanent
+        if isinstance(exception, aiohttp.ClientResponseError):
+            status = exception.status
+            # Retry server errors (5xx) and rate limits (429)
+            return status >= 500 or status == 429
+        return True
+
+    # For generic exceptions, check if they look like transient errors
+    exc_msg = str(exception).lower()
+    transient_indicators = [
+        "timeout", "timed out", "connection", "network", "temporary",
+        "unavailable", "rate limit", "too many requests", "503", "502", "500"
+    ]
+    return any(indicator in exc_msg for indicator in transient_indicators)
 
 
 def log_retry_attempt(retry_state) -> None:
@@ -86,6 +127,7 @@ def retry_youtube(
     Retry decorator for YouTube operations.
 
     Uses longer delays due to YouTube's aggressive rate limiting.
+    Does NOT retry permanent failures like NoTranscriptFound.
 
     Args:
         max_attempts: Override max retry attempts (default from config: 5)
@@ -103,7 +145,7 @@ def retry_youtube(
     return retry(
         stop=stop_after_attempt(attempts),
         wait=wait_random_exponential(multiplier=base, max=max_wait),
-        retry=retry_if_exception_type((aiohttp.ClientError, Exception)),
+        retry=retry_if_exception(is_retryable_exception),
         before_sleep=log_retry_attempt,
         reraise=True,
     )
@@ -116,6 +158,8 @@ def retry_url_api(
 ) -> Callable:
     """
     Retry decorator for API-based URL extraction (Jina, Firecrawl).
+
+    Retries on network errors and server errors (5xx, 429), but not client errors (4xx).
 
     Args:
         max_attempts: Override max retry attempts (default from config: 3)
@@ -133,7 +177,7 @@ def retry_url_api(
     return retry(
         stop=stop_after_attempt(attempts),
         wait=wait_random_exponential(multiplier=base, max=max_wait),
-        retry=retry_if_exception_type((aiohttp.ClientError, Exception)),
+        retry=retry_if_exception(is_retryable_exception),
         before_sleep=log_retry_attempt,
         reraise=True,
     )
@@ -179,6 +223,8 @@ def retry_audio_transcription(
     """
     Retry decorator for audio transcription (speech-to-text API calls).
 
+    Retries on transient errors, but not on permanent failures like invalid files.
+
     Args:
         max_attempts: Override max retry attempts (default from config: 3)
         base_delay: Override base delay in seconds (default from config: 2)
@@ -195,7 +241,7 @@ def retry_audio_transcription(
     return retry(
         stop=stop_after_attempt(attempts),
         wait=wait_random_exponential(multiplier=base, max=max_wait),
-        retry=retry_if_exception_type(Exception),
+        retry=retry_if_exception(is_retryable_exception),
         before_sleep=log_retry_attempt,
         reraise=True,
     )
@@ -208,6 +254,9 @@ def retry_llm(
 ) -> Callable:
     """
     Retry decorator for LLM API calls (summary, cleanup).
+
+    Retries on transient errors like rate limits and timeouts, but not on
+    permanent failures like invalid API keys or malformed requests.
 
     Args:
         max_attempts: Override max retry attempts (default from config: 3)
@@ -225,7 +274,7 @@ def retry_llm(
     return retry(
         stop=stop_after_attempt(attempts),
         wait=wait_random_exponential(multiplier=base, max=max_wait),
-        retry=retry_if_exception_type(Exception),
+        retry=retry_if_exception(is_retryable_exception),
         before_sleep=log_retry_attempt,
         reraise=True,
     )
@@ -239,7 +288,7 @@ def retry_download(
     """
     Retry decorator for remote file downloads.
 
-    Retries on network errors and server errors (5xx), but not client errors (4xx except 429).
+    Retries on network errors and server errors (5xx, 429), but not client errors (4xx).
 
     Args:
         max_attempts: Override max retry attempts (default from config: 3)
@@ -257,7 +306,7 @@ def retry_download(
     return retry(
         stop=stop_after_attempt(attempts),
         wait=wait_random_exponential(multiplier=base, max=max_wait),
-        retry=retry_if_exception_type((aiohttp.ClientError, ConnectionError, TimeoutError)),
+        retry=retry_if_exception(is_retryable_exception),
         before_sleep=log_retry_attempt,
         reraise=True,
     )

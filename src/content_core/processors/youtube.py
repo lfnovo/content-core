@@ -134,7 +134,7 @@ async def _fetch_best_transcript(video_id, preferred_langs=["en", "es", "pt"]):
     except NoTranscriptFound:
         pass
 
-    raise Exception("No suitable transcript found")
+    raise NoTranscriptFound("No suitable transcript found for this video")
 
 
 async def get_best_transcript(video_id, preferred_langs=["en", "es", "pt"]):

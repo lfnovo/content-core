@@ -194,7 +194,8 @@ class TestErrorHandling:
         """Test that one failed transcription doesn't prevent others from completing.
 
         Note: With retry logic enabled, the failing segment will be retried
-        (default: 3 attempts), so total calls = 2 successful + 3 retries = 5.
+        (default: 3 attempts) IF the exception is transient (network error, timeout).
+        Total calls = 2 successful + 3 retries = 5.
         """
         call_count = 0
         fail_count = 0
@@ -204,7 +205,8 @@ class TestErrorHandling:
             call_count += 1
             if "fail" in audio_file:
                 fail_count += 1
-                raise Exception("Transcription failed")
+                # Use a transient error message so it triggers retry
+                raise TimeoutError("Transcription service timeout")
             await asyncio.sleep(0.01)
             return MagicMock(text=f"transcript_{audio_file}")
 

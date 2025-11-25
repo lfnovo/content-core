@@ -12,7 +12,9 @@ from unittest.mock import MagicMock, patch
 import aiohttp
 import pytest
 
+from content_core.common.exceptions import NoTranscriptFound, NotFoundError
 from content_core.common.retry import (
+    is_retryable_exception,
     log_retry_attempt,
     retry_audio_transcription,
     retry_download,
@@ -209,7 +211,7 @@ class TestRetryDecorators:
             nonlocal call_count
             call_count += 1
             if call_count < 2:
-                raise Exception("API error")
+                raise ConnectionError("API connection error")
             return {"data": "success"}
 
         result = await mock_api_call()
@@ -226,7 +228,7 @@ class TestRetryDecorators:
             nonlocal call_count
             call_count += 1
             if call_count < 2:
-                raise Exception("Transcription error")
+                raise TimeoutError("Transcription timeout")
             return "transcribed text"
 
         result = await mock_transcribe()
@@ -243,7 +245,7 @@ class TestRetryDecorators:
             nonlocal call_count
             call_count += 1
             if call_count < 2:
-                raise Exception("LLM API error")
+                raise Exception("LLM API rate limit exceeded")
             return "LLM response"
 
         result = await mock_llm_call()
@@ -312,12 +314,71 @@ class TestSyncDecorators:
             nonlocal call_count
             call_count += 1
             if call_count < 2:
-                raise Exception("Sync error")
+                raise ConnectionError("Sync connection error")
             return "sync success"
 
         result = mock_sync_call()
         assert result == "sync success"
         assert call_count == 2
+
+
+class TestIsRetryableException:
+    """Tests for the is_retryable_exception function."""
+
+    def test_network_errors_are_retryable(self):
+        """Test that network-related errors are retryable."""
+        assert is_retryable_exception(ConnectionError("Connection refused"))
+        assert is_retryable_exception(TimeoutError("Request timed out"))
+        assert is_retryable_exception(OSError("Network unreachable"))
+
+    def test_aiohttp_client_error_is_retryable(self):
+        """Test that generic aiohttp client errors are retryable."""
+        assert is_retryable_exception(aiohttp.ClientError("Client error"))
+
+    def test_permanent_failures_not_retryable(self):
+        """Test that permanent failures are not retried."""
+        assert not is_retryable_exception(NoTranscriptFound("No transcript"))
+        assert not is_retryable_exception(NotFoundError("Resource not found"))
+        assert not is_retryable_exception(ValueError("Invalid value"))
+        assert not is_retryable_exception(TypeError("Wrong type"))
+        assert not is_retryable_exception(KeyError("Missing key"))
+        assert not is_retryable_exception(AttributeError("No attribute"))
+
+    def test_generic_exception_with_transient_message_is_retryable(self):
+        """Test that generic exceptions with transient-looking messages are retried."""
+        assert is_retryable_exception(Exception("Connection timeout"))
+        assert is_retryable_exception(Exception("Network unreachable"))
+        assert is_retryable_exception(Exception("Service temporarily unavailable"))
+        assert is_retryable_exception(Exception("Rate limit exceeded"))
+        assert is_retryable_exception(Exception("Too many requests"))
+        assert is_retryable_exception(Exception("503 Service Unavailable"))
+
+    def test_generic_exception_without_transient_message_not_retryable(self):
+        """Test that generic exceptions without transient indicators are not retried."""
+        assert not is_retryable_exception(Exception("Invalid input"))
+        assert not is_retryable_exception(Exception("Not found"))
+        assert not is_retryable_exception(Exception("Permission denied"))
+
+
+class TestNoTranscriptFoundNotRetried:
+    """Tests that NoTranscriptFound exceptions are not retried."""
+
+    @pytest.mark.asyncio
+    async def test_no_transcript_found_not_retried(self):
+        """Test that NoTranscriptFound is immediately raised without retry."""
+        call_count = 0
+
+        @retry_youtube(max_attempts=5, base_delay=0.01, max_delay=0.02)
+        async def mock_transcript_fetch():
+            nonlocal call_count
+            call_count += 1
+            raise NoTranscriptFound("No transcript available for this video")
+
+        with pytest.raises(NoTranscriptFound):
+            await mock_transcript_fetch()
+
+        # Should only be called once since NoTranscriptFound is not retryable
+        assert call_count == 1
 
 
 class TestRetryConfigAllOperations:

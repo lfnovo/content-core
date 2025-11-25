@@ -34,7 +34,7 @@ async def _execute_llm_call(model: LanguageModel, msgs: list) -> str:
 
 async def templated_message(
     input: TemplatedMessageInput, model: Optional[LanguageModel] = None
-) -> str:
+) -> Optional[str]:
     """
     Execute a templated LLM message with retry logic for transient failures.
 
@@ -43,7 +43,7 @@ async def templated_message(
         model: Optional LanguageModel instance (defaults to factory model)
 
     Returns:
-        str: LLM response content, or None if all retries exhausted
+        Optional[str]: LLM response content, or None if all retries exhausted
     """
     if not model:
         model = ModelFactory.get_model("default_model")
