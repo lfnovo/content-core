@@ -57,8 +57,9 @@ async def _fetch_url_html(url: str) -> str:
     """Internal function to fetch URL HTML content - wrapped with retry logic."""
     async with aiohttp.ClientSession() as session:
         async with session.get(url, timeout=10) as response:
-            if response.status != 200:
-                raise Exception(f"HTTP error: {response.status}")
+            # Raise ClientResponseError so retry logic can inspect status code
+            # (5xx and 429 will be retried, 4xx will not)
+            response.raise_for_status()
             return await response.text()
 
 
@@ -130,8 +131,9 @@ async def _fetch_url_jina(url: str, headers: dict) -> str:
     """Internal function to fetch URL content via Jina - wrapped with retry logic."""
     async with aiohttp.ClientSession() as session:
         async with session.get(f"https://r.jina.ai/{url}", headers=headers) as response:
-            if response.status != 200:
-                raise Exception(f"Jina API error: {response.status}")
+            # Raise ClientResponseError so retry logic can inspect status code
+            # (5xx and 429 will be retried, 4xx will not)
+            response.raise_for_status()
             return await response.text()
 
 

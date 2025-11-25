@@ -649,7 +649,7 @@ ESPERANTO_STT_TIMEOUT=3600
 
 **Valid Range:** 1 to 3600 seconds (1 hour maximum)
 
-+**Type Requirements:** Must be an integer number of seconds.
+**Type Requirements:** Must be an integer number of seconds.
 
 Examples of **invalid** timeouts that will raise errors:
 - String values: `"30"`
@@ -848,12 +848,12 @@ Environment variables take precedence over YAML configuration.
 
 ### Validation and Constraints
 
-**Valid Ranges:**
+**Valid Ranges (for environment variable overrides):**
 - `max_retries`: 1-20 attempts
 - `base_delay`: 0.1-60 seconds
 - `max_delay`: 1-300 seconds
 
-Invalid values are ignored with a warning, and the system falls back to defaults.
+Invalid environment variable values are ignored with a warning, and the system falls back to YAML or defaults. YAML configuration values are used as-is and must be valid.
 
 ### Behavior After Retries Exhausted
 

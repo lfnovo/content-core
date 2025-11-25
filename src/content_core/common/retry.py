@@ -209,7 +209,7 @@ def retry_url_network(
     return retry(
         stop=stop_after_attempt(attempts),
         wait=wait_random_exponential(multiplier=base, max=max_wait),
-        retry=retry_if_exception_type((aiohttp.ClientError, ConnectionError, TimeoutError)),
+        retry=retry_if_exception(is_retryable_exception),
         before_sleep=log_retry_attempt,
         reraise=True,
     )
