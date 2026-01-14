@@ -65,7 +65,7 @@ summary = await cc.summarize_content(result, context="explain to a child")
 
 *   **🎯 Intelligent Auto-Detection:** Automatically selects the best extraction method based on content type and available services
 *   **🔧 Smart Engine Selection:** 
-    * **URLs:** Firecrawl → Jina → BeautifulSoup fallback chain
+    * **URLs:** Firecrawl → Jina → Crawl4AI (optional) → BeautifulSoup fallback chain
     * **Documents:** Docling → Enhanced PyMuPDF → Simple extraction fallback  
     * **Media:** OpenAI Whisper transcription
     * **Images:** OCR with multiple engine support
@@ -89,11 +89,11 @@ pip install content-core
 # With enhanced document processing (adds Docling)
 pip install content-core[docling]
 
-# With MCP server support (now included by default)
-pip install content-core
+# With local browser-based URL extraction (adds Crawl4AI)
+pip install content-core[crawl4ai]
 
-# Full installation (with enhanced document processing)
-pip install content-core[docling]
+# Full installation (with all optional features)
+pip install content-core[docling,crawl4ai]
 ```
 
 > **Note:** Unlike many content extraction tools, Content Core uses pure Python implementations and doesn't require system libraries like libmagic. This ensures consistent, hassle-free installation across Windows, macOS, and Linux.
@@ -535,7 +535,7 @@ ESPERANTO_STT_TIMEOUT=3600  # Speech-to-text timeout in seconds (default: 3600, 
 For deployment scenarios like MCP servers or Raycast extensions, you can override the extraction engines using environment variables:
 
 - **`CCORE_DOCUMENT_ENGINE`**: Force document engine (`auto`, `simple`, `docling`)
-- **`CCORE_URL_ENGINE`**: Force URL engine (`auto`, `simple`, `firecrawl`, `jina`)
+- **`CCORE_URL_ENGINE`**: Force URL engine (`auto`, `simple`, `firecrawl`, `jina`, `crawl4ai`)
 - **`CCORE_AUDIO_CONCURRENCY`**: Number of concurrent audio transcriptions (1-10, default: 3)
 
 These variables take precedence over config file settings and provide explicit control for different deployment scenarios.

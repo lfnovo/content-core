@@ -80,7 +80,7 @@ class TestEngineConstants:
     
     def test_url_engine_constants(self):
         """Test URL engine allowed values."""
-        expected = {"auto", "simple", "firecrawl", "jina"}
+        expected = {"auto", "simple", "firecrawl", "jina", "crawl4ai"}
         assert ALLOWED_URL_ENGINES == expected
 
 

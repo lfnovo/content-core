@@ -77,6 +77,25 @@ async def test_extract_content_from_url_jina(fixture_path):
 
 
 @pytest.mark.asyncio
+async def test_extract_content_from_url_crawl4ai(fixture_path):
+    """Tests content extraction from a URL using Crawl4AI."""
+    pytest.importorskip("crawl4ai", reason="Crawl4AI not installed")
+
+    # Using a known URL from the notebook example
+    input_data = {"url": "https://www.supernovalabs.com", "url_engine": "crawl4ai"}
+    result = await extract_content(input_data)
+
+    assert hasattr(result, "source_type")
+    assert result.source_type == "url"
+    # Check for expected title and content snippets based on notebook output
+    assert "Supernova Labs" in result.title
+    assert "AI Consulting" in result.title
+    # Check that content was extracted and contains relevant keywords
+    assert len(result.content) > 100
+    assert "AI" in result.content
+
+
+@pytest.mark.asyncio
 async def test_extract_content_from_mp4(fixture_path):
     """Tests content extraction (transcript) from an MP4 file."""
     mp4_file = fixture_path / "file.mp4"

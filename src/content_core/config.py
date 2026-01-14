@@ -10,7 +10,7 @@ load_dotenv()
 
 # Allowed engine values for validation
 ALLOWED_DOCUMENT_ENGINES = {"auto", "simple", "docling"}
-ALLOWED_URL_ENGINES = {"auto", "simple", "firecrawl", "jina"}
+ALLOWED_URL_ENGINES = {"auto", "simple", "firecrawl", "jina", "crawl4ai"}
 
 # Allowed retry operation types
 ALLOWED_RETRY_OPERATIONS = {
@@ -236,7 +236,7 @@ def set_document_engine(engine: str):
 
 
 def set_url_engine(engine: str):
-    """Override the URL extraction engine ('auto', 'simple', 'firecrawl', 'jina', or 'docling')."""
+    """Override the URL extraction engine ('auto', 'simple', 'firecrawl', 'jina', 'crawl4ai', or 'docling')."""
     CONFIG.setdefault("extraction", {})["url_engine"] = engine
 
 
