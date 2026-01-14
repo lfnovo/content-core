@@ -90,13 +90,15 @@ pip install content-core
 pip install content-core[docling]
 
 # With local browser-based URL extraction (adds Crawl4AI)
+# Note: Requires Playwright browsers (~300MB). After install, run:
+#   crawl4ai-setup
 pip install content-core[crawl4ai]
 
 # Full installation (with all optional features)
 pip install content-core[docling,crawl4ai]
 ```
 
-> **Note:** Unlike many content extraction tools, Content Core uses pure Python implementations and doesn't require system libraries like libmagic. This ensures consistent, hassle-free installation across Windows, macOS, and Linux.
+> **Note:** The core installation uses pure Python implementations and doesn't require system libraries like libmagic, ensuring consistent, hassle-free installation across Windows, macOS, and Linux. Optional features like Crawl4AI (browser automation) may require additional system dependencies.
 
 Alternatively, if you’re developing locally:
 
