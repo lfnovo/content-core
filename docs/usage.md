@@ -94,7 +94,7 @@ This will allow you to quickly start with customized settings without needing to
 ### Extraction Engine Selection
 
 By default, Content Core uses the `'auto'` engine for both document and URL extraction tasks. The logic is as follows:
-- **For URLs** (`url_engine`): Uses Firecrawl if `FIRECRAWL_API_KEY` is set, else Jina if `JINA_API_KEY` is set, else falls back to BeautifulSoup. You can also explicitly set it to `crawl4ai` for local, privacy-first scraping without API keys.
+- **For URLs** (`url_engine`): Uses Firecrawl if `FIRECRAWL_API_KEY` is set, else Jina (optionally with `JINA_API_KEY`), else Crawl4AI if installed, else falls back to BeautifulSoup. You can also explicitly set it to `crawl4ai` for local, privacy-first scraping without API keys.
 - **For files** (`document_engine`): Tries Docling extraction first (for robust document parsing), then falls back to simple extraction if needed.
 
 You can override this behavior by specifying separate engines for documents and URLs in your config or function call, but `'auto'` is recommended for most users.
