@@ -219,20 +219,16 @@ async def _fetch_url_crawl4ai(url: str) -> dict:
         }
 
 
-async def extract_url_crawl4ai(url: str) -> dict:
+async def extract_url_crawl4ai(url: str) -> dict | None:
     """
     Get the content of a URL using Crawl4AI (local browser automation).
-    Returns {"title": ..., "content": ...} or raises exception on failure.
+    Returns {"title": ..., "content": ...} or None on failure.
     Includes retry logic for transient failures.
     """
     try:
         return await _fetch_url_crawl4ai(url)
-    except ImportError:
-        logger.error("Crawl4AI is not installed. Skipping crawl4ai engine.")
-        raise
-    except Exception as e:
-        logger.error(f"Crawl4AI extraction failed for {url} after retries: {e}")
-        raise
+    except Exception:
+        return None
 
 async def extract_url(state: ProcessSourceState):
     """
@@ -257,16 +253,11 @@ async def extract_url(state: ProcessSourceState):
                 except Exception as e:
                     logger.error(f"Jina extraction error for URL: {url}: {e}")
                     # Try Crawl4AI before falling back to BeautifulSoup
-                    try:
-                        logger.debug("Trying to use Crawl4AI to extract URL")
-                        return await extract_url_crawl4ai(url)
-                    except ImportError:
-                        logger.debug(
-                            "Crawl4AI not installed, falling back to BeautifulSoup"
-                        )
-                    except Exception as e2:
-                        logger.error(f"Crawl4AI extraction error for URL: {url}: {e2}")
-                    logger.debug("Falling back to BeautifulSoup")
+                    logger.debug("Trying to use Crawl4AI to extract URL")
+                    result = await extract_url_crawl4ai(url)
+                    if result is not None:
+                        return result
+                    logger.debug("Crawl4AI failed or not installed, falling back to BeautifulSoup")
                     return await extract_url_bs4(url)
         elif engine == "simple":
             return await extract_url_bs4(url)

@@ -1,6 +1,6 @@
 [project]
 name = "content-core"
-version = "1.8.0"
+version = "1.9.0"
 description = "Extract what matters from any media source. Available as Python Library, macOS Service, CLI and MCP Server"
 readme = "README.md"
 homepage = "https://github.com/lfnovo/content-core"
@@ -60,7 +60,6 @@ package-dir = {"content_core" = "src/content_core"}
 
 [dependency-groups]
 dev = [
-    "flake8>=7.3.0",
     "ipykernel>=4.0.1",
     "ipywidgets>=4.0.0",
     "openai>=1.78.1",
