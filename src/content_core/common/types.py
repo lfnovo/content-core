@@ -11,4 +11,5 @@ UrlEngine = Literal[
     "simple",
     "firecrawl",
     "jina",
+    "crawl4ai",
 ]

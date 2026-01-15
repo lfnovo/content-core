@@ -15,7 +15,7 @@ CCORE_MODEL_CONFIG_PATH=/path/to/your/models_config.yaml
 
 # Optional: Override extraction engines
 CCORE_DOCUMENT_ENGINE=auto  # auto, simple, docling
-CCORE_URL_ENGINE=auto       # auto, simple, firecrawl, jina
+CCORE_URL_ENGINE=auto       # auto, simple, firecrawl, jina, crawl4ai
 ```
 
 ### Engine Selection Environment Variables
@@ -23,7 +23,7 @@ CCORE_URL_ENGINE=auto       # auto, simple, firecrawl, jina
 Content Core supports environment variable overrides for extraction engines, useful for deployment scenarios:
 
 - **`CCORE_DOCUMENT_ENGINE`**: Override document engine (`auto`, `simple`, `docling`)
-- **`CCORE_URL_ENGINE`**: Override URL engine (`auto`, `simple`, `firecrawl`, `jina`)
+- **`CCORE_URL_ENGINE`**: Override URL engine (`auto`, `simple`, `firecrawl`, `jina`, `crawl4ai`)
 
 These environment variables take precedence over configuration file settings and per-call overrides.
 
@@ -94,7 +94,7 @@ This will allow you to quickly start with customized settings without needing to
 ### Extraction Engine Selection
 
 By default, Content Core uses the `'auto'` engine for both document and URL extraction tasks. The logic is as follows:
-- **For URLs** (`url_engine`): Uses Firecrawl if `FIRECRAWL_API_KEY` is set, else Jina if `JINA_API_KEY` is set, else falls back to BeautifulSoup.
+- **For URLs** (`url_engine`): Uses Firecrawl if `FIRECRAWL_API_KEY` is set, else Jina (optionally with `JINA_API_KEY`), else Crawl4AI if installed, else falls back to BeautifulSoup. You can also explicitly set it to `crawl4ai` for local, privacy-first scraping without API keys.
 - **For files** (`document_engine`): Tries Docling extraction first (for robust document parsing), then falls back to simple extraction if needed.
 
 You can override this behavior by specifying separate engines for documents and URLs in your config or function call, but `'auto'` is recommended for most users.
@@ -108,7 +108,7 @@ Add under the `extraction` section:
 ```yaml
 extraction:
   document_engine: docling  # auto (default), simple, or docling
-  url_engine: auto          # auto (default), simple, firecrawl, or jina
+  url_engine: auto          # auto (default), simple, firecrawl, jina, or crawl4ai
   docling:
     output_format: html     # markdown | html | json
   pymupdf:
@@ -136,6 +136,71 @@ set_docling_output_format("json")
 # Configure PyMuPDF OCR for scientific documents
 set_pymupdf_ocr_enabled(True)
 set_pymupdf_formula_threshold(2)  # Lower threshold for math-heavy docs
+```
+
+#### Crawl4AI Engine
+
+Content Core supports Crawl4AI as an optional URL extraction engine for privacy-first, local web scraping without requiring external API keys.
+
+##### Installation
+
+To enable Crawl4AI, install with the optional dependency:
+
+```bash
+pip install content-core[crawl4ai]
+
+# Install Playwright browsers (required for Crawl4AI)
+python -m playwright install --with-deps
+```
+
+##### When to Use Crawl4AI
+
+Use the Crawl4AI engine when you need:
+- **Privacy-first scraping**: All processing happens locally without sending data to external APIs
+- **No API key required**: Unlike Firecrawl and Jina, Crawl4AI doesn't require API credentials
+- **JavaScript-heavy sites**: Crawl4AI uses Playwright for full browser rendering
+- **Local development**: Ideal for development and testing without API costs
+- **Cost optimization**: No per-request API charges
+
+##### Configuration
+
+**In YAML config:**
+```yaml
+extraction:
+  url_engine: crawl4ai  # auto (default), simple, firecrawl, jina, or crawl4ai
+```
+
+**Programmatically in Python:**
+```python
+from content_core.config import set_url_engine
+
+# Set URL engine to Crawl4AI
+set_url_engine("crawl4ai")
+```
+
+**Per-execution override:**
+```python
+from content_core.content.extraction import extract_content
+
+# Override URL engine for this specific URL
+result = await extract_content({
+    "url": "https://example.com",
+    "url_engine": "crawl4ai"
+})
+print(result.content)
+```
+
+Or using `ProcessSourceInput`:
+```python
+from content_core.common.state import ProcessSourceInput
+from content_core.content.extraction import extract_content
+
+input = ProcessSourceInput(
+    url="https://example.com",
+    url_engine="crawl4ai"
+)
+result = await extract_content(input)
+print(result.content)
 ```
 
 #### Per-Execution Overrides
@@ -768,7 +833,7 @@ When an external operation fails with a retryable error (network timeout, connec
 | Operation Type | Default Retries | Base Delay | Max Delay | Use Cases |
 |---------------|-----------------|------------|-----------|-----------|
 | `youtube` | 5 | 2s | 60s | Video title/transcript fetching (YouTube has aggressive rate limiting) |
-| `url_api` | 3 | 1s | 30s | Jina, Firecrawl API extraction |
+| `url_api` | 3 | 1s | 30s | Jina, Firecrawl, Crawl4AI API extraction |
 | `url_network` | 3 | 0.5s | 10s | HEAD requests, BeautifulSoup fetching |
 | `audio` | 3 | 2s | 30s | Speech-to-text API calls |
 | `llm` | 3 | 1s | 30s | LLM API calls (cleanup, summary) |
@@ -818,7 +883,7 @@ CCORE_YOUTUBE_MAX_RETRIES=10     # Max retry attempts (1-20)
 CCORE_YOUTUBE_BASE_DELAY=3       # Base delay in seconds (0.1-60)
 CCORE_YOUTUBE_MAX_DELAY=120      # Max delay in seconds (1-300)
 
-# URL API retry settings (for Jina, Firecrawl)
+# URL API retry settings (for Jina, Firecrawl, Crawl4AI)
 CCORE_URL_API_MAX_RETRIES=5
 CCORE_URL_API_BASE_DELAY=2
 CCORE_URL_API_MAX_DELAY=60

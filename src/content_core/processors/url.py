@@ -137,7 +137,7 @@ async def _fetch_url_jina(url: str, headers: dict) -> str:
             return await response.text()
 
 
-async def extract_url_jina(url: str):
+async def extract_url_jina(url: str) -> dict:
     """
     Get the content of a URL using Jina. Uses Bearer token if JINA_API_KEY is set.
     Includes retry logic for transient API failures.
@@ -180,7 +180,7 @@ async def _fetch_url_firecrawl(url: str) -> dict:
     }
 
 
-async def extract_url_firecrawl(url: str):
+async def extract_url_firecrawl(url: str) -> dict | None:
     """
     Get the content of a URL using Firecrawl.
     Returns {"title": ..., "content": ...} or None on failure.
@@ -192,11 +192,52 @@ async def extract_url_firecrawl(url: str):
         logger.error(f"Firecrawl extraction failed for {url} after retries: {e}")
         return None
 
+@retry_url_api()
+async def _fetch_url_crawl4ai(url: str) -> dict:
+    """Internal function to fetch URL content via Crawl4AI - wrapped with retry logic."""
+    try:
+        from crawl4ai import AsyncWebCrawler
+    except ImportError:
+        raise ImportError(
+            "Crawl4AI is not installed. Install it with: pip install content-core[crawl4ai]"
+        )
+
+    async with AsyncWebCrawler() as crawler:
+        result = await crawler.arun(url=url)
+
+        # Extract title from metadata if available
+        title = ""
+        if hasattr(result, "metadata") and result.metadata:
+            title = result.metadata.get("title", "")
+
+        # Get markdown content
+        content = result.markdown if hasattr(result, "markdown") else ""
+
+        return {
+            "title": title or "No title found",
+            "content": content,
+        }
+
+
+async def extract_url_crawl4ai(url: str) -> dict:
+    """
+    Get the content of a URL using Crawl4AI (local browser automation).
+    Returns {"title": ..., "content": ...} or raises exception on failure.
+    Includes retry logic for transient failures.
+    """
+    try:
+        return await _fetch_url_crawl4ai(url)
+    except ImportError:
+        logger.error("Crawl4AI is not installed. Skipping crawl4ai engine.")
+        raise
+    except Exception as e:
+        logger.error(f"Crawl4AI extraction failed for {url} after retries: {e}")
+        raise
 
 async def extract_url(state: ProcessSourceState):
     """
     Extract content from a URL using the url_engine specified in the state.
-    Supported engines: 'auto', 'simple', 'firecrawl', 'jina'.
+    Supported engines: 'auto', 'simple', 'firecrawl', 'jina', 'crawl4ai'.
     """
     assert state.url, "No URL provided"
     url = state.url
@@ -215,6 +256,16 @@ async def extract_url(state: ProcessSourceState):
                     return await extract_url_jina(url)
                 except Exception as e:
                     logger.error(f"Jina extraction error for URL: {url}: {e}")
+                    # Try Crawl4AI before falling back to BeautifulSoup
+                    try:
+                        logger.debug("Trying to use Crawl4AI to extract URL")
+                        return await extract_url_crawl4ai(url)
+                    except ImportError:
+                        logger.debug(
+                            "Crawl4AI not installed, falling back to BeautifulSoup"
+                        )
+                    except Exception as e2:
+                        logger.error(f"Crawl4AI extraction error for URL: {url}: {e2}")
                     logger.debug("Falling back to BeautifulSoup")
                     return await extract_url_bs4(url)
         elif engine == "simple":
@@ -223,9 +274,12 @@ async def extract_url(state: ProcessSourceState):
             return await extract_url_firecrawl(url)
         elif engine == "jina":
             return await extract_url_jina(url)
+        elif engine == "crawl4ai":
+            return await extract_url_crawl4ai(url)
         else:
             raise ValueError(f"Unknown engine: {engine}")
     except Exception as e:
         logger.error(f"URL extraction failed for URL: {url}")
         logger.exception(e)
         return None
+

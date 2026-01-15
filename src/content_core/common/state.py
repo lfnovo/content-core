@@ -21,7 +21,7 @@ class ProcessSourceState(BaseModel):
     )
     url_engine: Optional[UrlEngine] = Field(
         default=None,
-        description="Override URL extraction engine: 'auto', 'simple', 'firecrawl', 'jina', or 'docling'",
+        description="Override URL extraction engine: 'auto', 'simple', 'firecrawl', 'jina', 'crawl4ai', or 'docling'",
     )
     output_format: Optional[str] = Field(
         default=None,

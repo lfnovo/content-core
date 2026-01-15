@@ -35,7 +35,7 @@ summary_model:
 
 extraction:
   document_engine: auto  # auto | simple | docling - for files/documents
-  url_engine: auto  # auto | simple | firecrawl | jina | docling - for URLs
+  url_engine: auto  # auto | simple | firecrawl | jina | crawl4ai | docling - for URLs
   audio:
     concurrency: 3              # Number of concurrent audio transcriptions (1-10)
   docling:
@@ -57,7 +57,7 @@ retry:
     base_delay: 2         # Base delay in seconds for exponential backoff
     max_delay: 60         # Maximum delay between retries
   url_api:
-    max_attempts: 3       # For API-based URL extraction (Jina, Firecrawl)
+    max_attempts: 3       # For API-based URL extraction (Jina, Firecrawl) and Crawl4AI
     base_delay: 1
     max_delay: 30
   url_network:
