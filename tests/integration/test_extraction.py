@@ -289,3 +289,53 @@ async def test_extract_content_from_pdf_url():
     assert result.source_type == "url"
     assert result.identified_type == "application/pdf"
     assert len(result.content) > 100  # Expect substantial extracted text
+
+
+@pytest.mark.asyncio
+async def test_auto_mode_fallback_to_crawl4ai():
+    """
+    Tests that auto mode correctly falls back to Crawl4AI when Jina fails.
+    
+    This test verifies the fallback chain:
+    1. Auto mode tries Jina first (when no FIRECRAWL_API_KEY)
+    2. When Jina raises an exception, it should try Crawl4AI
+    3. When Crawl4AI succeeds, content should be returned
+    """
+    pytest.importorskip("crawl4ai", reason="Crawl4AI not installed - auto mode fallback test requires Crawl4AI")
+    
+    import os
+    from unittest.mock import patch
+    
+    # Temporarily ensure FIRECRAWL_API_KEY is not set (so auto mode tries Jina first)
+    original_firecrawl_key = os.environ.get("FIRECRAWL_API_KEY")
+    if original_firecrawl_key:
+        del os.environ["FIRECRAWL_API_KEY"]
+    
+    try:
+        # Mock extract_url_jina to raise an exception (simulating Jina failure)
+        with patch("content_core.processors.url.extract_url_jina") as mock_jina:
+            # Simulate Jina API failure
+            mock_jina.side_effect = Exception("Jina API error (mocked)")
+            
+            # Test URL - use auto mode (should fallback to Crawl4AI when Jina fails)
+            test_url = "https://www.supernovalabs.com"
+            input_data = {"url": test_url, "url_engine": "auto"}
+            
+            result = await extract_content(input_data)
+            
+            # Verify that the extraction succeeded (via Crawl4AI fallback)
+            assert result is not None
+            assert hasattr(result, "source_type")
+            assert result.source_type == "url"
+            
+            # Verify content was successfully extracted
+            assert len(result.content) > 100
+            assert "AI" in result.content or "Supernova" in result.title
+            
+            # Verify that Jina was attempted (and failed)
+            mock_jina.assert_called_once_with(test_url)
+            
+    finally:
+        # Restore original FIRECRAWL_API_KEY if it was set
+        if original_firecrawl_key:
+            os.environ["FIRECRAWL_API_KEY"] = original_firecrawl_key

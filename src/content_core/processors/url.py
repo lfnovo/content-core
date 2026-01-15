@@ -137,7 +137,7 @@ async def _fetch_url_jina(url: str, headers: dict) -> str:
             return await response.text()
 
 
-async def extract_url_jina(url: str):
+async def extract_url_jina(url: str) -> dict:
     """
     Get the content of a URL using Jina. Uses Bearer token if JINA_API_KEY is set.
     Includes retry logic for transient API failures.
@@ -180,7 +180,7 @@ async def _fetch_url_firecrawl(url: str) -> dict:
     }
 
 
-async def extract_url_firecrawl(url: str):
+async def extract_url_firecrawl(url: str) -> dict | None:
     """
     Get the content of a URL using Firecrawl.
     Returns {"title": ..., "content": ...} or None on failure.
@@ -190,7 +190,7 @@ async def extract_url_firecrawl(url: str):
         return await _fetch_url_firecrawl(url)
     except Exception as e:
         logger.error(f"Firecrawl extraction failed for {url} after retries: {e}")
-
+        return None
 
 @retry_url_api()
 async def _fetch_url_crawl4ai(url: str) -> dict:
@@ -219,7 +219,7 @@ async def _fetch_url_crawl4ai(url: str) -> dict:
         }
 
 
-async def extract_url_crawl4ai(url: str):
+async def extract_url_crawl4ai(url: str) -> dict:
     """
     Get the content of a URL using Crawl4AI (local browser automation).
     Returns {"title": ..., "content": ...} or raises exception on failure.

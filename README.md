@@ -90,9 +90,9 @@ pip install content-core
 pip install content-core[docling]
 
 # With local browser-based URL extraction (adds Crawl4AI)
-# Note: Requires Playwright browsers (~300MB). After install, run:
-#   crawl4ai-setup
+# Note: Requires Playwright browsers (~300MB). Run:
 pip install content-core[crawl4ai]
+python -m playwright install --with-deps
 
 # Full installation (with all optional features)
 pip install content-core[docling,crawl4ai]
