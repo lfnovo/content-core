@@ -6,7 +6,7 @@ from readability import Document
 
 from content_core.common import ProcessSourceState
 from content_core.common.retry import retry_url_api, retry_url_network
-from content_core.config import get_url_engine
+from content_core.config import get_proxy, get_url_engine
 from content_core.logging import logger
 from content_core.processors.docling import DOCLING_SUPPORTED
 from content_core.processors.office import SUPPORTED_OFFICE_TYPES
@@ -14,10 +14,13 @@ from content_core.processors.pdf import SUPPORTED_FITZ_TYPES
 
 
 @retry_url_network()
-async def _fetch_url_mime_type(url: str) -> str:
+async def _fetch_url_mime_type(url: str, proxy: str | None = None) -> str:
     """Internal function to fetch URL MIME type - wrapped with retry logic."""
+    resolved_proxy = get_proxy(proxy)
     async with aiohttp.ClientSession() as session:
-        async with session.head(url, timeout=10, allow_redirects=True) as resp:
+        async with session.head(
+            url, timeout=10, allow_redirects=True, proxy=resolved_proxy
+        ) as resp:
             mime = resp.headers.get("content-type", "").split(";", 1)[0]
             logger.debug(f"MIME type for {url}: {mime}")
             return mime
@@ -35,7 +38,7 @@ async def url_provider(state: ProcessSourceState):
         else:
             # remote URL: check content-type to catch PDFs
             try:
-                mime = await _fetch_url_mime_type(url)
+                mime = await _fetch_url_mime_type(url, state.proxy)
             except Exception as e:
                 logger.warning(f"HEAD check failed for {url} after retries: {e}")
                 mime = "article"
@@ -53,30 +56,32 @@ async def url_provider(state: ProcessSourceState):
 
 
 @retry_url_network()
-async def _fetch_url_html(url: str) -> str:
+async def _fetch_url_html(url: str, proxy: str | None = None) -> str:
     """Internal function to fetch URL HTML content - wrapped with retry logic."""
+    resolved_proxy = get_proxy(proxy)
     async with aiohttp.ClientSession() as session:
-        async with session.get(url, timeout=10) as response:
+        async with session.get(url, timeout=10, proxy=resolved_proxy) as response:
             # Raise ClientResponseError so retry logic can inspect status code
             # (5xx and 429 will be retried, 4xx will not)
             response.raise_for_status()
             return await response.text()
 
 
-async def extract_url_bs4(url: str) -> dict:
+async def extract_url_bs4(url: str, proxy: str | None = None) -> dict:
     """
     Get the title and content of a URL using readability with a fallback to BeautifulSoup.
     Includes retry logic for network failures.
 
     Args:
         url (str): The URL of the webpage to extract content from.
+        proxy (str | None): Optional proxy URL to use for this request.
 
     Returns:
         dict: A dictionary containing the 'title' and 'content' of the webpage.
     """
     try:
         # Fetch the webpage content with retry
-        html = await _fetch_url_html(url)
+        html = await _fetch_url_html(url, proxy)
 
         # Try extracting with readability
         try:
@@ -127,20 +132,27 @@ async def extract_url_bs4(url: str) -> dict:
 
 
 @retry_url_api()
-async def _fetch_url_jina(url: str, headers: dict) -> str:
+async def _fetch_url_jina(url: str, headers: dict, proxy: str | None = None) -> str:
     """Internal function to fetch URL content via Jina - wrapped with retry logic."""
+    resolved_proxy = get_proxy(proxy)
     async with aiohttp.ClientSession() as session:
-        async with session.get(f"https://r.jina.ai/{url}", headers=headers) as response:
+        async with session.get(
+            f"https://r.jina.ai/{url}", headers=headers, proxy=resolved_proxy
+        ) as response:
             # Raise ClientResponseError so retry logic can inspect status code
             # (5xx and 429 will be retried, 4xx will not)
             response.raise_for_status()
             return await response.text()
 
 
-async def extract_url_jina(url: str) -> dict:
+async def extract_url_jina(url: str, proxy: str | None = None) -> dict:
     """
     Get the content of a URL using Jina. Uses Bearer token if JINA_API_KEY is set.
     Includes retry logic for transient API failures.
+
+    Args:
+        url (str): The URL to extract content from.
+        proxy (str | None): Optional proxy URL to use for this request.
     """
     headers = {}
     api_key = os.environ.get("JINA_API_KEY")
@@ -148,7 +160,7 @@ async def extract_url_jina(url: str) -> dict:
         headers["Authorization"] = f"Bearer {api_key}"
 
     try:
-        text = await _fetch_url_jina(url, headers)
+        text = await _fetch_url_jina(url, headers, proxy)
         if text.startswith("Title:") and "\n" in text:
             title_end = text.index("\n")
             title = text[6:title_end].strip()
@@ -168,9 +180,18 @@ async def extract_url_jina(url: str) -> dict:
 
 
 @retry_url_api()
-async def _fetch_url_firecrawl(url: str) -> dict:
+async def _fetch_url_firecrawl(url: str, proxy: str | None = None) -> dict:
     """Internal function to fetch URL content via Firecrawl - wrapped with retry logic."""
     from firecrawl import AsyncFirecrawlApp
+
+    # Note: firecrawl-py does not support client-side proxy configuration
+    # Proxy must be configured on the Firecrawl server side
+    resolved_proxy = get_proxy(proxy)
+    if resolved_proxy:
+        logger.warning(
+            "Proxy is configured but Firecrawl does not support client-side proxy. "
+            "Proxy will NOT be used for this request. Configure proxy on Firecrawl server instead."
+        )
 
     app = AsyncFirecrawlApp(api_key=os.environ.get("FIRECRAWL_API_KEY"))
     scrape_result = await app.scrape(url, formats=["markdown", "html"])
@@ -180,30 +201,48 @@ async def _fetch_url_firecrawl(url: str) -> dict:
     }
 
 
-async def extract_url_firecrawl(url: str) -> dict | None:
+async def extract_url_firecrawl(url: str, proxy: str | None = None) -> dict | None:
     """
     Get the content of a URL using Firecrawl.
     Returns {"title": ..., "content": ...} or None on failure.
     Includes retry logic for transient API failures.
+
+    Note: Firecrawl does not support client-side proxy configuration.
     """
     try:
-        return await _fetch_url_firecrawl(url)
+        return await _fetch_url_firecrawl(url, proxy)
     except Exception as e:
         logger.error(f"Firecrawl extraction failed for {url} after retries: {e}")
         return None
 
 @retry_url_api()
-async def _fetch_url_crawl4ai(url: str) -> dict:
+async def _fetch_url_crawl4ai(url: str, proxy: str | None = None) -> dict:
     """Internal function to fetch URL content via Crawl4AI - wrapped with retry logic."""
     try:
-        from crawl4ai import AsyncWebCrawler
+        from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, ProxyConfig
     except ImportError:
         raise ImportError(
             "Crawl4AI is not installed. Install it with: pip install content-core[crawl4ai]"
         )
 
+    resolved_proxy = get_proxy(proxy)
+
+    # Configure proxy if available
+    run_config = None
+    if resolved_proxy:
+        try:
+            run_config = CrawlerRunConfig(
+                proxy_config=ProxyConfig.from_string(resolved_proxy)
+            )
+            logger.debug(f"Crawl4AI using proxy: {resolved_proxy}")
+        except Exception as e:
+            logger.warning(f"Failed to configure proxy for Crawl4AI: {e}")
+
     async with AsyncWebCrawler() as crawler:
-        result = await crawler.arun(url=url)
+        if run_config:
+            result = await crawler.arun(url=url, config=run_config)
+        else:
+            result = await crawler.arun(url=url)
 
         # Extract title from metadata if available
         title = ""
@@ -219,14 +258,18 @@ async def _fetch_url_crawl4ai(url: str) -> dict:
         }
 
 
-async def extract_url_crawl4ai(url: str) -> dict | None:
+async def extract_url_crawl4ai(url: str, proxy: str | None = None) -> dict | None:
     """
     Get the content of a URL using Crawl4AI (local browser automation).
     Returns {"title": ..., "content": ...} or None on failure.
     Includes retry logic for transient failures.
+
+    Args:
+        url (str): The URL to extract content from.
+        proxy (str | None): Optional proxy URL to use for this request.
     """
     try:
-        return await _fetch_url_crawl4ai(url)
+        return await _fetch_url_crawl4ai(url, proxy)
     except Exception:
         return None
 
@@ -234,9 +277,12 @@ async def extract_url(state: ProcessSourceState):
     """
     Extract content from a URL using the url_engine specified in the state.
     Supported engines: 'auto', 'simple', 'firecrawl', 'jina', 'crawl4ai'.
+
+    Proxy configuration is passed through state.proxy and resolved using get_proxy().
     """
     assert state.url, "No URL provided"
     url = state.url
+    proxy = state.proxy
     # Use environment-aware engine selection
     engine = state.url_engine or get_url_engine()
     try:
@@ -245,28 +291,30 @@ async def extract_url(state: ProcessSourceState):
                 logger.debug(
                     "Engine 'auto' selected: using Firecrawl (FIRECRAWL_API_KEY detected)"
                 )
-                return await extract_url_firecrawl(url)
+                return await extract_url_firecrawl(url, proxy)
             else:
                 try:
                     logger.debug("Trying to use Jina to extract URL")
-                    return await extract_url_jina(url)
+                    return await extract_url_jina(url, proxy)
                 except Exception as e:
                     logger.error(f"Jina extraction error for URL: {url}: {e}")
                     # Try Crawl4AI before falling back to BeautifulSoup
                     logger.debug("Trying to use Crawl4AI to extract URL")
-                    result = await extract_url_crawl4ai(url)
+                    result = await extract_url_crawl4ai(url, proxy)
                     if result is not None:
                         return result
-                    logger.debug("Crawl4AI failed or not installed, falling back to BeautifulSoup")
-                    return await extract_url_bs4(url)
+                    logger.debug(
+                        "Crawl4AI failed or not installed, falling back to BeautifulSoup"
+                    )
+                    return await extract_url_bs4(url, proxy)
         elif engine == "simple":
-            return await extract_url_bs4(url)
+            return await extract_url_bs4(url, proxy)
         elif engine == "firecrawl":
-            return await extract_url_firecrawl(url)
+            return await extract_url_firecrawl(url, proxy)
         elif engine == "jina":
-            return await extract_url_jina(url)
+            return await extract_url_jina(url, proxy)
         elif engine == "crawl4ai":
-            return await extract_url_crawl4ai(url)
+            return await extract_url_crawl4ai(url, proxy)
         else:
             raise ValueError(f"Unknown engine: {engine}")
     except Exception as e:

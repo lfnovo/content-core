@@ -580,6 +580,53 @@ CCORE_DOWNLOAD_MAX_RETRIES=5
 
 For detailed configuration, see our [Usage Documentation](docs/usage.md#retry-configuration).
 
+### Proxy Configuration
+
+Content Core supports HTTP/HTTPS proxy configuration for all external network requests. This is useful when operating in corporate environments, behind firewalls, or when you need to route traffic through a specific server.
+
+**Configuration Methods** (in priority order):
+
+1. **Per-request**: Pass `proxy` parameter directly in `ProcessSourceInput`
+2. **Programmatic**: Use `set_proxy()` for runtime configuration
+3. **Environment Variables**: `CCORE_HTTP_PROXY`, `HTTP_PROXY`, or `HTTPS_PROXY`
+4. **YAML Config**: Set in `cc_config.yaml`
+
+**Quick Start:**
+
+```bash
+# Via environment variable
+export CCORE_HTTP_PROXY=http://proxy.example.com:8080
+
+# With authentication
+export CCORE_HTTP_PROXY=http://user:password@proxy.example.com:8080
+```
+
+```python
+# Programmatic configuration
+from content_core.config import set_proxy, clear_proxy
+
+set_proxy("http://proxy.example.com:8080")
+# ... use Content Core ...
+clear_proxy()  # Reset to default behavior
+
+# Per-request override
+from content_core.common import ProcessSourceInput
+result = await cc.extract(ProcessSourceInput(
+    url="https://example.com",
+    proxy="http://specific-proxy:8080"
+))
+```
+
+**Supported Services:**
+- All aiohttp requests (URL extraction, downloads)
+- YouTube transcript/title fetching (pytubefix, youtube-transcript-api)
+- Crawl4AI browser automation
+- Esperanto AI models (LLM, speech-to-text)
+
+**Note:** Firecrawl does not support client-side proxy configuration. A warning is logged when proxy is configured but Firecrawl is used.
+
+For detailed configuration options, see our [Usage Documentation](docs/usage.md#proxy-configuration).
+
 ### Timeout Configuration
 
 Content Core uses the Esperanto library for AI model interactions and supports configurable timeouts for different operations. Timeouts prevent requests from hanging indefinitely and ensure reliable processing.

@@ -9,7 +9,7 @@ from moviepy import AudioFileClip
 
 from content_core.common import ProcessSourceState
 from content_core.common.retry import retry_audio_transcription
-from content_core.config import get_audio_concurrency
+from content_core.config import get_audio_concurrency, get_proxy
 from content_core.logging import logger
 
 
@@ -211,6 +211,10 @@ async def extract_audio_data(data: ProcessSourceState):
                     # Get timeout from config (same as default model) or use fallback
                     timeout = CONFIG.get('speech_to_text', {}).get('timeout', 3600)
                     stt_config = {'timeout': timeout} if timeout else {}
+                    # Add proxy to config if configured
+                    current_proxy = get_proxy(data.proxy)
+                    if current_proxy:
+                        stt_config['proxy'] = current_proxy
                     speech_to_text_model = AIFactory.create_speech_to_text(
                         data.audio_provider, data.audio_model, stt_config
                     )
