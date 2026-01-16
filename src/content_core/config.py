@@ -122,9 +122,11 @@ def load_config() -> Dict[str, Any]:
     # load new cc_config.yaml defaults
     cc_default = pkgutil.get_data("content_core", "cc_config.yaml")
     if cc_default:
-        docling_cfg = yaml.safe_load(cc_default)
+        cc_cfg = yaml.safe_load(cc_default)
         # merge extraction section
-        base["extraction"] = docling_cfg.get("extraction", {})
+        base["extraction"] = cc_cfg.get("extraction", {})
+        # merge proxy section
+        base["proxy"] = cc_cfg.get("proxy", {})
     return base or {}
 
 
@@ -404,3 +406,142 @@ def get_retry_config(operation_type: str) -> dict:
         "base_delay": base_delay,
         "max_delay": max_delay,
     }
+
+
+# Proxy configuration
+# Priority: Per-request > Programmatic (_PROXY_OVERRIDE) > Env var > YAML config
+_PROXY_OVERRIDE: str | None = None
+
+
+def get_proxy(request_proxy: str | None = None) -> str | None:
+    """
+    Get the proxy URL with priority resolution.
+
+    Configuration priority (highest to lowest):
+    1. Per-request proxy (passed as argument)
+    2. Programmatic override via set_proxy()
+    3. Environment variables (CCORE_HTTP_PROXY, HTTP_PROXY, HTTPS_PROXY)
+    4. YAML config (proxy.url)
+
+    Args:
+        request_proxy: Optional per-request proxy override. Pass empty string "" to
+                      explicitly disable proxy for this request.
+
+    Returns:
+        str | None: Proxy URL or None if no proxy configured
+
+    Examples:
+        >>> get_proxy()  # Returns from env/config or None
+        'http://proxy.example.com:8080'
+
+        >>> get_proxy("http://custom-proxy:8080")  # Per-request override
+        'http://custom-proxy:8080'
+
+        >>> get_proxy("")  # Explicitly disable proxy for this request
+        None
+    """
+    # 1. Per-request override (highest priority)
+    if request_proxy is not None:
+        if request_proxy == "":
+            return None  # Explicitly disabled
+        from content_core.logging import logger
+
+        logger.debug(f"Using per-request proxy: {request_proxy}")
+        return request_proxy
+
+    # 2. Programmatic override
+    global _PROXY_OVERRIDE
+    if _PROXY_OVERRIDE is not None:
+        if _PROXY_OVERRIDE == "":
+            return None  # Explicitly disabled
+        from content_core.logging import logger
+
+        logger.debug(f"Using programmatic proxy: {_PROXY_OVERRIDE}")
+        return _PROXY_OVERRIDE
+
+    # 3. Environment variables
+    env_proxy = (
+        os.environ.get("CCORE_HTTP_PROXY")
+        or os.environ.get("HTTP_PROXY")
+        or os.environ.get("HTTPS_PROXY")
+    )
+    if env_proxy:
+        from content_core.logging import logger
+
+        logger.debug(f"Using environment proxy: {env_proxy}")
+        return env_proxy
+
+    # 4. YAML config
+    yaml_proxy = CONFIG.get("proxy", {}).get("url")
+    if yaml_proxy:
+        from content_core.logging import logger
+
+        logger.debug(f"Using YAML config proxy: {yaml_proxy}")
+        return yaml_proxy
+
+    return None
+
+
+def set_proxy(proxy_url: str | None) -> None:
+    """
+    Set the proxy URL programmatically.
+
+    This sets a global proxy override that takes precedence over environment
+    variables and YAML config, but can still be overridden per-request.
+
+    Args:
+        proxy_url: Proxy URL (e.g., 'http://proxy:8080' or 'http://user:pass@proxy:8080')
+                  Pass None or empty string to disable proxy.
+
+    Examples:
+        >>> set_proxy("http://proxy.example.com:8080")  # Enable proxy
+        >>> set_proxy("http://user:pass@proxy:8080")    # With authentication
+        >>> set_proxy(None)                              # Disable proxy
+        >>> set_proxy("")                                # Also disables proxy
+    """
+    global _PROXY_OVERRIDE
+    _PROXY_OVERRIDE = proxy_url
+    from content_core.logging import logger
+
+    if proxy_url:
+        logger.debug(f"Proxy set programmatically: {proxy_url}")
+    else:
+        logger.debug("Proxy disabled programmatically")
+
+
+def clear_proxy() -> None:
+    """
+    Clear the programmatic proxy override.
+
+    After calling this, proxy resolution falls back to environment variables
+    and YAML config.
+
+    Examples:
+        >>> set_proxy("http://proxy:8080")
+        >>> clear_proxy()  # Now uses env vars or YAML config
+    """
+    global _PROXY_OVERRIDE
+    _PROXY_OVERRIDE = None
+    from content_core.logging import logger
+
+    logger.debug("Programmatic proxy override cleared")
+
+
+def get_no_proxy() -> list:
+    """
+    Get the list of hosts that should bypass the proxy.
+
+    Returns:
+        list: List of hostnames/patterns to bypass proxy
+
+    Examples:
+        >>> get_no_proxy()
+        ['localhost', '127.0.0.1']
+    """
+    # Check environment variable first
+    env_no_proxy = os.environ.get("NO_PROXY") or os.environ.get("no_proxy")
+    if env_no_proxy:
+        return [h.strip() for h in env_no_proxy.split(",") if h.strip()]
+
+    # Fall back to YAML config
+    return CONFIG.get("proxy", {}).get("no_proxy", ["localhost", "127.0.0.1"])

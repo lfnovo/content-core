@@ -12,7 +12,7 @@ from content_core.common import (
     UnsupportedTypeException,
 )
 from content_core.common.retry import retry_download
-from content_core.config import get_document_engine
+from content_core.config import get_document_engine, get_proxy
 from content_core.logging import logger
 from content_core.processors.audio import extract_audio_data  # type: ignore
 try:
@@ -111,10 +111,11 @@ async def source_type_router(x: ProcessSourceState) -> Optional[str]:
 
 
 @retry_download()
-async def _fetch_remote_file(url: str) -> tuple:
+async def _fetch_remote_file(url: str, proxy: str | None = None) -> tuple:
     """Internal function to download a remote file - wrapped with retry logic."""
+    resolved_proxy = get_proxy(proxy)
     async with aiohttp.ClientSession() as session:
-        async with session.get(url) as resp:
+        async with session.get(url, proxy=resolved_proxy) as resp:
             resp.raise_for_status()
             mime = resp.headers.get("content-type", "").split(";", 1)[0]
             content = await resp.read()
@@ -135,7 +136,7 @@ async def download_remote_file(state: ProcessSourceState) -> Dict[str, Any]:
     assert url, "No URL provided"
     logger.debug(f"Downloading remote file: {url}")
 
-    mime, content = await _fetch_remote_file(url)
+    mime, content = await _fetch_remote_file(url, state.proxy)
 
     suffix = (
         os.path.splitext(urlparse(url).path)[1] if urlparse(url).path else ""

@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2025-01-16
+
 ### Added
+- **HTTP/HTTPS Proxy Support** - Route all network requests through a configured proxy
+  - 4-level configuration priority: Per-request > Programmatic > Environment variable > YAML config
+  - Environment variables: `CCORE_HTTP_PROXY`, `HTTP_PROXY`, `HTTPS_PROXY`
+  - Programmatic API: `set_proxy()`, `clear_proxy()`, `get_proxy()`
+  - Per-request override via `proxy` parameter in `ProcessSourceState`
+  - Bypass list support via `NO_PROXY` environment variable
+  - Full proxy support for: aiohttp requests, Esperanto LLM/STT models, Crawl4AI, pytubefix, youtube-transcript-api
+  - Warning logged when using Firecrawl (no client-side proxy support)
 - Pure Python file type detection via the new `FileDetector` class
 - Comprehensive file signature detection for 25+ file formats
 - Smart detection for ZIP-based formats (DOCX, XLSX, PPTX, EPUB)
@@ -26,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - System requirement for libmagic library
 
 ### Technical Details
+- New proxy configuration module in `content_core/config.py`
+- Proxy support integrated into all network-making components
 - Replaced libmagic dependency with custom `FileDetector` implementation
 - File detection based on binary signatures and content analysis
 - Maintains same API surface - no breaking changes for users
