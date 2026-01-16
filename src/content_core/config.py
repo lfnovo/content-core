@@ -413,6 +413,34 @@ def get_retry_config(operation_type: str) -> dict:
 _PROXY_OVERRIDE: str | None = None
 
 
+def _redact_proxy_url(proxy_url: str) -> str:
+    """
+    Redact credentials from a proxy URL for safe logging.
+
+    Args:
+        proxy_url: The proxy URL that may contain credentials
+
+    Returns:
+        The proxy URL with credentials redacted (e.g., http://***:***@host:port)
+    """
+    from urllib.parse import urlparse, urlunparse
+
+    try:
+        parsed = urlparse(proxy_url)
+        if parsed.username or parsed.password:
+            # Reconstruct URL with redacted credentials
+            redacted_netloc = "***:***@" + parsed.hostname
+            if parsed.port:
+                redacted_netloc += f":{parsed.port}"
+            return urlunparse(
+                (parsed.scheme, redacted_netloc, parsed.path, "", "", "")
+            )
+        return proxy_url
+    except Exception:
+        # If parsing fails, return a generic message
+        return "<proxy configured>"
+
+
 def get_proxy(request_proxy: str | None = None) -> str | None:
     """
     Get the proxy URL with priority resolution.
@@ -446,7 +474,7 @@ def get_proxy(request_proxy: str | None = None) -> str | None:
             return None  # Explicitly disabled
         from content_core.logging import logger
 
-        logger.debug(f"Using per-request proxy: {request_proxy}")
+        logger.debug(f"Using per-request proxy: {_redact_proxy_url(request_proxy)}")
         return request_proxy
 
     # 2. Programmatic override
@@ -456,7 +484,7 @@ def get_proxy(request_proxy: str | None = None) -> str | None:
             return None  # Explicitly disabled
         from content_core.logging import logger
 
-        logger.debug(f"Using programmatic proxy: {_PROXY_OVERRIDE}")
+        logger.debug(f"Using programmatic proxy: {_redact_proxy_url(_PROXY_OVERRIDE)}")
         return _PROXY_OVERRIDE
 
     # 3. Environment variables
@@ -468,7 +496,7 @@ def get_proxy(request_proxy: str | None = None) -> str | None:
     if env_proxy:
         from content_core.logging import logger
 
-        logger.debug(f"Using environment proxy: {env_proxy}")
+        logger.debug(f"Using environment proxy: {_redact_proxy_url(env_proxy)}")
         return env_proxy
 
     # 4. YAML config
@@ -476,7 +504,7 @@ def get_proxy(request_proxy: str | None = None) -> str | None:
     if yaml_proxy:
         from content_core.logging import logger
 
-        logger.debug(f"Using YAML config proxy: {yaml_proxy}")
+        logger.debug(f"Using YAML config proxy: {_redact_proxy_url(yaml_proxy)}")
         return yaml_proxy
 
     return None

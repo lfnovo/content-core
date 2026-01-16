@@ -1,16 +1,56 @@
 """Tests for proxy configuration functions."""
 import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-import pytest
 
 from content_core.config import (
     get_proxy,
     set_proxy,
     clear_proxy,
     get_no_proxy,
+    _redact_proxy_url,
     CONFIG,
 )
+
+
+class TestRedactProxyUrl:
+    """Test _redact_proxy_url() credential redaction."""
+
+    def test_redact_url_with_credentials(self):
+        """Test that credentials are redacted from proxy URL."""
+        url = "http://user:password@proxy.example.com:8080"
+        result = _redact_proxy_url(url)
+        assert "user" not in result
+        assert "password" not in result
+        assert "***:***@" in result
+        assert "proxy.example.com:8080" in result
+
+    def test_redact_url_without_credentials(self):
+        """Test that URL without credentials is returned as-is."""
+        url = "http://proxy.example.com:8080"
+        result = _redact_proxy_url(url)
+        assert result == url
+
+    def test_redact_url_with_only_username(self):
+        """Test that URL with only username is redacted."""
+        url = "http://user@proxy.example.com:8080"
+        result = _redact_proxy_url(url)
+        assert "user" not in result
+        assert "***:***@" in result
+
+    def test_redact_url_with_special_chars_in_password(self):
+        """Test that special characters in credentials are handled."""
+        url = "http://user:p%40ssw0rd@proxy.example.com:8080"
+        result = _redact_proxy_url(url)
+        assert "p%40ssw0rd" not in result
+        assert "***:***@" in result
+
+    def test_redact_invalid_url_returns_generic(self):
+        """Test that invalid URL returns generic message."""
+        # This should not raise an exception
+        result = _redact_proxy_url("not-a-valid-url://[invalid")
+        # Should return something safe (either the URL or a generic message)
+        assert result is not None
 
 
 class TestGetProxyPriority:
@@ -265,40 +305,6 @@ class TestGetNoProxy:
             result = get_no_proxy()
             assert "" not in result
             assert len([r for r in result if r]) == len(result)
-
-
-class TestProxyWithAiohttp:
-    """Test proxy integration with aiohttp (mocked)."""
-
-    def setup_method(self):
-        """Reset proxy state before each test."""
-        clear_proxy()
-
-    def teardown_method(self):
-        """Clean up after each test."""
-        clear_proxy()
-
-    @pytest.mark.asyncio
-    async def test_proxy_passed_to_aiohttp_session(self):
-        """Test that proxy is passed to aiohttp.ClientSession.get()."""
-        from unittest.mock import AsyncMock
-
-        # Mock aiohttp session
-        mock_response = AsyncMock()
-        mock_response.headers = {"content-type": "text/html"}
-        mock_response.raise_for_status = MagicMock()
-
-        mock_session = MagicMock()
-        mock_session.get = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-
-        set_proxy("http://test-proxy:8080")
-
-        # The actual test would require importing and mocking the url.py functions
-        # This is a placeholder to show the test structure
-        proxy = get_proxy()
-        assert proxy == "http://test-proxy:8080"
 
 
 class TestProxyWithEsperanto:

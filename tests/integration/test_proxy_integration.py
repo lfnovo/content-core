@@ -7,7 +7,6 @@ are properly routed through the configured proxy.
 Usage:
     uv run pytest tests/integration/test_proxy_integration.py -v
 """
-import asyncio
 import socket
 from typing import Optional
 

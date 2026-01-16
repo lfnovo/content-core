@@ -9,7 +9,7 @@ from youtube_transcript_api.formatters import TextFormatter  # type: ignore
 from content_core.common import ProcessSourceState
 from content_core.common.exceptions import NoTranscriptFound
 from content_core.common.retry import retry_youtube
-from content_core.config import CONFIG, get_proxy
+from content_core.config import CONFIG, get_proxy, _redact_proxy_url
 from content_core.logging import logger
 
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -84,7 +84,7 @@ async def _fetch_best_transcript(
     proxies = None
     if resolved_proxy:
         proxies = {"http": resolved_proxy, "https": resolved_proxy}
-        logger.debug(f"YouTubeTranscriptApi using proxy: {resolved_proxy}")
+        logger.debug(f"YouTubeTranscriptApi using proxy: {_redact_proxy_url(resolved_proxy)}")
 
     transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, proxies=proxies)
 
@@ -170,7 +170,7 @@ def _fetch_transcript_pytubefix(
     proxies = None
     if resolved_proxy:
         proxies = {"http": resolved_proxy, "https": resolved_proxy}
-        logger.debug(f"pytubefix using proxy: {resolved_proxy}")
+        logger.debug(f"pytubefix using proxy: {_redact_proxy_url(resolved_proxy)}")
 
     yt = YouTube(url, proxies=proxies)
     logger.debug(f"Captions: {yt.captions}")
