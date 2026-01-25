@@ -289,6 +289,62 @@ def set_audio_concurrency(concurrency: int):
     audio_cfg["concurrency"] = concurrency
 
 
+# Default Firecrawl API URL
+DEFAULT_FIRECRAWL_API_URL = "https://api.firecrawl.dev"
+
+
+def get_firecrawl_api_url() -> str:
+    """
+    Get the Firecrawl API URL with environment variable override.
+
+    Configuration priority (highest to lowest):
+    1. Environment variable FIRECRAWL_API_BASE_URL
+    2. YAML config (extraction.firecrawl.api_url)
+    3. Default: https://api.firecrawl.dev
+
+    Returns:
+        str: The Firecrawl API URL to use
+
+    Examples:
+        >>> import os
+        >>> os.environ["FIRECRAWL_API_BASE_URL"] = "http://localhost:3002"
+        >>> get_firecrawl_api_url()
+        'http://localhost:3002'
+    """
+    # 1. Environment variable (highest priority)
+    env_url = os.environ.get("FIRECRAWL_API_BASE_URL")
+    if env_url:
+        return env_url
+
+    # 2. YAML config
+    yaml_url = CONFIG.get("extraction", {}).get("firecrawl", {}).get("api_url")
+    if yaml_url:
+        return yaml_url
+
+    # 3. Default
+    return DEFAULT_FIRECRAWL_API_URL
+
+
+def set_firecrawl_api_url(api_url: str) -> None:
+    """
+    Override the Firecrawl API URL programmatically.
+
+    This sets the URL in the config, which takes precedence over the default
+    but can still be overridden by the FIRECRAWL_API_BASE_URL environment variable.
+
+    Args:
+        api_url: The Firecrawl API URL (e.g., 'http://localhost:3002')
+
+    Examples:
+        >>> set_firecrawl_api_url("http://localhost:3002")
+        >>> get_firecrawl_api_url()  # Returns 'http://localhost:3002' (unless env var is set)
+        'http://localhost:3002'
+    """
+    extraction = CONFIG.setdefault("extraction", {})
+    firecrawl_cfg = extraction.setdefault("firecrawl", {})
+    firecrawl_cfg["api_url"] = api_url
+
+
 def get_retry_config(operation_type: str) -> dict:
     """
     Get retry configuration for a specific operation type.

@@ -38,6 +38,9 @@ extraction:
   url_engine: auto  # auto | simple | firecrawl | jina | crawl4ai | docling - for URLs
   audio:
     concurrency: 3              # Number of concurrent audio transcriptions (1-10)
+  firecrawl:
+    api_url: null  # Custom API URL for self-hosted Firecrawl (e.g., "http://localhost:3002")
+                   # Environment variable FIRECRAWL_API_BASE_URL takes precedence
   docling:
     output_format: markdown  # markdown | html | json
   pymupdf:

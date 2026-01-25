@@ -488,6 +488,8 @@ In your `cc_config.yaml` or custom config, set:
 extraction:
   document_engine: docling  # 'auto' (default), 'simple', or 'docling'
   url_engine: auto          # 'auto' (default), 'simple', 'firecrawl', or 'jina'
+  firecrawl:
+    api_url: null           # Custom API URL for self-hosted Firecrawl
   docling:
     output_format: markdown  # markdown | html | json
 ```

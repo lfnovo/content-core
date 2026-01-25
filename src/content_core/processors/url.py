@@ -6,7 +6,12 @@ from readability import Document
 
 from content_core.common import ProcessSourceState
 from content_core.common.retry import retry_url_api, retry_url_network
-from content_core.config import get_proxy, get_url_engine
+from content_core.config import (
+    DEFAULT_FIRECRAWL_API_URL,
+    get_firecrawl_api_url,
+    get_proxy,
+    get_url_engine,
+)
 from content_core.logging import logger
 from content_core.processors.docling import DOCLING_SUPPORTED
 from content_core.processors.office import SUPPORTED_OFFICE_TYPES
@@ -193,7 +198,15 @@ async def _fetch_url_firecrawl(url: str, proxy: str | None = None) -> dict:
             "Proxy will NOT be used for this request. Configure proxy on Firecrawl server instead."
         )
 
-    app = AsyncFirecrawlApp(api_key=os.environ.get("FIRECRAWL_API_KEY"))
+    # Get custom API URL for self-hosted instances
+    api_url = get_firecrawl_api_url()
+    if api_url != DEFAULT_FIRECRAWL_API_URL:
+        logger.debug(f"Using custom Firecrawl API URL: {api_url}")
+
+    app = AsyncFirecrawlApp(
+        api_key=os.environ.get("FIRECRAWL_API_KEY"),
+        api_url=api_url,
+    )
     scrape_result = await app.scrape(url, formats=["markdown", "html"])
     return {
         "title": scrape_result.metadata.title or "",

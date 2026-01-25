@@ -289,7 +289,7 @@ export GOOGLE_API_KEY="your-google-key"
 
 **Getting API Keys:**
 - **OpenAI**: Visit [OpenAI API Keys](https://platform.openai.com/api-keys)
-- **Firecrawl**: Visit [Firecrawl](https://www.firecrawl.dev/) for enhanced web scraping
+- **Firecrawl**: Visit [Firecrawl](https://www.firecrawl.dev/) for enhanced web scraping, or [self-host your own instance](https://github.com/mendableai/firecrawl/blob/main/SELF_HOST.md)
 - **Jina**: Visit [Jina AI](https://jina.ai/) for alternative web extraction
 
 ### Engine Selection via Environment Variables
@@ -303,6 +303,7 @@ For advanced users, you can override the extraction engines:
       "env": {
         "OPENAI_API_KEY": "sk-...",
         "FIRECRAWL_API_KEY": "fc-...",
+        "FIRECRAWL_API_BASE_URL": "http://localhost:3002",  // For self-hosted Firecrawl
         "CCORE_DOCUMENT_ENGINE": "simple",    // Skip docling, use PyMuPDF
         "CCORE_URL_ENGINE": "auto"       // Or firecrawl, jina
       }
