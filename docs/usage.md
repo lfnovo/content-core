@@ -24,6 +24,7 @@ Content Core supports environment variable overrides for extraction engines, use
 
 - **`CCORE_DOCUMENT_ENGINE`**: Override document engine (`auto`, `simple`, `docling`)
 - **`CCORE_URL_ENGINE`**: Override URL engine (`auto`, `simple`, `firecrawl`, `jina`, `crawl4ai`)
+- **`FIRECRAWL_API_BASE_URL`**: Custom Firecrawl API URL for self-hosted instances (default: `https://api.firecrawl.dev`)
 
 These environment variables take precedence over configuration file settings and per-call overrides.
 
@@ -109,6 +110,8 @@ Add under the `extraction` section:
 extraction:
   document_engine: docling  # auto (default), simple, or docling
   url_engine: auto          # auto (default), simple, firecrawl, jina, or crawl4ai
+  firecrawl:
+    api_url: null           # Custom API URL for self-hosted Firecrawl (e.g., "http://localhost:3002")
   docling:
     output_format: html     # markdown | html | json
   pymupdf:
@@ -133,10 +136,44 @@ set_url_engine("firecrawl")
 # pick format
 set_docling_output_format("json")
 
+# Use a self-hosted Firecrawl instance
+from content_core.config import set_firecrawl_api_url
+set_firecrawl_api_url("http://localhost:3002")
+
 # Configure PyMuPDF OCR for scientific documents
 set_pymupdf_ocr_enabled(True)
 set_pymupdf_formula_threshold(2)  # Lower threshold for math-heavy docs
 ```
+
+#### Self-Hosted Firecrawl
+
+Content Core supports self-hosted Firecrawl instances for users who want to run their own web scraping infrastructure. This is useful for privacy, compliance, or high-volume scraping needs.
+
+To use a self-hosted Firecrawl instance:
+
+1. **Set up Firecrawl** - Follow the [official self-hosting guide](https://github.com/mendableai/firecrawl/blob/main/SELF_HOST.md) to deploy Firecrawl using Docker Compose or Kubernetes.
+
+2. **Configure Content Core** - Point to your instance using one of these methods:
+
+   ```bash
+   # Environment variable
+   export FIRECRAWL_API_BASE_URL="http://localhost:3002"
+   ```
+
+   ```yaml
+   # YAML config (cc_config.yaml)
+   extraction:
+     firecrawl:
+       api_url: "http://localhost:3002"
+   ```
+
+   ```python
+   # Programmatic
+   from content_core.config import set_firecrawl_api_url
+   set_firecrawl_api_url("http://localhost:3002")
+   ```
+
+3. **Optional: Set API key** - If your self-hosted instance uses authentication, also set `FIRECRAWL_API_KEY`.
 
 #### Crawl4AI Engine
 

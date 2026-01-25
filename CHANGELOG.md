@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-01-25
+
+### Added
+- **Self-Hosted Firecrawl Support** - Configure a custom Firecrawl API URL for self-hosted instances
+  - Environment variable: `FIRECRAWL_API_BASE_URL`
+  - YAML config: `extraction.firecrawl.api_url`
+  - Programmatic API: `set_firecrawl_api_url()`, `get_firecrawl_api_url()`
+  - Debug logging when using a custom base URL
+  - Documentation with link to [Firecrawl self-hosting guide](https://github.com/mendableai/firecrawl/blob/main/SELF_HOST.md)
+
 ## [1.10.0] - 2026-01-16
 
 ### Added
