@@ -22,7 +22,6 @@ WIP/
 
 *.ignore
 .windsurfrules
-CLAUDE.md
 
 node_modules/
 **/notebooks/private
