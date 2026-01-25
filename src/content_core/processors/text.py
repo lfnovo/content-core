@@ -1,14 +1,66 @@
 import asyncio
+import re
+from typing import Any, Dict
+
+from markdownify import markdownify as md
 
 from content_core.common import ProcessSourceState
 from content_core.logging import logger
 
 
-async def extract_txt(state: ProcessSourceState):
+# HTML tags that indicate meaningful structure
+HTML_STRUCTURAL_TAGS = re.compile(
+    r"<(p|div|h[1-6]|ul|ol|li|strong|em|b|i|a|code|pre|blockquote|table|thead|tbody|tr|td|th|article|section|header|footer|nav|span|br)[^>]*>",
+    re.IGNORECASE,
+)
+
+
+def detect_html(content: str) -> bool:
+    """
+    Detect if content contains meaningful HTML structure.
+
+    Args:
+        content: Text content to analyze
+
+    Returns:
+        True if at least 2 structural HTML tags are found
+    """
+    matches = HTML_STRUCTURAL_TAGS.findall(content)
+    return len(matches) >= 2
+
+
+async def process_text_content(state: ProcessSourceState) -> Dict[str, Any]:
+    """
+    Process text content - detect and convert HTML to markdown if present.
+
+    This function handles "rendered markdown" - text that was copied from
+    rendered views (like Obsidian reading mode, browser preview) that may
+    contain HTML tags.
+
+    Args:
+        state: ProcessSourceState containing the content to process
+
+    Returns:
+        Dict with converted content if HTML was detected, empty dict otherwise
+    """
+    content = state.content
+    if not content:
+        return {}
+
+    if detect_html(content):
+        logger.debug("HTML detected in content, converting to markdown")
+        converted = md(content, heading_style="ATX", bullets="-")
+        return {"content": converted}
+
+    logger.debug("No HTML detected, keeping content as-is")
+    return {}
+
+
+async def extract_txt(state: ProcessSourceState) -> Dict[str, Any]:
     """
     Parse the text file and extract its content asynchronously.
     """
-    return_dict = {}
+    return_dict: Dict[str, Any] = {}
     if state.file_path is not None and state.identified_type == "text/plain":
         logger.debug(f"Extracting text from {state.file_path}")
         file_path = state.file_path

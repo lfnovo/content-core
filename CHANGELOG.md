@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-01-25
+
+### Added
+- **HTML to Markdown Conversion** - Auto-detect and convert HTML content to markdown
+  - Detects HTML structure in text content (headings, paragraphs, lists, links, code, etc.)
+  - Uses `markdownify` library for deterministic conversion
+  - Useful for processing "rendered markdown" copied from preview panes (VS Code, Obsidian reading mode, browsers)
+  - Plain text without HTML passes through unchanged
+  - New exports in `processors/text.py`: `process_text_content`, `detect_html`
+
 ## [1.12.0] - 2026-01-25
 
 ### Changed

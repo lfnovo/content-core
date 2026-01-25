@@ -10,7 +10,7 @@ Format-specific content extraction handlers. Each processor extracts content fro
 - **`video.py`**: Video-to-audio extraction using moviepy. Extracts audio track for transcription pipeline. Exports `extract_best_audio_from_video`
 - **`youtube.py`**: YouTube transcript extraction using youtube-transcript-api. Handles multiple transcript formats, language fallbacks. Exports `extract_youtube_transcript`
 - **`office.py`**: Office document extraction (docx, pptx, xlsx) using python-docx, python-pptx, openpyxl. Exports `SUPPORTED_OFFICE_TYPES`, `extract_office_content`
-- **`text.py`**: Plain text file reading. Simple file read operation. Exports `extract_txt`
+- **`text.py`**: Plain text file reading and HTML-to-markdown conversion. Detects HTML in text content and converts to markdown using `markdownify`. Exports `extract_txt`, `process_text_content`, `detect_html`
 - **`docling.py`**: Optional Docling-based extraction for advanced document processing. Conditionally imported. Exports `DOCLING_AVAILABLE`, `DOCLING_SUPPORTED`, `extract_with_docling`
 
 ## Patterns

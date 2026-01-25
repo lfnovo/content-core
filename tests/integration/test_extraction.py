@@ -23,6 +23,67 @@ async def test_extract_content_from_text():
 
 
 @pytest.mark.asyncio
+async def test_extract_content_from_html_text():
+    """Tests that HTML content is converted to markdown."""
+    html_content = "<h1>Title</h1><p>This is <strong>bold</strong> text.</p>"
+    result = await extract_content({"content": html_content})
+
+    assert result.source_type == "text"
+    assert "# Title" in result.content  # H1 becomes markdown header
+    assert "**bold**" in result.content  # Strong becomes bold
+    assert "<h1>" not in result.content  # HTML tags removed
+    assert "<p>" not in result.content
+    assert "<strong>" not in result.content
+
+
+@pytest.mark.asyncio
+async def test_extract_content_from_plain_text_unchanged():
+    """Tests that plain text without HTML is unchanged."""
+    plain_content = "Just some plain text without any formatting."
+    result = await extract_content({"content": plain_content})
+
+    assert result.source_type == "text"
+    assert result.content == plain_content  # Content unchanged
+
+
+@pytest.mark.asyncio
+async def test_extract_content_from_html_list():
+    """Tests that HTML lists are converted to markdown."""
+    html_content = "<ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul>"
+    result = await extract_content({"content": html_content})
+
+    assert result.source_type == "text"
+    assert "- Item 1" in result.content
+    assert "- Item 2" in result.content
+    assert "- Item 3" in result.content
+    assert "<ul>" not in result.content
+    assert "<li>" not in result.content
+
+
+@pytest.mark.asyncio
+async def test_extract_content_from_html_links():
+    """Tests that HTML links are converted to markdown."""
+    html_content = '<p>Visit <a href="https://example.com">our site</a> for more.</p>'
+    result = await extract_content({"content": html_content})
+
+    assert result.source_type == "text"
+    assert "[our site](https://example.com)" in result.content
+    assert "<a " not in result.content
+
+
+@pytest.mark.asyncio
+async def test_extract_content_html_detection_threshold():
+    """Tests that single HTML tag doesn't trigger conversion (threshold is 2)."""
+    # Single tag - should NOT convert
+    single_tag_content = "Hello <br> World"
+    result = await extract_content({"content": single_tag_content})
+
+    assert result.source_type == "text"
+    # Content should be unchanged since only 1 tag
+    assert result.content == single_tag_content
+
+
+@pytest.mark.asyncio
 async def test_extract_content_from_url(fixture_path):
     """Tests content extraction from a URL."""
     # Using a known URL from the notebook example
