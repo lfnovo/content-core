@@ -1,6 +1,6 @@
 [project]
 name = "content-core"
-version = "1.11.0"
+version = "1.12.0"
 description = "Extract what matters from any media source. Available as Python Library, macOS Service, CLI and MCP Server"
 readme = "README.md"
 homepage = "https://github.com/lfnovo/content-core"
@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 dependencies = [
     "aiohttp>=3.11",
     "bs4>=0.0.2",
-    "esperanto>=2.14.0",
+    "esperanto>=2.17.0",
     "jinja2>=3.1.6",
     "langdetect>=1.0.9",
     "loguru>=0.7.3",
@@ -22,7 +22,7 @@ dependencies = [
     "python-dotenv>=1.1.0",
     "python-pptx>=1.0.2",
     "youtube-transcript-api>=1.0.3",
-    "langgraph>=0.3.29",
+    "langgraph>=1.0.0",
     "dicttoxml>=1.7.16",
     "validators>=0.34.0",
     "ai-prompter>=0.2.3",

@@ -185,7 +185,7 @@ async def file_type_router_docling(state: ProcessSourceState) -> str:
 
 # Create workflow
 workflow = StateGraph(
-    ProcessSourceState, input=ProcessSourceInput, output=ProcessSourceState
+    ProcessSourceState, input_schema=ProcessSourceInput, output_schema=ProcessSourceState
 )
 
 # Add nodes
