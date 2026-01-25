@@ -30,7 +30,7 @@ from content_core.processors.office import (
     extract_office_content,
 )
 from content_core.processors.pdf import SUPPORTED_FITZ_TYPES, extract_pdf
-from content_core.processors.text import extract_txt
+from content_core.processors.text import extract_txt, process_text_content
 from content_core.processors.url import extract_url, url_provider
 from content_core.processors.video import extract_best_audio_from_video
 from content_core.processors.youtube import extract_youtube_transcript
@@ -201,6 +201,7 @@ workflow.add_node("extract_audio_data", extract_audio_data)
 workflow.add_node("extract_youtube_transcript", extract_youtube_transcript)
 workflow.add_node("delete_file", delete_file)
 workflow.add_node("download_remote_file", download_remote_file)
+workflow.add_node("process_text_content", process_text_content)
 # Only add docling node if available
 if DOCLING_AVAILABLE:
     workflow.add_node("extract_docling", extract_with_docling)
@@ -213,7 +214,7 @@ workflow.add_conditional_edges(
     {
         "url": "url_provider",
         "file": "file_type",
-        "text": END,
+        "text": "process_text_content",
     },
 )
 workflow.add_conditional_edges(
@@ -241,6 +242,7 @@ workflow.add_edge("file_type", END)
 workflow.add_edge("extract_url", END)
 workflow.add_edge("extract_txt", END)
 workflow.add_edge("extract_youtube_transcript", END)
+workflow.add_edge("process_text_content", END)
 
 workflow.add_edge("extract_pdf", "delete_file")
 workflow.add_edge("extract_office_content", "delete_file")
