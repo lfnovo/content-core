@@ -8,6 +8,10 @@ from content_core.common import ProcessSourceState
 from content_core.logging import logger
 
 
+# Minimum number of structural HTML tags required to trigger conversion
+# A threshold of 2 avoids false positives from stray tags like a single <br>
+HTML_DETECTION_THRESHOLD = 2
+
 # HTML tags that indicate meaningful structure
 HTML_STRUCTURAL_TAGS = re.compile(
     r"<(p|div|h[1-6]|ul|ol|li|strong|em|b|i|a|code|pre|blockquote|table|thead|tbody|tr|td|th|article|section|header|footer|nav|span|br)[^>]*>",
@@ -23,10 +27,10 @@ def detect_html(content: str) -> bool:
         content: Text content to analyze
 
     Returns:
-        True if at least 2 structural HTML tags are found
+        True if at least HTML_DETECTION_THRESHOLD structural tags are found
     """
     matches = HTML_STRUCTURAL_TAGS.findall(content)
-    return len(matches) >= 2
+    return len(matches) >= HTML_DETECTION_THRESHOLD
 
 
 async def process_text_content(state: ProcessSourceState) -> Dict[str, Any]:
@@ -49,8 +53,12 @@ async def process_text_content(state: ProcessSourceState) -> Dict[str, Any]:
 
     if detect_html(content):
         logger.debug("HTML detected in content, converting to markdown")
-        converted = md(content, heading_style="ATX", bullets="-")
-        return {"content": converted}
+        try:
+            converted = md(content, heading_style="ATX", bullets="-")
+            return {"content": converted}
+        except Exception as e:
+            logger.warning(f"HTML conversion failed, keeping original content: {e}")
+            return {}
 
     logger.debug("No HTML detected, keeping content as-is")
     return {}
