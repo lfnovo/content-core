@@ -9,19 +9,18 @@ from youtube_transcript_api.formatters import TextFormatter  # type: ignore
 from content_core.common import ProcessSourceState
 from content_core.common.exceptions import NoTranscriptFound
 from content_core.common.retry import retry_youtube
-from content_core.config import CONFIG, get_proxy, _redact_proxy_url
+from content_core.config import CONFIG
 from content_core.logging import logger
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
 
 @retry_youtube()
-async def _fetch_video_title(video_id, proxy: str | None = None):
+async def _fetch_video_title(video_id):
     """Internal function that fetches video title - wrapped with retry logic."""
     url = f"https://www.youtube.com/watch?v={video_id}"
-    resolved_proxy = get_proxy(proxy)
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, proxy=resolved_proxy) as response:
+    async with aiohttp.ClientSession(trust_env=True) as session:
+        async with session.get(url) as response:
             html = await response.text()
 
     # BeautifulSoup doesn't support async operations
@@ -32,10 +31,10 @@ async def _fetch_video_title(video_id, proxy: str | None = None):
     return title
 
 
-async def get_video_title(video_id, proxy: str | None = None):
+async def get_video_title(video_id):
     """Get video title from YouTube, with retry logic for transient failures."""
     try:
-        return await _fetch_video_title(video_id, proxy)
+        return await _fetch_video_title(video_id)
     except Exception as e:
         logger.error(f"Failed to get video title after retries: {e}")
         return None
@@ -76,17 +75,10 @@ async def _extract_youtube_id(url):
 
 
 @retry_youtube()
-async def _fetch_best_transcript(
-    video_id, preferred_langs=["en", "es", "pt"], proxy: str | None = None
-):
+async def _fetch_best_transcript(video_id, preferred_langs=["en", "es", "pt"]):
     """Internal function that fetches transcript - wrapped with retry logic."""
-    resolved_proxy = get_proxy(proxy)
-    proxies = None
-    if resolved_proxy:
-        proxies = {"http": resolved_proxy, "https": resolved_proxy}
-        logger.debug(f"YouTubeTranscriptApi using proxy: {_redact_proxy_url(resolved_proxy)}")
-
-    transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, proxies=proxies)
+    # youtube-transcript-api uses requests which respects HTTP_PROXY env var
+    transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
 
     # First try: Manual transcripts in preferred languages
     manual_transcripts = []
@@ -146,12 +138,10 @@ async def _fetch_best_transcript(
     raise NoTranscriptFound("No suitable transcript found for this video")
 
 
-async def get_best_transcript(
-    video_id, preferred_langs=["en", "es", "pt"], proxy: str | None = None
-):
+async def get_best_transcript(video_id, preferred_langs=["en", "es", "pt"]):
     """Get best available transcript with retry logic for transient failures."""
     try:
-        return await _fetch_best_transcript(video_id, preferred_langs, proxy)
+        return await _fetch_best_transcript(video_id, preferred_langs)
     except Exception as e:
         logger.error(
             f"Failed to get transcript for video {video_id} after retries: {e}"
@@ -160,19 +150,12 @@ async def get_best_transcript(
 
 
 @retry_youtube()
-def _fetch_transcript_pytubefix(
-    url, languages=["en", "es", "pt"], proxy: str | None = None
-):
+def _fetch_transcript_pytubefix(url, languages=["en", "es", "pt"]):
     """Internal function that fetches transcript via pytubefix - wrapped with retry logic."""
     from pytubefix import YouTube
 
-    resolved_proxy = get_proxy(proxy)
-    proxies = None
-    if resolved_proxy:
-        proxies = {"http": resolved_proxy, "https": resolved_proxy}
-        logger.debug(f"pytubefix using proxy: {_redact_proxy_url(resolved_proxy)}")
-
-    yt = YouTube(url, proxies=proxies)
+    # pytubefix uses requests which respects HTTP_PROXY env var
+    yt = YouTube(url)
     logger.debug(f"Captions: {yt.captions}")
 
     # Try to get captions in the preferred languages
@@ -195,12 +178,10 @@ def _fetch_transcript_pytubefix(
     return None, None
 
 
-def extract_transcript_pytubefix(
-    url, languages=["en", "es", "pt"], proxy: str | None = None
-):
+def extract_transcript_pytubefix(url, languages=["en", "es", "pt"]):
     """Extract transcript via pytubefix with retry logic for transient failures."""
     try:
-        return _fetch_transcript_pytubefix(url, languages, proxy)
+        return _fetch_transcript_pytubefix(url, languages)
     except Exception as e:
         logger.error(f"Failed to extract transcript via pytubefix after retries: {e}")
         return None, None
@@ -210,7 +191,7 @@ async def extract_youtube_transcript(state: ProcessSourceState):
     """
     Parse the text file and print its content.
 
-    Proxy configuration is passed through state.proxy and resolved using get_proxy().
+    Proxy is configured via standard HTTP_PROXY/HTTPS_PROXY environment variables.
     """
 
     assert state.url, "No URL provided"
@@ -218,14 +199,13 @@ async def extract_youtube_transcript(state: ProcessSourceState):
     languages = CONFIG.get("youtube_transcripts", {}).get(
         "preferred_languages", ["en", "es", "pt"]
     )
-    proxy = state.proxy
 
     # quick fix since transcripts api is not working for now
     engine = "pytubefix"
     video_id = await _extract_youtube_id(state.url)
 
     try:
-        title = await get_video_title(video_id, proxy)
+        title = await get_video_title(video_id)
     except Exception as e:
         logger.critical(f"Failed to get video title for video_id: {video_id}")
         logger.exception(e)
@@ -233,10 +213,10 @@ async def extract_youtube_transcript(state: ProcessSourceState):
 
     if engine == "pytubefix":
         formatted_content, transcript_raw = extract_transcript_pytubefix(
-            state.url, languages, proxy
+            state.url, languages
         )
     if engine == "transcripts-api":
-        transcript = await get_best_transcript(video_id, languages, proxy)
+        transcript = await get_best_transcript(video_id, languages)
 
         logger.debug(f"Found transcript: {transcript}")
         formatter = TextFormatter()

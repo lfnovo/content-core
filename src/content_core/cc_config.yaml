@@ -51,14 +51,6 @@ extraction:
 youtube_transcripts:
   preferred_languages: ["en", "es", "pt"]
 
-# Proxy configuration for HTTP/HTTPS requests
-# Environment variables CCORE_HTTP_PROXY, HTTP_PROXY, or HTTPS_PROXY take precedence
-proxy:
-  url: null  # Proxy URL (e.g., "http://proxy.example.com:8080" or "http://user:pass@proxy:8080")
-  no_proxy:  # List of hosts to bypass proxy
-    - "localhost"
-    - "127.0.0.1"
-
 # Retry configuration for transient failures
 # Each operation type can be configured independently
 # Environment variables override these settings (e.g., CCORE_YOUTUBE_MAX_RETRIES)
