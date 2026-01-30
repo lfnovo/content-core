@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.1] - 2026-01-29
+
+### Fixed
+- **YouTube Transcript Extraction** - Updated to youtube-transcript-api v1.0+ API
+  - The library removed deprecated static methods (`list_transcripts`, `get_transcript`) in v1.0
+  - Now uses instance-based API: `YouTubeTranscriptApi().list()` and `.fetch()`
+  - Restored youtube-transcript-api as primary engine with pytubefix as fallback
+- **Video Processor Error Handling** - Fixed LangGraph compatibility issue
+  - Video extraction now returns proper dict on error instead of `False`
+  - Prevents `InvalidUpdateError: Expected dict, got False` when ffprobe is missing
+
 ## [1.14.0] - 2026-01-29
 
 ### Changed

@@ -76,63 +76,38 @@ async def _extract_youtube_id(url):
 
 @retry_youtube()
 async def _fetch_best_transcript(video_id, preferred_langs=["en", "es", "pt"]):
-    """Internal function that fetches transcript - wrapped with retry logic."""
-    # youtube-transcript-api uses requests which respects HTTP_PROXY env var
-    transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+    """Internal function that fetches transcript - wrapped with retry logic.
+
+    Uses youtube-transcript-api v1.0+ instance-based API.
+    """
+    api = YouTubeTranscriptApi()
+    transcript_list = api.list(video_id)
 
     # First try: Manual transcripts in preferred languages
-    manual_transcripts = []
     try:
-        for transcript in transcript_list:
-            if not transcript.is_generated and not transcript.is_translatable:
-                manual_transcripts.append(transcript)
-
-        if manual_transcripts:
-            # Sort based on preferred language order
-            for lang in preferred_langs:
-                for transcript in manual_transcripts:
-                    if transcript.language_code == lang:
-                        return transcript.fetch()
-            # If no preferred language found, return first manual transcript
-            return manual_transcripts[0].fetch()
-    except NoTranscriptFound:
+        transcript = transcript_list.find_manually_created_transcript(preferred_langs)
+        return transcript.fetch()
+    except Exception:
         pass
 
     # Second try: Auto-generated transcripts in preferred languages
-    generated_transcripts = []
     try:
-        for transcript in transcript_list:
-            if transcript.is_generated and not transcript.is_translatable:
-                generated_transcripts.append(transcript)
-
-        if generated_transcripts:
-            # Sort based on preferred language order
-            for lang in preferred_langs:
-                for transcript in generated_transcripts:
-                    if transcript.language_code == lang:
-                        return transcript.fetch()
-            # If no preferred language found, return first generated transcript
-            return generated_transcripts[0].fetch()
-    except NoTranscriptFound:
+        transcript = transcript_list.find_generated_transcript(preferred_langs)
+        return transcript.fetch()
+    except Exception:
         pass
 
-    # Last try: Translated transcripts in preferred languages
-    translated_transcripts = []
+    # Third try: Any transcript in preferred languages (manual or generated)
     try:
-        for transcript in transcript_list:
-            if transcript.is_translatable:
-                translated_transcripts.append(transcript)
+        transcript = transcript_list.find_transcript(preferred_langs)
+        return transcript.fetch()
+    except Exception:
+        pass
 
-        if translated_transcripts:
-            # Sort based on preferred language order
-            for lang in preferred_langs:
-                for transcript in translated_transcripts:
-                    if transcript.language_code == lang:
-                        return transcript.fetch()
-            # If no preferred language found, return translation to first preferred language
-            translation = translated_transcripts[0].translate(preferred_langs[0])
-            return translation.fetch()
-    except NoTranscriptFound:
+    # Last try: Direct fetch with language fallback
+    try:
+        return api.fetch(video_id, languages=preferred_langs)
+    except Exception:
         pass
 
     raise NoTranscriptFound("No suitable transcript found for this video")
@@ -189,9 +164,11 @@ def extract_transcript_pytubefix(url, languages=["en", "es", "pt"]):
 
 async def extract_youtube_transcript(state: ProcessSourceState):
     """
-    Parse the text file and print its content.
+    Extract transcript from a YouTube video.
 
     Proxy is configured via standard HTTP_PROXY/HTTPS_PROXY environment variables.
+
+    Uses youtube-transcript-api as primary engine with pytubefix as fallback.
     """
 
     assert state.url, "No URL provided"
@@ -200,8 +177,6 @@ async def extract_youtube_transcript(state: ProcessSourceState):
         "preferred_languages", ["en", "es", "pt"]
     )
 
-    # quick fix since transcripts api is not working for now
-    engine = "pytubefix"
     video_id = await _extract_youtube_id(state.url)
 
     try:
@@ -211,29 +186,37 @@ async def extract_youtube_transcript(state: ProcessSourceState):
         logger.exception(e)
         title = ""
 
-    if engine == "pytubefix":
-        formatted_content, transcript_raw = extract_transcript_pytubefix(
-            state.url, languages
-        )
-    if engine == "transcripts-api":
-        transcript = await get_best_transcript(video_id, languages)
+    formatted_content = ""
+    transcript_raw = None
 
-        logger.debug(f"Found transcript: {transcript}")
+    # Primary: youtube-transcript-api
+    transcript = await get_best_transcript(video_id, languages)
+    if transcript:
+        logger.debug(f"Found transcript via youtube-transcript-api")
         formatter = TextFormatter()
 
         try:
             formatted_content = formatter.format_transcript(transcript)
         except Exception as e:
-            logger.critical(f"Failed to format transcript for video_id: {video_id}")
+            logger.error(f"Failed to format transcript for video_id: {video_id}")
             logger.exception(e)
-            formatted_content = ""
 
         try:
-            transcript_raw = transcript.to_raw_data()
+            # Extract raw data from FetchedTranscript snippets
+            transcript_raw = [
+                {"text": s.text, "start": s.start, "duration": s.duration}
+                for s in transcript.snippets
+            ]
         except Exception as e:
-            logger.critical(f"Failed to get raw transcript for video_id: {video_id}")
+            logger.error(f"Failed to get raw transcript for video_id: {video_id}")
             logger.exception(e)
-            transcript_raw = ""
+
+    # Fallback: pytubefix
+    if not formatted_content:
+        logger.debug("Falling back to pytubefix for transcript extraction")
+        formatted_content, transcript_raw = extract_transcript_pytubefix(
+            state.url, languages
+        )
 
     return {
         "content": formatted_content,
