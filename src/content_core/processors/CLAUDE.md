@@ -33,11 +33,12 @@ Format-specific content extraction handlers. Each processor extracts content fro
 - `url.py` fallback chain: Firecrawl (if API key) -> Jina -> Crawl4AI -> BeautifulSoup
 - `audio.py` segments files >10 min and processes in parallel with configurable concurrency
 - `pdf.py` OCR is disabled by default - enable via config `extraction.pymupdf.enable_formula_ocr`
-- All processors must handle the `proxy` field from state when making network requests
+- Proxy is configured via standard HTTP_PROXY/HTTPS_PROXY environment variables (use `trust_env=True` with aiohttp)
 
 ## When Adding Code
 
 - New processors must: accept `ProcessSourceState`, return dict with state updates, handle errors gracefully
 - Add new MIME types to the appropriate `SUPPORTED_*_TYPES` constant
-- Network operations should use retry decorators and `get_proxy()` for proxy support
+- Network operations should use retry decorators for resilience
+- For aiohttp sessions, use `trust_env=True` to automatically read HTTP_PROXY/HTTPS_PROXY environment variables
 - Register new processors as nodes in `content/extraction/graph.py`

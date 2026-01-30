@@ -35,10 +35,6 @@ class ProcessSourceState(BaseModel):
         default=None,
         description="Override speech-to-text model name (e.g., 'whisper-1', 'chirp')",
     )
-    proxy: Optional[str] = Field(
-        default=None,
-        description="Override proxy URL for this request (e.g., 'http://proxy:8080')",
-    )
 
 
 class ProcessSourceInput(BaseModel):
@@ -50,7 +46,6 @@ class ProcessSourceInput(BaseModel):
     output_format: Optional[str] = None
     audio_provider: Optional[str] = None
     audio_model: Optional[str] = None
-    proxy: Optional[str] = None
 
 
 class ProcessSourceOutput(BaseModel):

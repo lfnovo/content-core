@@ -1026,123 +1026,42 @@ async def my_custom_api_call():
 
 ## Proxy Configuration
 
-Content Core supports HTTP/HTTPS proxy configuration for all external network requests. This is useful when operating in corporate environments, behind firewalls, or when you need to route traffic through a specific server.
+Content Core supports HTTP/HTTPS proxy configuration through standard environment variables. This approach is consistent with most HTTP clients and the Esperanto library.
 
-### Configuration Priority
+### Configuration
 
-Proxy settings follow a clear priority order (highest to lowest):
-
-1. **Per-request**: Pass `proxy` parameter in `ProcessSourceInput`
-2. **Programmatic**: Use `set_proxy()` for runtime configuration
-3. **Environment Variables**: `CCORE_HTTP_PROXY`, `HTTP_PROXY`, or `HTTPS_PROXY`
-4. **YAML Config**: Set `proxy.url` in `cc_config.yaml`
-
-### Configuration Methods
-
-#### Via Environment Variables
-
-Set in your `.env` file or system environment:
+Set the standard proxy environment variables:
 
 ```bash
-# Content Core specific (recommended, highest env var priority)
-CCORE_HTTP_PROXY=http://proxy.example.com:8080
-
-# Standard HTTP proxy variables (fallback)
+# In your .env file or shell environment
 HTTP_PROXY=http://proxy.example.com:8080
 HTTPS_PROXY=http://proxy.example.com:8080
 
 # With authentication
-CCORE_HTTP_PROXY=http://user:password@proxy.example.com:8080
+HTTP_PROXY=http://user:password@proxy.example.com:8080
 
 # Bypass proxy for specific hosts
 NO_PROXY=localhost,127.0.0.1,internal.example.com
 ```
 
-#### Via YAML Configuration
+That's it! Content Core automatically uses these environment variables for all network requests.
 
-Add to your `cc_config.yaml`:
+### How It Works
 
-```yaml
-proxy:
-  url: http://proxy.example.com:8080  # Proxy URL (null to disable)
-  no_proxy:                            # Hosts to bypass proxy
-    - localhost
-    - 127.0.0.1
-    - "*.internal.example.com"
-```
+Content Core uses `trust_env=True` with aiohttp sessions, which enables automatic reading of proxy settings from standard environment variables. This is the same approach used by most Python HTTP libraries and provides consistent behavior across your entire application.
 
-#### Programmatic Configuration
+**Supported Services:**
 
-```python
-from content_core.config import set_proxy, clear_proxy, get_proxy, get_no_proxy
+| Service | Notes |
+|---------|-------|
+| **aiohttp requests** | URL extraction, HEAD checks, downloads |
+| **YouTube (pytubefix)** | Video info, captions (uses requests internally) |
+| **YouTube (transcript-api)** | Transcript fetching (uses requests internally) |
+| **Crawl4AI** | Bridges HTTP_PROXY to ProxyConfig automatically |
+| **Jina** | URL extraction API |
+| **Esperanto (LLM/STT)** | Language model and speech-to-text requests |
 
-# Set proxy for all subsequent operations
-set_proxy("http://proxy.example.com:8080")
-
-# With authentication
-set_proxy("http://user:password@proxy.example.com:8080")
-
-# Check current proxy
-current = get_proxy()
-print(f"Using proxy: {current}")
-
-# Get bypass list
-bypass_hosts = get_no_proxy()
-print(f"Bypassing: {bypass_hosts}")
-
-# Clear programmatic override (falls back to env vars/YAML)
-clear_proxy()
-
-# Explicitly disable proxy (even if env vars are set)
-set_proxy("")  # Empty string = disabled
-```
-
-#### Per-Request Override
-
-For fine-grained control, specify proxy per request:
-
-```python
-from content_core.common import ProcessSourceInput
-import content_core as cc
-
-# Use specific proxy for this request
-result = await cc.extract(ProcessSourceInput(
-    url="https://example.com",
-    proxy="http://specific-proxy:8080"
-))
-
-# Disable proxy for this specific request (even if globally configured)
-result = await cc.extract(ProcessSourceInput(
-    url="https://internal-site.local",
-    proxy=""  # Empty string disables proxy for this request
-))
-```
-
-### Supported Services
-
-Content Core routes the following external requests through the configured proxy:
-
-| Service | Support | Notes |
-|---------|---------|-------|
-| **aiohttp requests** | ✅ Full | URL extraction, HEAD checks, downloads |
-| **YouTube (pytubefix)** | ✅ Full | Video info, captions |
-| **YouTube (transcript-api)** | ✅ Full | Transcript fetching |
-| **Crawl4AI** | ✅ Full | Browser automation via ProxyConfig |
-| **Jina** | ✅ Full | URL extraction API |
-| **Esperanto (LLM)** | ✅ Full | Language model requests |
-| **Esperanto (STT)** | ✅ Full | Speech-to-text requests |
-| **Firecrawl** | ⚠️ Warning | No client-side support; warning logged |
-
-### Limitations
-
-**Firecrawl:**
-Firecrawl does not support client-side proxy configuration. When proxy is configured and Firecrawl is used, a warning is logged:
-```
-WARNING: Proxy is configured but Firecrawl does not support client-side proxy. Configure proxy on Firecrawl server instead.
-```
-
-**SOCKS Proxy:**
-Only HTTP/HTTPS proxies are supported. SOCKS4/SOCKS5 proxies are not currently supported.
+**Note:** Firecrawl does not support client-side proxy configuration. Configure proxy on the Firecrawl server side instead.
 
 ### Use Cases
 
@@ -1150,7 +1069,8 @@ Only HTTP/HTTPS proxies are supported. SOCKS4/SOCKS5 proxies are not currently s
 
 ```bash
 # In .env file
-CCORE_HTTP_PROXY=http://corporate-proxy.internal:8080
+HTTP_PROXY=http://corporate-proxy.internal:8080
+HTTPS_PROXY=http://corporate-proxy.internal:8080
 NO_PROXY=localhost,127.0.0.1,*.internal.corp
 ```
 
@@ -1161,44 +1081,11 @@ import content_core as cc
 result = await cc.extract("https://external-site.com/article")
 ```
 
-#### Multiple Proxies for Different Sources
+#### Temporary Proxy for a Script
 
-```python
-from content_core.common import ProcessSourceInput
-import content_core as cc
-
-# Use different proxies for different sources
-external_result = await cc.extract(ProcessSourceInput(
-    url="https://external-api.com/data",
-    proxy="http://external-proxy:8080"
-))
-
-internal_result = await cc.extract(ProcessSourceInput(
-    url="https://internal-wiki.local/page",
-    proxy=""  # No proxy for internal resources
-))
-```
-
-#### Session-Based Proxy Switching
-
-```python
-from content_core.config import set_proxy, clear_proxy
-import content_core as cc
-
-# Process batch with proxy
-set_proxy("http://batch-proxy:8080")
-for url in external_urls:
-    result = await cc.extract(url)
-    # Process result...
-
-# Switch to different proxy
-set_proxy("http://different-proxy:8080")
-for url in other_urls:
-    result = await cc.extract(url)
-    # Process result...
-
-# Clear proxy for local operations
-clear_proxy()
+```bash
+# Set proxy just for this command
+HTTP_PROXY=http://proxy:8080 HTTPS_PROXY=http://proxy:8080 python my_script.py
 ```
 
 ### Troubleshooting
@@ -1212,13 +1099,13 @@ clear_proxy()
 - **Example**: `http://user:p%40ssword@proxy:8080` for password `p@ssword`
 
 **Issue**: Proxy not being used
-- **Check**: Priority order - per-request overrides everything
-- **Verify**: Environment variables are exported in current shell
-- **Debug**: Enable debug logging to see which proxy is selected
+- **Verify**: Environment variables are exported in current shell (`echo $HTTP_PROXY`)
+- **Check**: Variable names are uppercase (`HTTP_PROXY`, not `http_proxy`)
+- **Debug**: Enable debug logging to confirm requests are being made
 
 **Issue**: SSL/TLS errors through proxy
 - **Solution**: Ensure proxy supports HTTPS connections
-- **Check**: Proxy certificate configuration
+- **Check**: Proxy certificate configuration (you may need to trust the proxy's CA)
 
 ## File Type Detection
 
