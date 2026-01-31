@@ -39,6 +39,18 @@ class ProcessSourceState(BaseModel):
         default=None,
         description="Override proxy URL for this request (e.g., 'http://proxy:8080')",
     )
+    vlm_inference_mode: Optional[str] = Field(
+        default=None,
+        description="Override VLM inference mode: 'local' or 'remote'",
+    )
+    vlm_backend: Optional[str] = Field(
+        default=None,
+        description="Override local VLM backend: 'auto', 'transformers', or 'mlx'",
+    )
+    vlm_remote_url: Optional[str] = Field(
+        default=None,
+        description="Override docling-serve URL for remote VLM inference",
+    )
 
 
 class ProcessSourceInput(BaseModel):
@@ -51,6 +63,9 @@ class ProcessSourceInput(BaseModel):
     audio_provider: Optional[str] = None
     audio_model: Optional[str] = None
     proxy: Optional[str] = None
+    vlm_inference_mode: Optional[str] = None
+    vlm_backend: Optional[str] = None
+    vlm_remote_url: Optional[str] = None
 
 
 class ProcessSourceOutput(BaseModel):

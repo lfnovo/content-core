@@ -25,6 +25,15 @@ except ImportError:
     DOCLING_AVAILABLE = False
     DOCLING_SUPPORTED = set()
     extract_with_docling = None
+
+try:
+    from content_core.processors.docling_vlm import (
+        extract_with_docling_vlm,
+        DOCLING_VLM_LOCAL_AVAILABLE,
+    )
+except ImportError:
+    DOCLING_VLM_LOCAL_AVAILABLE = False
+    extract_with_docling_vlm = None
 from content_core.processors.office import (
     SUPPORTED_OFFICE_TYPES,
     extract_office_content,
@@ -151,13 +160,36 @@ async def download_remote_file(state: ProcessSourceState) -> Dict[str, Any]:
 
 async def file_type_router_docling(state: ProcessSourceState) -> str:
     """
-    Route to Docling if enabled and supported; otherwise use simple file type edge.
-    Supports 'auto', 'docling', and 'simple'.
+    Route to Docling or VLM if enabled and supported; otherwise use simple file type edge.
+    Supports 'auto', 'docling', 'docling-vlm', and 'simple'.
     'auto' tries docling first, then falls back to simple if docling fails.
     """
     # Use environment-aware engine selection
     engine = state.document_engine or get_document_engine()
-    
+
+    if engine == "docling-vlm":
+        if extract_with_docling_vlm is None:
+            raise ImportError(
+                "docling-vlm engine requested but not available. "
+                "Install with: pip install content-core[docling-vlm]"
+            )
+        # VLM supports PDF and images primarily
+        vlm_supported_types = {
+            "application/pdf",
+            "image/png",
+            "image/jpeg",
+            "image/tiff",
+            "image/bmp",
+        }
+        if state.identified_type in vlm_supported_types:
+            logger.debug("Using docling-vlm engine")
+            return "extract_docling_vlm"
+        # Fall back to docling or simple for unsupported types
+        logger.debug(f"VLM doesn't support {state.identified_type}, falling back")
+        if DOCLING_AVAILABLE and state.identified_type in DOCLING_SUPPORTED:
+            return "extract_docling"
+        return await file_type_edge(state)
+
     if engine == "auto":
         logger.debug("Using auto engine")
         # Check if docling is available AND supports the file type
@@ -177,7 +209,7 @@ async def file_type_router_docling(state: ProcessSourceState) -> str:
         # If docling doesn't support this file type, fall back to simple
         logger.debug("Docling doesn't support this file type, using simple engine")
         return await file_type_edge(state)
-    
+
     # For 'simple' or any other engine
     logger.debug("Using simple engine")
     return await file_type_edge(state)
@@ -205,6 +237,10 @@ workflow.add_node("process_text_content", process_text_content)
 # Only add docling node if available
 if DOCLING_AVAILABLE:
     workflow.add_node("extract_docling", extract_with_docling)
+
+# Only add docling-vlm node if available
+if extract_with_docling_vlm is not None:
+    workflow.add_node("extract_docling_vlm", extract_with_docling_vlm)
 
 # Add edges
 workflow.add_edge(START, "source")
@@ -250,5 +286,9 @@ workflow.add_edge("extract_best_audio_from_video", "extract_audio_data")
 workflow.add_edge("extract_audio_data", "delete_file")
 workflow.add_edge("delete_file", END)
 workflow.add_edge("download_remote_file", "file_type")
+
+# Conditionally add docling-vlm edge
+if extract_with_docling_vlm is not None:
+    workflow.add_edge("extract_docling_vlm", "delete_file")
 
 graph = workflow.compile()

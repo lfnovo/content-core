@@ -2,8 +2,9 @@ from typing import Literal
 
 DocumentEngine = Literal[
     "auto",
-    "simple", 
+    "simple",
     "docling",
+    "docling-vlm",
 ]
 
 UrlEngine = Literal[
@@ -13,3 +14,8 @@ UrlEngine = Literal[
     "jina",
     "crawl4ai",
 ]
+
+# VLM-specific types
+VlmInferenceMode = Literal["local", "remote"]
+VlmBackend = Literal["auto", "transformers", "mlx"]
+VlmModel = Literal["granite-docling", "smol-docling"]

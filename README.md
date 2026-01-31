@@ -94,8 +94,14 @@ pip install content-core[docling]
 pip install content-core[crawl4ai]
 python -m playwright install --with-deps
 
+# With VLM-powered document extraction (vision-language model)
+pip install content-core[docling-vlm]
+
+# With VLM optimized for Apple Silicon (M1/M2/M3)
+pip install content-core[docling-mlx]
+
 # Full installation (with all optional features)
-pip install content-core[docling,crawl4ai]
+pip install content-core[docling,docling-vlm,crawl4ai]
 ```
 
 > **Note:** The core installation uses pure Python implementations and doesn't require system libraries like libmagic, ensuring consistent, hassle-free installation across Windows, macOS, and Linux. Optional features like Crawl4AI (browser automation) may require additional system dependencies.
@@ -479,14 +485,14 @@ Content Core supports an optional Docling-based extraction engine for rich docum
 
 ### Enabling Docling
 
-Docling is not the default engine when parsing documents. If you don't want to use it, you need to set engine to "simple". 
+Docling is not the default engine when parsing documents. If you don't want to use it, you need to set engine to "simple".
 
 #### Via configuration file
 
 In your `cc_config.yaml` or custom config, set:
 ```yaml
 extraction:
-  document_engine: docling  # 'auto' (default), 'simple', or 'docling'
+  document_engine: docling  # 'auto' (default), 'simple', 'docling', or 'docling-vlm'
   url_engine: auto          # 'auto' (default), 'simple', 'firecrawl', or 'jina'
   firecrawl:
     api_url: null           # Custom API URL for self-hosted Firecrawl
@@ -511,6 +517,91 @@ set_docling_output_format("html")
 # now use ccore.extract or ccore.ccore
 result = await cc.extract("document.pdf")
 ```
+
+### VLM-Powered Extraction (docling-vlm)
+
+Content Core supports VLM (Vision-Language Model) powered document extraction using Docling's VlmPipeline. This provides enhanced document understanding through vision-language models, offering better results for complex layouts, tables, and images compared to traditional OCR.
+
+**Two inference modes are available:**
+- **Local**: Run granite-docling or smol-docling model directly using transformers or MLX
+- **Remote**: Call a docling-serve API endpoint
+
+#### Installation
+
+```bash
+# For local VLM inference (transformers backend)
+pip install content-core[docling-vlm]
+
+# For Apple Silicon optimized inference (MLX backend)
+pip install content-core[docling-mlx]
+```
+
+#### Via CLI
+
+```bash
+# Use local VLM extraction
+CCORE_DOCUMENT_ENGINE=docling-vlm ccore document.pdf
+
+# Use remote VLM extraction via docling-serve
+CCORE_DOCUMENT_ENGINE=docling-vlm \
+CCORE_VLM_INFERENCE_MODE=remote \
+CCORE_DOCLING_SERVE_URL=http://gpu-server:5001 \
+ccore document.pdf
+```
+
+#### Via Python
+
+```python
+from content_core.config import set_document_engine, set_vlm_inference_mode
+import content_core as cc
+
+# Local VLM extraction
+set_document_engine("docling-vlm")
+result = await cc.extract("document.pdf")
+
+# Remote VLM extraction
+set_document_engine("docling-vlm")
+set_vlm_inference_mode("remote")
+result = await cc.extract("document.pdf")
+
+# Per-request override
+result = await cc.extract({
+    "file_path": "document.pdf",
+    "document_engine": "docling-vlm",
+    "vlm_inference_mode": "remote",
+    "vlm_remote_url": "http://gpu-server:5001"
+})
+```
+
+#### VLM Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `CCORE_DOCUMENT_ENGINE` | Set to `docling-vlm` to enable | `auto` |
+| `CCORE_VLM_INFERENCE_MODE` | `local` or `remote` | `local` |
+| `CCORE_VLM_BACKEND` | `auto`, `transformers`, `mlx` | `auto` |
+| `CCORE_VLM_MODEL` | `granite-docling`, `smol-docling` | `granite-docling` |
+| `CCORE_DOCLING_SERVE_URL` | Remote docling-serve endpoint | `http://localhost:5001` |
+| `CCORE_DOCLING_SERVE_API_KEY` | API key for remote endpoint | `null` |
+| `CCORE_DOCLING_SERVE_TIMEOUT` | Request timeout (seconds) | `120` |
+
+#### VLM Processing Options
+
+Fine-tune VLM extraction with these environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `CCORE_VLM_DO_OCR` | Enable OCR | `true` |
+| `CCORE_VLM_OCR_ENGINE` | OCR engine (easyocr, tesseract, etc.) | `easyocr` |
+| `CCORE_VLM_TABLE_MODE` | Table extraction mode (accurate, fast) | `accurate` |
+| `CCORE_VLM_DO_TABLE_STRUCTURE` | Extract table structure | `true` |
+| `CCORE_VLM_DO_CODE_ENRICHMENT` | Enhance code blocks | `false` |
+| `CCORE_VLM_DO_FORMULA_ENRICHMENT` | Enhance mathematical formulas | `false` |
+| `CCORE_VLM_INCLUDE_IMAGES` | Include images in output | `true` |
+| `CCORE_VLM_DO_PICTURE_CLASSIFICATION` | Classify images | `false` |
+| `CCORE_VLM_DO_PICTURE_DESCRIPTION` | Generate image descriptions | `false` |
+
+For detailed VLM configuration, see our [Usage Documentation](docs/usage.md#vlm-powered-extraction).
 
 ## Configuration
 
@@ -538,7 +629,7 @@ ESPERANTO_STT_TIMEOUT=3600  # Speech-to-text timeout in seconds (default: 3600, 
 
 For deployment scenarios like MCP servers or Raycast extensions, you can override the extraction engines using environment variables:
 
-- **`CCORE_DOCUMENT_ENGINE`**: Force document engine (`auto`, `simple`, `docling`)
+- **`CCORE_DOCUMENT_ENGINE`**: Force document engine (`auto`, `simple`, `docling`, `docling-vlm`)
 - **`CCORE_URL_ENGINE`**: Force URL engine (`auto`, `simple`, `firecrawl`, `jina`, `crawl4ai`)
 - **`CCORE_AUDIO_CONCURRENCY`**: Number of concurrent audio transcriptions (1-10, default: 3)
 

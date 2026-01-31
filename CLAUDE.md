@@ -25,7 +25,7 @@ src/content_core/
 │   ├── exceptions.py    # Exception hierarchy
 │   ├── retry.py         # Retry decorators for transient failures
 │   ├── state.py         # Pydantic state models for LangGraph
-│   ├── types.py         # Type aliases (DocumentEngine, UrlEngine)
+│   ├── types.py         # Type aliases (DocumentEngine, UrlEngine, VlmInferenceMode, VlmBackend)
 │   └── utils.py         # Input content processing
 │
 ├── processors/          # Format-specific extractors (see processors/CLAUDE.md)
@@ -36,7 +36,8 @@ src/content_core/
 │   ├── youtube.py       # YouTube transcript extraction
 │   ├── office.py        # Office docs (docx/pptx/xlsx)
 │   ├── text.py          # Plain text files
-│   └── docling.py       # Optional Docling integration
+│   ├── docling.py       # Optional Docling integration
+│   └── docling_vlm.py   # VLM-powered extraction (local/remote)
 │
 ├── content/             # High-level workflows
 │   ├── extraction/      # LangGraph extraction workflow
@@ -81,6 +82,8 @@ src/content_core/
 
 - Import aliases: `content_core.extraction` = `content_core.content.extraction`
 - `docling` is optional: check `DOCLING_AVAILABLE` before using
+- `docling_vlm` is optional: check `DOCLING_VLM_LOCAL_AVAILABLE` for local inference
+- VLM remote mode requires `httpx`: check `HTTPX_AVAILABLE`
 - Proxy must be passed through state or config, not set globally on requests
 - All async operations should use retry decorators for resilience
 - `ModelFactory` caches models but invalidates on proxy change

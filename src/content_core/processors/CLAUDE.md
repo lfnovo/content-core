@@ -12,6 +12,7 @@ Format-specific content extraction handlers. Each processor extracts content fro
 - **`office.py`**: Office document extraction (docx, pptx, xlsx) using python-docx, python-pptx, openpyxl. Exports `SUPPORTED_OFFICE_TYPES`, `extract_office_content`
 - **`text.py`**: Plain text file reading and HTML-to-markdown conversion. Detects HTML in text content and converts to markdown using `markdownify`. Exports `extract_txt`, `process_text_content`, `detect_html`
 - **`docling.py`**: Optional Docling-based extraction for advanced document processing. Conditionally imported. Exports `DOCLING_AVAILABLE`, `DOCLING_SUPPORTED`, `extract_with_docling`
+- **`docling_vlm.py`**: VLM-powered extraction using Docling's VlmPipeline or docling-serve. Supports local inference (transformers/MLX) and remote inference. Exports `DOCLING_VLM_LOCAL_AVAILABLE`, `DOCLING_VLM_MLX_AVAILABLE`, `HTTPX_AVAILABLE`, `extract_with_docling_vlm`, `extract_with_vlm_local`, `extract_with_vlm_remote`
 
 ## Patterns
 
@@ -30,6 +31,7 @@ Format-specific content extraction handlers. Each processor extracts content fro
 ## Gotchas
 
 - `docling.py` is conditionally imported - check `DOCLING_AVAILABLE` before using
+- `docling_vlm.py` is conditionally imported - check `DOCLING_VLM_LOCAL_AVAILABLE` for local, `HTTPX_AVAILABLE` for remote
 - `url.py` fallback chain: Firecrawl (if API key) -> Jina -> Crawl4AI -> BeautifulSoup
 - `audio.py` segments files >10 min and processes in parallel with configurable concurrency
 - `pdf.py` OCR is disabled by default - enable via config `extraction.pymupdf.enable_formula_ocr`

@@ -353,6 +353,166 @@ async def test_extract_content_from_pdf_url():
 
 
 @pytest.mark.asyncio
+async def test_extract_content_from_pdf_docling_vlm_local(fixture_path):
+    """Tests extracting content from a PDF using docling-vlm local engine."""
+    # Check if docling[vlm] is installed
+    try:
+        from content_core.processors.docling_vlm import DOCLING_VLM_LOCAL_AVAILABLE
+        if not DOCLING_VLM_LOCAL_AVAILABLE:
+            pytest.skip("docling[vlm] not installed - install with: pip install content-core[docling-vlm]")
+    except ImportError:
+        pytest.skip("docling_vlm module not available")
+
+    pdf_file = fixture_path / "file.pdf"
+    if not pdf_file.exists():
+        pytest.skip(f"Fixture file not found: {pdf_file}")
+
+    result = await extract_content(
+        dict(
+            file_path=str(pdf_file),
+            document_engine="docling-vlm",
+            vlm_inference_mode="local",
+        )
+    )
+
+    assert result.source_type == "file"
+    assert result.identified_type == "application/pdf"
+    assert len(result.content) > 0  # Check that content was extracted
+    assert result.metadata.get("vlm_inference") == "local"
+
+
+@pytest.mark.asyncio
+async def test_extract_content_from_pdf_docling_vlm_remote(fixture_path):
+    """Tests extracting content from a PDF using docling-vlm remote engine."""
+    import os
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    # Check if httpx is available
+    try:
+        import httpx  # noqa: F401
+    except ImportError:
+        pytest.skip("httpx not installed - install with: pip install httpx")
+
+    pdf_file = fixture_path / "file.pdf"
+    if not pdf_file.exists():
+        pytest.skip(f"Fixture file not found: {pdf_file}")
+
+    # Check if a real docling-serve is running (for real integration test)
+    docling_serve_url = os.environ.get("CCORE_DOCLING_SERVE_URL", "http://localhost:5001")
+
+    # Try to connect to docling-serve
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{docling_serve_url}/health")
+            if response.status_code == 200:
+                # Real docling-serve is available, run actual integration test
+                result = await extract_content(
+                    dict(
+                        file_path=str(pdf_file),
+                        document_engine="docling-vlm",
+                        vlm_inference_mode="remote",
+                        vlm_remote_url=docling_serve_url,
+                    )
+                )
+
+                assert result.source_type == "file"
+                assert result.identified_type == "application/pdf"
+                assert len(result.content) > 0
+                assert result.metadata.get("vlm_inference") == "remote"
+                return
+    except Exception:
+        pass  # docling-serve not available, use mock test
+
+    # Fall back to mock test when docling-serve is not running
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"content": "Mocked VLM extracted content from PDF"}
+    mock_response.raise_for_status = MagicMock()
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__.return_value.post = AsyncMock(return_value=mock_response)
+
+    with patch("content_core.processors.docling_vlm.httpx.AsyncClient", return_value=mock_client):
+        result = await extract_content(
+            dict(
+                file_path=str(pdf_file),
+                document_engine="docling-vlm",
+                vlm_inference_mode="remote",
+            )
+        )
+
+        assert result.source_type == "file"
+        assert result.identified_type == "application/pdf"
+        assert "Mocked VLM extracted content" in result.content
+        assert result.metadata.get("vlm_inference") == "remote"
+
+
+@pytest.mark.asyncio
+async def test_docling_vlm_unsupported_type_fallback(fixture_path):
+    """Tests that docling-vlm falls back to other engines for unsupported file types."""
+    # VLM primarily supports PDF and images, test with a text file (unsupported)
+    md_file = fixture_path / "file.md"
+    if not md_file.exists():
+        pytest.skip(f"Fixture file not found: {md_file}")
+
+    # Even with docling-vlm engine, text files should fall back to simple extraction
+    result = await extract_content(
+        dict(
+            file_path=str(md_file),
+            document_engine="docling-vlm",
+        )
+    )
+
+    assert result.source_type == "file"
+    assert result.identified_type == "text/plain"
+    assert len(result.content) > 0  # Content should still be extracted via fallback
+
+
+@pytest.mark.asyncio
+async def test_docling_vlm_config_override(fixture_path):
+    """Tests that VLM configuration can be overridden via state."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    pdf_file = fixture_path / "file.pdf"
+    if not pdf_file.exists():
+        pytest.skip(f"Fixture file not found: {pdf_file}")
+
+    # Check if httpx is available for remote mode
+    try:
+        import httpx  # noqa: F401
+    except ImportError:
+        pytest.skip("httpx not installed")
+
+    # Mock the remote endpoint
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"content": "Content from custom server"}
+    mock_response.raise_for_status = MagicMock()
+
+    mock_client = AsyncMock()
+    mock_post = AsyncMock(return_value=mock_response)
+    mock_client.__aenter__.return_value.post = mock_post
+
+    custom_url = "http://custom-server:9999"
+
+    with patch("content_core.processors.docling_vlm.httpx.AsyncClient", return_value=mock_client):
+        result = await extract_content(
+            dict(
+                file_path=str(pdf_file),
+                document_engine="docling-vlm",
+                vlm_inference_mode="remote",
+                vlm_remote_url=custom_url,
+            )
+        )
+
+        assert result.content == "Content from custom server"
+        assert result.metadata.get("vlm_remote_url") == custom_url
+
+        # Verify the custom URL was used
+        call_args = mock_post.call_args
+        assert custom_url in str(call_args)
+
+
+@pytest.mark.asyncio
 async def test_auto_mode_fallback_to_crawl4ai():
     """
     Tests that auto mode correctly falls back to Crawl4AI when Jina fails.

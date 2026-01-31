@@ -22,7 +22,7 @@ CCORE_URL_ENGINE=auto       # auto, simple, firecrawl, jina, crawl4ai
 
 Content Core supports environment variable overrides for extraction engines, useful for deployment scenarios:
 
-- **`CCORE_DOCUMENT_ENGINE`**: Override document engine (`auto`, `simple`, `docling`)
+- **`CCORE_DOCUMENT_ENGINE`**: Override document engine (`auto`, `simple`, `docling`, `docling-vlm`)
 - **`CCORE_URL_ENGINE`**: Override URL engine (`auto`, `simple`, `firecrawl`, `jina`, `crawl4ai`)
 - **`FIRECRAWL_API_BASE_URL`**: Custom Firecrawl API URL for self-hosted instances (default: `https://api.firecrawl.dev`)
 
@@ -108,7 +108,7 @@ Content Core supports an optional Docling engine for advanced document parsing. 
 Add under the `extraction` section:
 ```yaml
 extraction:
-  document_engine: docling  # auto (default), simple, or docling
+  document_engine: docling  # auto (default), simple, docling, or docling-vlm
   url_engine: auto          # auto (default), simple, firecrawl, jina, or crawl4ai
   firecrawl:
     api_url: null           # Custom API URL for self-hosted Firecrawl (e.g., "http://localhost:3002")
@@ -144,6 +144,169 @@ set_firecrawl_api_url("http://localhost:3002")
 set_pymupdf_ocr_enabled(True)
 set_pymupdf_formula_threshold(2)  # Lower threshold for math-heavy docs
 ```
+
+#### VLM-Powered Extraction
+
+Content Core supports VLM (Vision-Language Model) powered document extraction using Docling's VlmPipeline. This provides enhanced document understanding through vision-language models, offering better results for complex layouts, tables, and images compared to traditional OCR.
+
+##### Installation
+
+```bash
+# For local VLM inference (transformers backend)
+pip install content-core[docling-vlm]
+
+# For Apple Silicon optimized inference (MLX backend)
+pip install content-core[docling-mlx]
+```
+
+##### Inference Modes
+
+**Local Inference**: Run granite-docling or smol-docling model directly on your machine.
+- Uses transformers backend by default
+- Auto-detects MLX on Apple Silicon for optimized performance
+- Model downloads automatically on first use (~258MB)
+
+**Remote Inference**: Call a docling-serve API endpoint.
+- Useful for offloading processing to a GPU server
+- Supports authentication via API key
+- Configurable timeout for large documents
+
+##### Configuration via YAML
+
+```yaml
+extraction:
+  document_engine: docling-vlm    # Enable VLM extraction
+  docling:
+    output_format: markdown       # markdown | html | json
+    vlm:
+      inference_mode: local       # local | remote
+      local:
+        backend: auto             # auto | transformers | mlx
+        model: granite-docling    # granite-docling | smol-docling
+      remote:
+        url: http://localhost:5001
+        api_key: null
+        timeout: 120
+      options:
+        # OCR settings
+        do_ocr: true
+        ocr_engine: easyocr       # easyocr | tesseract | tesserocr | rapidocr | ocrmac
+        # Table settings
+        table_mode: accurate      # accurate | fast
+        do_table_structure: true
+        # Enrichment settings
+        do_code_enrichment: false
+        do_formula_enrichment: false
+        # Image/picture settings
+        include_images: true
+        do_picture_classification: false
+        do_picture_description: false
+```
+
+##### Configuration via Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `CCORE_DOCUMENT_ENGINE` | Set to `docling-vlm` to enable | `auto` |
+| `CCORE_VLM_INFERENCE_MODE` | `local` or `remote` | `local` |
+| `CCORE_VLM_BACKEND` | `auto`, `transformers`, `mlx` | `auto` |
+| `CCORE_VLM_MODEL` | `granite-docling`, `smol-docling` | `granite-docling` |
+| `CCORE_DOCLING_SERVE_URL` | Remote docling-serve endpoint | `http://localhost:5001` |
+| `CCORE_DOCLING_SERVE_API_KEY` | API key for remote endpoint | `null` |
+| `CCORE_DOCLING_SERVE_TIMEOUT` | Request timeout (seconds) | `120` |
+| `CCORE_DOCLING_SERVE_PIPELINE` | Pipeline on remote server | `standard` |
+
+**VLM Processing Options (Environment Variables):**
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `CCORE_VLM_DO_OCR` | Enable OCR | `true` |
+| `CCORE_VLM_OCR_ENGINE` | OCR engine | `easyocr` |
+| `CCORE_VLM_TABLE_MODE` | Table extraction mode | `accurate` |
+| `CCORE_VLM_DO_TABLE_STRUCTURE` | Extract table structure | `true` |
+| `CCORE_VLM_DO_CODE_ENRICHMENT` | Enhance code blocks | `false` |
+| `CCORE_VLM_DO_FORMULA_ENRICHMENT` | Enhance mathematical formulas | `false` |
+| `CCORE_VLM_INCLUDE_IMAGES` | Include images in output | `true` |
+| `CCORE_VLM_DO_PICTURE_CLASSIFICATION` | Classify images | `false` |
+| `CCORE_VLM_DO_PICTURE_DESCRIPTION` | Generate image descriptions | `false` |
+
+##### Programmatic Configuration
+
+```python
+from content_core.config import (
+    set_document_engine,
+    set_vlm_inference_mode,
+    set_vlm_backend,
+    set_vlm_model,
+    set_vlm_remote_url,
+    set_vlm_remote_timeout,
+)
+
+# Enable VLM extraction
+set_document_engine("docling-vlm")
+
+# Configure local inference
+set_vlm_inference_mode("local")
+set_vlm_backend("mlx")  # Use MLX on Apple Silicon
+set_vlm_model("granite-docling")
+
+# Or configure remote inference
+set_vlm_inference_mode("remote")
+set_vlm_remote_url("http://gpu-server:5001")
+set_vlm_remote_timeout(300)
+
+# Extract document
+import content_core as cc
+result = await cc.extract("document.pdf")
+```
+
+##### Per-Request Override
+
+```python
+from content_core.common.state import ProcessSourceInput
+from content_core.content.extraction import extract_content
+
+# Override VLM settings for a specific request
+result = await extract_content(ProcessSourceInput(
+    file_path="document.pdf",
+    document_engine="docling-vlm",
+    vlm_inference_mode="remote",
+    vlm_remote_url="http://gpu-server:5001",
+    vlm_backend="transformers",
+))
+```
+
+##### Running docling-serve
+
+For remote inference, you need a running docling-serve instance:
+
+```bash
+# Using Docker
+docker run -p 5001:5001 ds4sd/docling-serve
+
+# Or with GPU support
+docker run --gpus all -p 5001:5001 ds4sd/docling-serve
+```
+
+Then configure Content Core to use it:
+
+```bash
+export CCORE_DOCUMENT_ENGINE=docling-vlm
+export CCORE_VLM_INFERENCE_MODE=remote
+export CCORE_DOCLING_SERVE_URL=http://localhost:5001
+ccore document.pdf
+```
+
+##### When to Use VLM Extraction
+
+Use VLM extraction when you need:
+- **Complex document layouts**: Multi-column documents, mixed content types
+- **Better table extraction**: Complex tables with merged cells, nested structures
+- **Enhanced image understanding**: Documents with diagrams, charts, or figures
+- **Scientific documents**: Papers with equations, code blocks, and figures
+- **High accuracy requirements**: When traditional OCR produces poor results
+
+**Note**: VLM extraction is more resource-intensive than traditional Docling extraction. For simple documents, standard Docling (`document_engine: docling`) may be sufficient.
 
 #### Self-Hosted Firecrawl
 

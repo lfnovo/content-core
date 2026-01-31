@@ -9,8 +9,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Allowed engine values for validation
-ALLOWED_DOCUMENT_ENGINES = {"auto", "simple", "docling"}
+ALLOWED_DOCUMENT_ENGINES = {"auto", "simple", "docling", "docling-vlm"}
 ALLOWED_URL_ENGINES = {"auto", "simple", "firecrawl", "jina", "crawl4ai"}
+
+# VLM-specific allowed values
+ALLOWED_VLM_INFERENCE_MODES = {"local", "remote"}
+ALLOWED_VLM_BACKENDS = {"auto", "transformers", "mlx"}
+ALLOWED_VLM_MODELS = {"granite-docling", "smol-docling"}
 
 # Allowed retry operation types
 ALLOWED_RETRY_OPERATIONS = {
@@ -629,3 +634,417 @@ def get_no_proxy() -> list:
 
     # Fall back to YAML config
     return CONFIG.get("proxy", {}).get("no_proxy", ["localhost", "127.0.0.1"])
+
+
+# VLM Configuration Functions
+# ===========================
+
+
+def get_vlm_inference_mode() -> str:
+    """
+    Get VLM inference mode with environment variable override.
+
+    Configuration priority (highest to lowest):
+    1. Environment variable CCORE_VLM_INFERENCE_MODE
+    2. YAML config (extraction.docling.vlm.inference_mode)
+    3. Default: 'local'
+
+    Returns:
+        str: 'local' or 'remote'
+    """
+    env_mode = os.environ.get("CCORE_VLM_INFERENCE_MODE")
+    if env_mode:
+        if env_mode not in ALLOWED_VLM_INFERENCE_MODES:
+            from content_core.logging import logger
+
+            logger.warning(
+                f"Invalid CCORE_VLM_INFERENCE_MODE: '{env_mode}'. "
+                f"Allowed values: {', '.join(sorted(ALLOWED_VLM_INFERENCE_MODES))}. "
+                f"Using default from config."
+            )
+            return (
+                CONFIG.get("extraction", {})
+                .get("docling", {})
+                .get("vlm", {})
+                .get("inference_mode", "local")
+            )
+        return env_mode
+    return (
+        CONFIG.get("extraction", {})
+        .get("docling", {})
+        .get("vlm", {})
+        .get("inference_mode", "local")
+    )
+
+
+def get_vlm_backend() -> str:
+    """
+    Get VLM backend with environment variable override.
+
+    Configuration priority (highest to lowest):
+    1. Environment variable CCORE_VLM_BACKEND
+    2. YAML config (extraction.docling.vlm.local.backend)
+    3. Default: 'auto'
+
+    Returns:
+        str: 'auto', 'transformers', or 'mlx'
+    """
+    env_backend = os.environ.get("CCORE_VLM_BACKEND")
+    if env_backend:
+        if env_backend not in ALLOWED_VLM_BACKENDS:
+            from content_core.logging import logger
+
+            logger.warning(
+                f"Invalid CCORE_VLM_BACKEND: '{env_backend}'. "
+                f"Allowed values: {', '.join(sorted(ALLOWED_VLM_BACKENDS))}. "
+                f"Using default from config."
+            )
+            return (
+                CONFIG.get("extraction", {})
+                .get("docling", {})
+                .get("vlm", {})
+                .get("local", {})
+                .get("backend", "auto")
+            )
+        return env_backend
+    return (
+        CONFIG.get("extraction", {})
+        .get("docling", {})
+        .get("vlm", {})
+        .get("local", {})
+        .get("backend", "auto")
+    )
+
+
+def get_vlm_model() -> str:
+    """
+    Get VLM model with environment variable override.
+
+    Configuration priority (highest to lowest):
+    1. Environment variable CCORE_VLM_MODEL
+    2. YAML config (extraction.docling.vlm.local.model)
+    3. Default: 'granite-docling'
+
+    Returns:
+        str: 'granite-docling' or 'smol-docling'
+    """
+    env_model = os.environ.get("CCORE_VLM_MODEL")
+    if env_model:
+        if env_model not in ALLOWED_VLM_MODELS:
+            from content_core.logging import logger
+
+            logger.warning(
+                f"Invalid CCORE_VLM_MODEL: '{env_model}'. "
+                f"Allowed values: {', '.join(sorted(ALLOWED_VLM_MODELS))}. "
+                f"Using default from config."
+            )
+            return (
+                CONFIG.get("extraction", {})
+                .get("docling", {})
+                .get("vlm", {})
+                .get("local", {})
+                .get("model", "granite-docling")
+            )
+        return env_model
+    return (
+        CONFIG.get("extraction", {})
+        .get("docling", {})
+        .get("vlm", {})
+        .get("local", {})
+        .get("model", "granite-docling")
+    )
+
+
+def get_vlm_remote_url() -> str:
+    """
+    Get docling-serve URL with environment variable override.
+
+    Configuration priority (highest to lowest):
+    1. Environment variable CCORE_DOCLING_SERVE_URL
+    2. YAML config (extraction.docling.vlm.remote.url)
+    3. Default: 'http://localhost:5001'
+
+    Returns:
+        str: The docling-serve URL
+    """
+    env_url = os.environ.get("CCORE_DOCLING_SERVE_URL")
+    if env_url:
+        return env_url
+    return (
+        CONFIG.get("extraction", {})
+        .get("docling", {})
+        .get("vlm", {})
+        .get("remote", {})
+        .get("url", "http://localhost:5001")
+    )
+
+
+def get_vlm_remote_api_key() -> str | None:
+    """
+    Get docling-serve API key with environment variable override.
+
+    Configuration priority (highest to lowest):
+    1. Environment variable CCORE_DOCLING_SERVE_API_KEY
+    2. YAML config (extraction.docling.vlm.remote.api_key)
+    3. Default: None
+
+    Returns:
+        str | None: The API key or None if not configured
+    """
+    env_key = os.environ.get("CCORE_DOCLING_SERVE_API_KEY")
+    if env_key:
+        return env_key
+    return (
+        CONFIG.get("extraction", {})
+        .get("docling", {})
+        .get("vlm", {})
+        .get("remote", {})
+        .get("api_key")
+    )
+
+
+def get_vlm_remote_timeout() -> int:
+    """
+    Get docling-serve timeout with environment variable override.
+
+    Configuration priority (highest to lowest):
+    1. Environment variable CCORE_DOCLING_SERVE_TIMEOUT
+    2. YAML config (extraction.docling.vlm.remote.timeout)
+    3. Default: 120 seconds
+
+    Returns:
+        int: Timeout in seconds
+    """
+    env_timeout = os.environ.get("CCORE_DOCLING_SERVE_TIMEOUT")
+    if env_timeout:
+        try:
+            timeout = int(env_timeout)
+            if timeout < MIN_TIMEOUT_SECONDS or timeout > MAX_TIMEOUT_SECONDS:
+                from content_core.logging import logger
+
+                logger.warning(
+                    f"Invalid CCORE_DOCLING_SERVE_TIMEOUT: '{env_timeout}'. "
+                    f"Must be between {MIN_TIMEOUT_SECONDS} and {MAX_TIMEOUT_SECONDS} seconds. "
+                    f"Using default from config."
+                )
+                return (
+                    CONFIG.get("extraction", {})
+                    .get("docling", {})
+                    .get("vlm", {})
+                    .get("remote", {})
+                    .get("timeout", 120)
+                )
+            return timeout
+        except ValueError:
+            from content_core.logging import logger
+
+            logger.warning(
+                f"Invalid CCORE_DOCLING_SERVE_TIMEOUT: '{env_timeout}'. "
+                f"Must be a valid integer. Using default from config."
+            )
+            return (
+                CONFIG.get("extraction", {})
+                .get("docling", {})
+                .get("vlm", {})
+                .get("remote", {})
+                .get("timeout", 120)
+            )
+    return (
+        CONFIG.get("extraction", {})
+        .get("docling", {})
+        .get("vlm", {})
+        .get("remote", {})
+        .get("timeout", 120)
+    )
+
+
+def get_vlm_options() -> dict:
+    """
+    Get docling VLM processing options from config with environment variable overrides.
+
+    These options apply to both local and remote VLM extraction.
+
+    Environment variable overrides (all optional):
+    - CCORE_VLM_DO_OCR: Enable OCR (true/false)
+    - CCORE_VLM_OCR_ENGINE: OCR engine (easyocr, tesseract, etc.)
+    - CCORE_VLM_TABLE_MODE: Table extraction mode (accurate, fast)
+    - CCORE_VLM_DO_CODE_ENRICHMENT: Enable code enrichment (true/false)
+    - CCORE_VLM_DO_FORMULA_ENRICHMENT: Enable formula enrichment (true/false)
+    - CCORE_VLM_DO_PICTURE_CLASSIFICATION: Enable picture classification (true/false)
+    - CCORE_VLM_DO_PICTURE_DESCRIPTION: Enable picture description (true/false)
+
+    Returns:
+        dict: Options for docling processing
+    """
+    # Default options
+    defaults = {
+        "do_ocr": True,
+        "ocr_engine": "easyocr",
+        "table_mode": "accurate",
+        "do_table_structure": True,
+        "do_code_enrichment": False,
+        "do_formula_enrichment": False,
+        "include_images": True,
+        "do_picture_classification": False,
+        "do_picture_description": False,
+    }
+
+    # Get from YAML config
+    yaml_options = (
+        CONFIG.get("extraction", {})
+        .get("docling", {})
+        .get("vlm", {})
+        .get("options", {})
+    )
+
+    # Merge with defaults
+    options = {**defaults, **yaml_options}
+
+    # Environment variable overrides
+    def parse_bool(val: str) -> bool:
+        return val.lower() in ("true", "1", "yes", "on")
+
+    env_mappings = {
+        "CCORE_VLM_DO_OCR": ("do_ocr", parse_bool),
+        "CCORE_VLM_OCR_ENGINE": ("ocr_engine", str),
+        "CCORE_VLM_TABLE_MODE": ("table_mode", str),
+        "CCORE_VLM_DO_TABLE_STRUCTURE": ("do_table_structure", parse_bool),
+        "CCORE_VLM_DO_CODE_ENRICHMENT": ("do_code_enrichment", parse_bool),
+        "CCORE_VLM_DO_FORMULA_ENRICHMENT": ("do_formula_enrichment", parse_bool),
+        "CCORE_VLM_INCLUDE_IMAGES": ("include_images", parse_bool),
+        "CCORE_VLM_DO_PICTURE_CLASSIFICATION": ("do_picture_classification", parse_bool),
+        "CCORE_VLM_DO_PICTURE_DESCRIPTION": ("do_picture_description", parse_bool),
+    }
+
+    for env_var, (option_key, converter) in env_mappings.items():
+        env_val = os.environ.get(env_var)
+        if env_val is not None:
+            try:
+                options[option_key] = converter(env_val)
+            except (ValueError, TypeError):
+                from content_core.logging import logger
+                logger.warning(f"Invalid {env_var}: '{env_val}'. Using default.")
+
+    return options
+
+
+# Backward compatibility alias
+def get_vlm_remote_options() -> dict:
+    """Alias for get_vlm_options() for backward compatibility."""
+    return get_vlm_options()
+
+
+# VLM Programmatic Setters
+# ========================
+
+
+def set_vlm_inference_mode(mode: str) -> None:
+    """
+    Override the VLM inference mode ('local' or 'remote').
+
+    Args:
+        mode: 'local' for local inference, 'remote' for docling-serve
+
+    Raises:
+        ValueError: If mode is not 'local' or 'remote'
+    """
+    if mode not in ALLOWED_VLM_INFERENCE_MODES:
+        raise ValueError(
+            f"VLM inference mode must be one of {ALLOWED_VLM_INFERENCE_MODES}, got: {mode}"
+        )
+    extraction = CONFIG.setdefault("extraction", {})
+    docling_cfg = extraction.setdefault("docling", {})
+    vlm_cfg = docling_cfg.setdefault("vlm", {})
+    vlm_cfg["inference_mode"] = mode
+
+
+def set_vlm_backend(backend: str) -> None:
+    """
+    Override the VLM backend ('auto', 'transformers', or 'mlx').
+
+    Args:
+        backend: 'auto' for automatic detection, 'transformers' or 'mlx' for specific backend
+
+    Raises:
+        ValueError: If backend is not valid
+    """
+    if backend not in ALLOWED_VLM_BACKENDS:
+        raise ValueError(
+            f"VLM backend must be one of {ALLOWED_VLM_BACKENDS}, got: {backend}"
+        )
+    extraction = CONFIG.setdefault("extraction", {})
+    docling_cfg = extraction.setdefault("docling", {})
+    vlm_cfg = docling_cfg.setdefault("vlm", {})
+    local_cfg = vlm_cfg.setdefault("local", {})
+    local_cfg["backend"] = backend
+
+
+def set_vlm_model(model: str) -> None:
+    """
+    Override the VLM model ('granite-docling' or 'smol-docling').
+
+    Args:
+        model: The model to use for VLM extraction
+
+    Raises:
+        ValueError: If model is not valid
+    """
+    if model not in ALLOWED_VLM_MODELS:
+        raise ValueError(
+            f"VLM model must be one of {ALLOWED_VLM_MODELS}, got: {model}"
+        )
+    extraction = CONFIG.setdefault("extraction", {})
+    docling_cfg = extraction.setdefault("docling", {})
+    vlm_cfg = docling_cfg.setdefault("vlm", {})
+    local_cfg = vlm_cfg.setdefault("local", {})
+    local_cfg["model"] = model
+
+
+def set_vlm_remote_url(url: str) -> None:
+    """
+    Override the docling-serve URL.
+
+    Args:
+        url: The URL of the docling-serve endpoint
+    """
+    extraction = CONFIG.setdefault("extraction", {})
+    docling_cfg = extraction.setdefault("docling", {})
+    vlm_cfg = docling_cfg.setdefault("vlm", {})
+    remote_cfg = vlm_cfg.setdefault("remote", {})
+    remote_cfg["url"] = url
+
+
+def set_vlm_remote_api_key(api_key: str | None) -> None:
+    """
+    Override the docling-serve API key.
+
+    Args:
+        api_key: The API key for authentication, or None to disable
+    """
+    extraction = CONFIG.setdefault("extraction", {})
+    docling_cfg = extraction.setdefault("docling", {})
+    vlm_cfg = docling_cfg.setdefault("vlm", {})
+    remote_cfg = vlm_cfg.setdefault("remote", {})
+    remote_cfg["api_key"] = api_key
+
+
+def set_vlm_remote_timeout(timeout: int) -> None:
+    """
+    Override the docling-serve timeout.
+
+    Args:
+        timeout: Timeout in seconds (1-3600)
+
+    Raises:
+        ValueError: If timeout is out of range
+    """
+    if timeout < MIN_TIMEOUT_SECONDS or timeout > MAX_TIMEOUT_SECONDS:
+        raise ValueError(
+            f"VLM remote timeout must be between {MIN_TIMEOUT_SECONDS} and "
+            f"{MAX_TIMEOUT_SECONDS} seconds, got: {timeout}"
+        )
+    extraction = CONFIG.setdefault("extraction", {})
+    docling_cfg = extraction.setdefault("docling", {})
+    vlm_cfg = docling_cfg.setdefault("vlm", {})
+    remote_cfg = vlm_cfg.setdefault("remote", {})
+    remote_cfg["timeout"] = timeout
