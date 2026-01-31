@@ -39,6 +39,10 @@ from content_core.processors.office import (
     extract_office_content,
 )
 from content_core.processors.pdf import SUPPORTED_FITZ_TYPES, extract_pdf
+from content_core.processors.pdf_llm import (
+    SUPPORTED_PYMUPDF4LLM_TYPES,
+    extract_with_pymupdf4llm,
+)
 from content_core.processors.text import extract_txt, process_text_content
 from content_core.processors.url import extract_url, url_provider
 from content_core.processors.video import extract_best_audio_from_video
@@ -82,8 +86,9 @@ async def file_type_edge(data: ProcessSourceState) -> str:
 
     if identified_type == "text/plain":
         return "extract_txt"
-    elif identified_type in SUPPORTED_FITZ_TYPES:
-        return "extract_pdf"
+    elif identified_type in SUPPORTED_PYMUPDF4LLM_TYPES:
+        # Use pymupdf4llm for better markdown output (replaces old extract_pdf)
+        return "extract_pymupdf4llm"
     elif identified_type in SUPPORTED_OFFICE_TYPES:
         return "extract_office_content"
     elif identified_type.startswith("video"):
@@ -161,9 +166,10 @@ async def download_remote_file(state: ProcessSourceState) -> Dict[str, Any]:
 
 async def file_type_router_docling(state: ProcessSourceState) -> str:
     """
-    Route to Docling or VLM if enabled and supported; otherwise use simple file type edge.
-    Supports 'auto', 'docling', 'docling-vlm', and 'simple'.
+    Route to appropriate extraction engine based on configuration.
+    Supports 'auto', 'simple', 'docling', 'docling-vlm'.
     'auto' tries docling first, then falls back to simple if docling fails.
+    'simple' uses pymupdf4llm for optimized markdown output.
     """
     # Use environment-aware engine selection
     engine = state.document_engine or get_document_engine()
@@ -235,6 +241,9 @@ workflow.add_node("extract_youtube_transcript", extract_youtube_transcript)
 workflow.add_node("delete_file", delete_file)
 workflow.add_node("download_remote_file", download_remote_file)
 workflow.add_node("process_text_content", process_text_content)
+# Add pymupdf4llm node
+workflow.add_node("extract_pymupdf4llm", extract_with_pymupdf4llm)
+
 # Only add docling node if available
 if DOCLING_AVAILABLE:
     workflow.add_node("extract_docling", extract_with_docling)
@@ -282,6 +291,7 @@ workflow.add_edge("extract_youtube_transcript", END)
 workflow.add_edge("process_text_content", END)
 
 workflow.add_edge("extract_pdf", "delete_file")
+workflow.add_edge("extract_pymupdf4llm", "delete_file")
 workflow.add_edge("extract_office_content", "delete_file")
 workflow.add_edge("extract_best_audio_from_video", "extract_audio_data")
 workflow.add_edge("extract_audio_data", "delete_file")
