@@ -315,50 +315,99 @@ class TestVLMStateOverrides:
 
 
 class TestVLMOptions:
-    """Test VLM processing options configuration."""
+    """Test VLM processing options configuration (via get_docling_options)."""
 
-    def test_get_vlm_options_defaults(self):
-        """Test default VLM options."""
-        from content_core.config import get_vlm_options
+    def test_get_docling_options_defaults(self):
+        """Test default docling options."""
+        from content_core.config import get_docling_options
 
         with patch.dict(os.environ, {}, clear=True):
-            options = get_vlm_options()
+            options = get_docling_options()
 
+            # Core options
             assert "do_ocr" in options
             assert "ocr_engine" in options
+            assert "force_full_page_ocr" in options
             assert "table_mode" in options
             assert "do_table_structure" in options
             assert "do_code_enrichment" in options
             assert "do_formula_enrichment" in options
-            assert "include_images" in options
             assert "do_picture_classification" in options
             assert "do_picture_description" in options
+            # New image generation options
+            assert "generate_page_images" in options
+            assert "generate_picture_images" in options
+            assert "images_scale" in options
+            assert "document_timeout" in options
 
-    def test_get_vlm_options_env_override_bool(self):
+            # Verify optimized defaults
+            assert options["do_ocr"] is True
+            assert options["ocr_engine"] == "easyocr"
+            assert options["table_mode"] == "accurate"
+            assert options["do_formula_enrichment"] is True  # Enabled for papers
+            assert options["do_picture_description"] is False  # Heavy, opt-in
+
+    def test_get_docling_options_env_override_bool(self):
         """Test boolean environment variable overrides."""
-        from content_core.config import get_vlm_options
+        from content_core.config import get_docling_options
 
         with patch.dict(os.environ, {
-            "CCORE_VLM_DO_OCR": "false",
-            "CCORE_VLM_DO_CODE_ENRICHMENT": "true",
+            "CCORE_DOCLING_DO_OCR": "false",
+            "CCORE_DOCLING_DO_CODE_ENRICHMENT": "true",
+            "CCORE_DOCLING_FORCE_FULL_PAGE_OCR": "true",
         }):
-            options = get_vlm_options()
+            options = get_docling_options()
 
             assert options["do_ocr"] is False
             assert options["do_code_enrichment"] is True
+            assert options["force_full_page_ocr"] is True
 
-    def test_get_vlm_options_env_override_string(self):
+    def test_get_docling_options_env_override_string(self):
         """Test string environment variable overrides."""
-        from content_core.config import get_vlm_options
+        from content_core.config import get_docling_options
 
         with patch.dict(os.environ, {
-            "CCORE_VLM_OCR_ENGINE": "tesseract",
-            "CCORE_VLM_TABLE_MODE": "fast",
+            "CCORE_DOCLING_OCR_ENGINE": "tesseract",
+            "CCORE_DOCLING_TABLE_MODE": "fast",
         }):
-            options = get_vlm_options()
+            options = get_docling_options()
 
             assert options["ocr_engine"] == "tesseract"
             assert options["table_mode"] == "fast"
+
+    def test_get_docling_options_env_override_numeric(self):
+        """Test numeric environment variable overrides."""
+        from content_core.config import get_docling_options
+
+        with patch.dict(os.environ, {
+            "CCORE_DOCLING_IMAGES_SCALE": "2.0",
+            "CCORE_DOCLING_DOCUMENT_TIMEOUT": "300",
+        }):
+            options = get_docling_options()
+
+            assert options["images_scale"] == 2.0
+            assert options["document_timeout"] == 300
+
+    def test_get_docling_options_env_override_null_timeout(self):
+        """Test null value for timeout via environment variable."""
+        from content_core.config import get_docling_options
+
+        with patch.dict(os.environ, {
+            "CCORE_DOCLING_DOCUMENT_TIMEOUT": "null",
+        }):
+            options = get_docling_options()
+
+            assert options["document_timeout"] is None
+
+    def test_get_vlm_options_alias(self):
+        """Test that get_vlm_options is an alias for get_docling_options."""
+        from content_core.config import get_docling_options, get_vlm_options
+
+        with patch.dict(os.environ, {}, clear=True):
+            docling_opts = get_docling_options()
+            vlm_opts = get_vlm_options()
+
+            assert docling_opts == vlm_opts
 
 
 class TestVLMLocalNotAvailable:

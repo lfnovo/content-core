@@ -18,10 +18,10 @@ from typing import Any, Dict
 from content_core.common.state import ProcessSourceState
 from content_core.config import (
     CONFIG,
+    get_docling_options,
     get_vlm_backend,
     get_vlm_inference_mode,
     get_vlm_model,
-    get_vlm_options,
     get_vlm_remote_api_key,
     get_vlm_remote_timeout,
     get_vlm_remote_url,
@@ -135,6 +135,18 @@ async def extract_with_vlm_local(state: ProcessSourceState) -> Dict[str, Any]:
 
     Uses Docling's VlmPipeline with either transformers or MLX backend.
 
+    Note: VlmPipelineOptions supports a subset of options compared to PdfPipelineOptions.
+    Options like do_ocr, ocr_engine, table_mode, and enrichment settings are NOT applicable
+    to VLM pipelines since VLM uses vision-based processing rather than traditional OCR.
+
+    Applicable options for VLM local:
+    - generate_page_images
+    - generate_picture_images
+    - images_scale
+    - do_picture_classification
+    - do_picture_description
+    - document_timeout
+
     Args:
         state: ProcessSourceState with file_path, url, or content
 
@@ -178,6 +190,9 @@ async def extract_with_vlm_local(state: ProcessSourceState) -> Dict[str, Any]:
 
     logger.info(f"Using VLM local extraction with {model_name} ({backend} backend)")
 
+    # Get docling options
+    options = get_docling_options()
+
     # Configure pipeline options
     pipeline_options = VlmPipelineOptions(vlm_model=model_spec)
 
@@ -186,6 +201,25 @@ async def extract_with_vlm_local(state: ProcessSourceState) -> Dict[str, Any]:
         device = _detect_best_device()
         pipeline_options.accelerator_options.device = device
         logger.debug(f"Using device: {device}")
+
+    # Apply options that VlmPipelineOptions supports
+    # Note: VLM uses vision, so OCR/table/enrichment options don't apply
+    pipeline_options.generate_page_images = options.get("generate_page_images", False)
+    pipeline_options.generate_picture_images = options.get("generate_picture_images", False)
+    pipeline_options.images_scale = options.get("images_scale", 1.0)
+    pipeline_options.do_picture_classification = options.get("do_picture_classification", False)
+    pipeline_options.do_picture_description = options.get("do_picture_description", False)
+
+    # Apply timeout if configured
+    timeout = options.get("document_timeout")
+    if timeout is not None:
+        pipeline_options.document_timeout = float(timeout)
+
+    logger.debug(
+        f"VLM local options: generate_page_images={options.get('generate_page_images')}, "
+        f"generate_picture_images={options.get('generate_picture_images')}, "
+        f"do_picture_description={options.get('do_picture_description')}"
+    )
 
     # Create converter with VLM pipeline
     converter = DocumentConverter(
@@ -251,7 +285,7 @@ async def extract_with_vlm_remote(state: ProcessSourceState) -> Dict[str, Any]:
     base_url = state.vlm_remote_url or get_vlm_remote_url()
     api_key = get_vlm_remote_api_key()
     timeout = get_vlm_remote_timeout()
-    options = get_vlm_options()
+    options = get_docling_options()
 
     # Determine output format
     cfg_fmt = (
@@ -282,19 +316,27 @@ async def extract_with_vlm_remote(state: ProcessSourceState) -> Dict[str, Any]:
             # OCR settings
             "do_ocr": options.get("do_ocr", True),
             "ocr_engine": options.get("ocr_engine", "easyocr"),
+            "force_full_page_ocr": options.get("force_full_page_ocr", False),
             # Table settings
             "table_mode": options.get("table_mode", "accurate"),
             "do_table_structure": options.get("do_table_structure", True),
             # Enrichment settings
             "do_code_enrichment": options.get("do_code_enrichment", False),
-            "do_formula_enrichment": options.get("do_formula_enrichment", False),
+            "do_formula_enrichment": options.get("do_formula_enrichment", True),
             # Image/picture settings
-            "include_images": options.get("include_images", True),
+            "generate_page_images": options.get("generate_page_images", False),
+            "generate_picture_images": options.get("generate_picture_images", False),
+            "images_scale": options.get("images_scale", 1.0),
             "do_picture_classification": options.get("do_picture_classification", False),
             "do_picture_description": options.get("do_picture_description", False),
         },
         "sources": [],
     }
+
+    # Add document timeout if configured
+    doc_timeout = options.get("document_timeout")
+    if doc_timeout is not None:
+        payload["options"]["document_timeout"] = float(doc_timeout)
     logger.debug(f"Using docling-serve pipeline: {pipeline}")
 
     if state.url:

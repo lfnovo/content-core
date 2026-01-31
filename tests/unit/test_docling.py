@@ -18,6 +18,10 @@ class DummyDoc:
     export_to_json = to_json
 
 class DummyConverter:
+    def __init__(self, format_options=None):
+        # Accept format_options kwarg to match new signature
+        self.format_options = format_options
+
     def convert(self, source):
         if os.path.exists(source):
             return SimpleNamespace(document=DummyDoc("file:" + source))

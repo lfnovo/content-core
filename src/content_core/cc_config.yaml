@@ -43,6 +43,27 @@ extraction:
                    # Environment variable FIRECRAWL_API_BASE_URL takes precedence
   docling:
     output_format: markdown  # markdown | html | json
+    # Processing options for both standard docling and VLM extraction
+    # These options apply to PDF processing and can be overridden via environment variables
+    options:
+      # OCR settings - enabled by default for scanned PDFs
+      do_ocr: true
+      ocr_engine: easyocr          # easyocr | tesseract | tesserocr | rapidocr | ocrmac
+      force_full_page_ocr: false   # Only OCR where necessary (not full page)
+      # Table settings - accurate mode by default for better quality
+      table_mode: accurate         # accurate | fast
+      do_table_structure: true     # Preserve table structure
+      # Enrichment settings - formula enabled for scientific papers
+      do_code_enrichment: false    # Code block enrichment (rarely needed)
+      do_formula_enrichment: true  # LaTeX formula enrichment (useful for papers)
+      # Image/picture settings - minimal by default (smaller output)
+      generate_page_images: false
+      generate_picture_images: false
+      images_scale: 1.0
+      do_picture_classification: false
+      do_picture_description: false  # Requires VLM, computationally expensive
+      # Timeout - no limit by default
+      document_timeout: null
     vlm:
       inference_mode: local      # local | remote
       local:
@@ -52,20 +73,6 @@ extraction:
         url: http://localhost:5001
         api_key: null
         timeout: 120
-      options:
-        # OCR settings
-        do_ocr: true
-        ocr_engine: easyocr        # easyocr | tesseract | tesserocr | rapidocr | ocrmac
-        # Table settings
-        table_mode: accurate       # accurate | fast
-        do_table_structure: true
-        # Enrichment settings
-        do_code_enrichment: false
-        do_formula_enrichment: false
-        # Image/picture settings
-        include_images: true
-        do_picture_classification: false
-        do_picture_description: false
   pymupdf:
     enable_formula_ocr: false    # Enable OCR for formula-heavy pages (requires Tesseract)
     formula_threshold: 3         # Minimum formulas per page to trigger OCR

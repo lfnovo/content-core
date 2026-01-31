@@ -689,42 +689,51 @@ def get_vlm_remote_timeout() -> int:
     )
 
 
-def get_vlm_options() -> dict:
+def get_docling_options() -> dict:
     """
-    Get docling VLM processing options from config with environment variable overrides.
+    Get docling processing options from config with environment variable overrides.
 
-    These options apply to both local and remote VLM extraction.
+    These options apply to both standard docling and VLM extraction.
 
     Environment variable overrides (all optional):
-    - CCORE_VLM_DO_OCR: Enable OCR (true/false)
-    - CCORE_VLM_OCR_ENGINE: OCR engine (easyocr, tesseract, etc.)
-    - CCORE_VLM_TABLE_MODE: Table extraction mode (accurate, fast)
-    - CCORE_VLM_DO_CODE_ENRICHMENT: Enable code enrichment (true/false)
-    - CCORE_VLM_DO_FORMULA_ENRICHMENT: Enable formula enrichment (true/false)
-    - CCORE_VLM_DO_PICTURE_CLASSIFICATION: Enable picture classification (true/false)
-    - CCORE_VLM_DO_PICTURE_DESCRIPTION: Enable picture description (true/false)
+    - CCORE_DOCLING_DO_OCR: Enable OCR (true/false)
+    - CCORE_DOCLING_OCR_ENGINE: OCR engine (easyocr, tesseract, etc.)
+    - CCORE_DOCLING_FORCE_FULL_PAGE_OCR: Force OCR on entire page (true/false)
+    - CCORE_DOCLING_TABLE_MODE: Table extraction mode (accurate, fast)
+    - CCORE_DOCLING_DO_TABLE_STRUCTURE: Extract table structure (true/false)
+    - CCORE_DOCLING_DO_CODE_ENRICHMENT: Enable code enrichment (true/false)
+    - CCORE_DOCLING_DO_FORMULA_ENRICHMENT: Enable formula enrichment (true/false)
+    - CCORE_DOCLING_GENERATE_PAGE_IMAGES: Generate page images (true/false)
+    - CCORE_DOCLING_GENERATE_PICTURE_IMAGES: Generate picture images (true/false)
+    - CCORE_DOCLING_IMAGES_SCALE: Image scale factor (float)
+    - CCORE_DOCLING_DO_PICTURE_CLASSIFICATION: Enable picture classification (true/false)
+    - CCORE_DOCLING_DO_PICTURE_DESCRIPTION: Enable picture description (true/false)
+    - CCORE_DOCLING_DOCUMENT_TIMEOUT: Document processing timeout in seconds (int)
 
     Returns:
         dict: Options for docling processing
     """
-    # Default options
+    # Default options (optimized for out-of-box experience)
     defaults = {
         "do_ocr": True,
         "ocr_engine": "easyocr",
+        "force_full_page_ocr": False,
         "table_mode": "accurate",
         "do_table_structure": True,
         "do_code_enrichment": False,
-        "do_formula_enrichment": False,
-        "include_images": True,
+        "do_formula_enrichment": True,  # Enabled for scientific papers
+        "generate_page_images": False,
+        "generate_picture_images": False,
+        "images_scale": 1.0,
         "do_picture_classification": False,
         "do_picture_description": False,
+        "document_timeout": None,
     }
 
-    # Get from YAML config
+    # Get from YAML config (new location: extraction.docling.options)
     yaml_options = (
         CONFIG.get("extraction", {})
         .get("docling", {})
-        .get("vlm", {})
         .get("options", {})
     )
 
@@ -735,16 +744,30 @@ def get_vlm_options() -> dict:
     def parse_bool(val: str) -> bool:
         return val.lower() in ("true", "1", "yes", "on")
 
+    def parse_optional_int(val: str):
+        if val.lower() in ("null", "none", ""):
+            return None
+        return int(val)
+
+    def parse_optional_float(val: str):
+        if val.lower() in ("null", "none", ""):
+            return None
+        return float(val)
+
     env_mappings = {
-        "CCORE_VLM_DO_OCR": ("do_ocr", parse_bool),
-        "CCORE_VLM_OCR_ENGINE": ("ocr_engine", str),
-        "CCORE_VLM_TABLE_MODE": ("table_mode", str),
-        "CCORE_VLM_DO_TABLE_STRUCTURE": ("do_table_structure", parse_bool),
-        "CCORE_VLM_DO_CODE_ENRICHMENT": ("do_code_enrichment", parse_bool),
-        "CCORE_VLM_DO_FORMULA_ENRICHMENT": ("do_formula_enrichment", parse_bool),
-        "CCORE_VLM_INCLUDE_IMAGES": ("include_images", parse_bool),
-        "CCORE_VLM_DO_PICTURE_CLASSIFICATION": ("do_picture_classification", parse_bool),
-        "CCORE_VLM_DO_PICTURE_DESCRIPTION": ("do_picture_description", parse_bool),
+        "CCORE_DOCLING_DO_OCR": ("do_ocr", parse_bool),
+        "CCORE_DOCLING_OCR_ENGINE": ("ocr_engine", str),
+        "CCORE_DOCLING_FORCE_FULL_PAGE_OCR": ("force_full_page_ocr", parse_bool),
+        "CCORE_DOCLING_TABLE_MODE": ("table_mode", str),
+        "CCORE_DOCLING_DO_TABLE_STRUCTURE": ("do_table_structure", parse_bool),
+        "CCORE_DOCLING_DO_CODE_ENRICHMENT": ("do_code_enrichment", parse_bool),
+        "CCORE_DOCLING_DO_FORMULA_ENRICHMENT": ("do_formula_enrichment", parse_bool),
+        "CCORE_DOCLING_GENERATE_PAGE_IMAGES": ("generate_page_images", parse_bool),
+        "CCORE_DOCLING_GENERATE_PICTURE_IMAGES": ("generate_picture_images", parse_bool),
+        "CCORE_DOCLING_IMAGES_SCALE": ("images_scale", parse_optional_float),
+        "CCORE_DOCLING_DO_PICTURE_CLASSIFICATION": ("do_picture_classification", parse_bool),
+        "CCORE_DOCLING_DO_PICTURE_DESCRIPTION": ("do_picture_description", parse_bool),
+        "CCORE_DOCLING_DOCUMENT_TIMEOUT": ("document_timeout", parse_optional_int),
     }
 
     for env_var, (option_key, converter) in env_mappings.items():
@@ -760,10 +783,15 @@ def get_vlm_options() -> dict:
     return options
 
 
-# Backward compatibility alias
+# Backward compatibility aliases
+def get_vlm_options() -> dict:
+    """Alias for get_docling_options() for backward compatibility."""
+    return get_docling_options()
+
+
 def get_vlm_remote_options() -> dict:
-    """Alias for get_vlm_options() for backward compatibility."""
-    return get_vlm_options()
+    """Alias for get_docling_options() for backward compatibility."""
+    return get_docling_options()
 
 
 # VLM Programmatic Setters
