@@ -675,40 +675,23 @@ For detailed configuration, see our [Usage Documentation](docs/usage.md#retry-co
 
 ### Proxy Configuration
 
-Content Core supports HTTP/HTTPS proxy configuration for all external network requests. This is useful when operating in corporate environments, behind firewalls, or when you need to route traffic through a specific server.
-
-**Configuration Methods** (in priority order):
-
-1. **Per-request**: Pass `proxy` parameter directly in `ProcessSourceInput`
-2. **Programmatic**: Use `set_proxy()` for runtime configuration
-3. **Environment Variables**: `CCORE_HTTP_PROXY`, `HTTP_PROXY`, or `HTTPS_PROXY`
-4. **YAML Config**: Set in `cc_config.yaml`
+Content Core supports HTTP/HTTPS proxy configuration through standard environment variables, consistent with most HTTP clients.
 
 **Quick Start:**
 
 ```bash
-# Via environment variable
-export CCORE_HTTP_PROXY=http://proxy.example.com:8080
+# Set standard proxy environment variables
+export HTTP_PROXY=http://proxy.example.com:8080
+export HTTPS_PROXY=http://proxy.example.com:8080
 
 # With authentication
-export CCORE_HTTP_PROXY=http://user:password@proxy.example.com:8080
+export HTTP_PROXY=http://user:password@proxy.example.com:8080
+
+# Bypass proxy for specific hosts
+export NO_PROXY=localhost,127.0.0.1,internal.example.com
 ```
 
-```python
-# Programmatic configuration
-from content_core.config import set_proxy, clear_proxy
-
-set_proxy("http://proxy.example.com:8080")
-# ... use Content Core ...
-clear_proxy()  # Reset to default behavior
-
-# Per-request override
-from content_core.common import ProcessSourceInput
-result = await cc.extract(ProcessSourceInput(
-    url="https://example.com",
-    proxy="http://specific-proxy:8080"
-))
-```
+All Content Core network requests automatically use these environment variables.
 
 **Supported Services:**
 - All aiohttp requests (URL extraction, downloads)
@@ -716,9 +699,9 @@ result = await cc.extract(ProcessSourceInput(
 - Crawl4AI browser automation
 - Esperanto AI models (LLM, speech-to-text)
 
-**Note:** Firecrawl does not support client-side proxy configuration. A warning is logged when proxy is configured but Firecrawl is used.
+**Note:** Firecrawl does not support client-side proxy configuration. Configure proxy on the Firecrawl server side instead.
 
-For detailed configuration options, see our [Usage Documentation](docs/usage.md#proxy-configuration).
+For detailed configuration, see our [Usage Documentation](docs/usage.md#proxy-configuration).
 
 ### Timeout Configuration
 

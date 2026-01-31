@@ -122,7 +122,10 @@ async def select_best_audio_stream(streams):
 
 async def extract_best_audio_from_video(data: ProcessSourceState):
     """
-    Main function to extract the best audio stream from a video file asynchronously
+    Main function to extract the best audio stream from a video file asynchronously.
+
+    Returns a dict with file_path and identified_type on success,
+    or a dict with error information on failure.
     """
     input_file = data.file_path
     assert input_file is not None, "Input file path must be provided"
@@ -136,7 +139,7 @@ async def extract_best_audio_from_video(data: ProcessSourceState):
 
     if not file_exists:
         logger.critical(f"Input file not found: {input_file}")
-        return False
+        return {"content": "", "error": f"Input file not found: {input_file}"}
 
     base_name = os.path.splitext(input_file)[0]
     output_file = f"{base_name}_audio.mp3"
@@ -145,22 +148,27 @@ async def extract_best_audio_from_video(data: ProcessSourceState):
     streams = await get_audio_streams(input_file)
     if not streams:
         logger.debug("No audio streams found in the file")
-        return False
+        return {
+            "content": "",
+            "error": "No audio streams found in file. Is ffprobe installed?",
+        }
 
     # Select best stream
     best_stream = await select_best_audio_stream(streams)
     if not best_stream:
         logger.error("Could not determine best audio stream")
-        return False
+        return {"content": "", "error": "Could not determine best audio stream"}
 
     # Extract the selected stream
     stream_index = streams.index(best_stream)
     success = await extract_audio_from_video(input_file, output_file, stream_index)
 
-    if success:
-        logger.debug(f"Successfully extracted audio to: {output_file}")
-        logger.debug(f"- Channels: {best_stream.get('channels', 'unknown')}")
-        logger.debug(f"- Sample rate: {best_stream.get('sample_rate', 'unknown')} Hz")
-        logger.debug(f"- Bit rate: {best_stream.get('bit_rate', 'unknown')} bits/s")
+    if not success:
+        return {"content": "", "error": "Failed to extract audio from video"}
+
+    logger.debug(f"Successfully extracted audio to: {output_file}")
+    logger.debug(f"- Channels: {best_stream.get('channels', 'unknown')}")
+    logger.debug(f"- Sample rate: {best_stream.get('sample_rate', 'unknown')} Hz")
+    logger.debug(f"- Bit rate: {best_stream.get('bit_rate', 'unknown')} bits/s")
 
     return {"file_path": output_file, "identified_type": "audio/mp3"}

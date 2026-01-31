@@ -35,10 +35,6 @@ class ProcessSourceState(BaseModel):
         default=None,
         description="Override speech-to-text model name (e.g., 'whisper-1', 'chirp')",
     )
-    proxy: Optional[str] = Field(
-        default=None,
-        description="Override proxy URL for this request (e.g., 'http://proxy:8080')",
-    )
     vlm_inference_mode: Optional[str] = Field(
         default=None,
         description="Override VLM inference mode: 'local' or 'remote'",
@@ -62,7 +58,6 @@ class ProcessSourceInput(BaseModel):
     output_format: Optional[str] = None
     audio_provider: Optional[str] = None
     audio_model: Optional[str] = None
-    proxy: Optional[str] = None
     vlm_inference_mode: Optional[str] = None
     vlm_backend: Optional[str] = None
     vlm_remote_url: Optional[str] = None

@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.1] - 2026-01-29
+
+### Fixed
+- **YouTube Transcript Extraction** - Updated to youtube-transcript-api v1.0+ API
+  - The library removed deprecated static methods (`list_transcripts`, `get_transcript`) in v1.0
+  - Now uses instance-based API: `YouTubeTranscriptApi().list()` and `.fetch()`
+  - Restored youtube-transcript-api as primary engine with pytubefix as fallback
+- **Video Processor Error Handling** - Fixed LangGraph compatibility issue
+  - Video extraction now returns proper dict on error instead of `False`
+  - Prevents `InvalidUpdateError: Expected dict, got False` when ffprobe is missing
+
+## [1.14.0] - 2026-01-29
+
+### Changed
+- **Simplified Proxy Configuration** - Removed custom proxy infrastructure in favor of standard environment variables
+  - Now uses standard `HTTP_PROXY` / `HTTPS_PROXY` environment variables (same as most HTTP clients)
+  - Removed custom `CCORE_HTTP_PROXY` environment variable
+  - Removed `proxy` field from `ProcessSourceInput` and `ProcessSourceState`
+  - Removed programmatic API: `set_proxy()`, `clear_proxy()`, `get_proxy()`, `get_no_proxy()`
+  - Removed proxy section from YAML configuration
+  - All HTTP clients (aiohttp) now use `trust_env=True` to automatically read proxy settings
+  - Crawl4AI bridges `HTTP_PROXY` to its `ProxyConfig` for consistent behavior
+  - Aligns with Esperanto library's proxy handling approach
+
+### Removed
+- `proxy` parameter from extraction API
+- Custom proxy configuration functions from `content_core.config`
+- Proxy-related unit and integration tests (proxy now handled by underlying HTTP clients)
+
 ## [1.13.0] - 2026-01-25
 
 ### Added
