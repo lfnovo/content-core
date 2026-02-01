@@ -37,6 +37,7 @@ dependencies = [
     "tenacity>=8.0.0",
     "markdownify>=0.12.1",
     "docling[vlm]>=2.71.0",
+    "easyocr>=1.7.2",
 ]
 
 [project.optional-dependencies]

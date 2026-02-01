@@ -194,7 +194,8 @@ async def extract_with_vlm_local(state: ProcessSourceState) -> Dict[str, Any]:
     options = get_docling_options()
 
     # Configure pipeline options
-    pipeline_options = VlmPipelineOptions(vlm_model=model_spec)
+    # Note: Use vlm_options= (not vlm_model=) to preserve inference_framework setting
+    pipeline_options = VlmPipelineOptions(vlm_options=model_spec)
 
     # Set device for transformers backend
     if backend == "transformers":
