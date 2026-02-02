@@ -16,9 +16,13 @@ Picture Description:
     - CCORE_DOCLING_PICTURE_PROMPT="Your custom prompt here"
 """
 
+from typing import Any, Dict, Optional
+
 from content_core.common.state import ProcessSourceState
 from content_core.config import CONFIG, get_docling_options
 from content_core.logging import logger
+from content_core.processors.base import Processor, ProcessorResult, Source
+from content_core.processors.registry import processor
 
 DOCLING_AVAILABLE = False
 PICTURE_DESCRIPTION_AVAILABLE = False
@@ -258,3 +262,88 @@ async def extract_with_docling(state: ProcessSourceState) -> ProcessSourceState:
     # Update state
     state.content = output
     return state
+
+
+# =============================================================================
+# New Processor API (v2.0)
+# =============================================================================
+
+
+@processor(
+    name="docling",
+    mime_types=[
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "text/markdown",
+        "text/x-markdown",
+        "text/csv",
+        "text/html",
+        "image/png",
+        "image/jpeg",
+        "image/tiff",
+        "image/bmp",
+    ],
+    extensions=[".pdf", ".docx", ".xlsx", ".pptx", ".md", ".csv", ".html", ".png", ".jpg", ".jpeg", ".tiff", ".bmp"],
+    priority=60,
+    requires=["docling"],
+    category="documents",
+)
+class DoclingProcessor(Processor):
+    """Docling-based document extraction processor.
+
+    Uses the Docling library for advanced document extraction with OCR,
+    table detection, and optional picture description capabilities.
+    """
+
+    @classmethod
+    def is_available(cls) -> bool:
+        """Check if Docling is available."""
+        return DOCLING_AVAILABLE
+
+    async def extract(
+        self, source: Source, options: Optional[Dict[str, Any]] = None
+    ) -> ProcessorResult:
+        """Extract content using Docling.
+
+        Args:
+            source: The Source to extract content from.
+            options: Optional extraction options (output_format, docling options).
+
+        Returns:
+            ProcessorResult with extracted content.
+        """
+        if not DOCLING_AVAILABLE:
+            raise ImportError(
+                "Docling not installed. Install with: pip install content-core[docling]"
+            )
+
+        # Convert Source to ProcessSourceState for backward compatibility
+        state = ProcessSourceState(
+            file_path=source.file_path,
+            url=source.url,
+            content=source.content if isinstance(source.content, str) else None,
+            metadata=source.options.get("metadata", {}),
+            output_format=source.options.get("output_format"),
+        )
+
+        # Apply any additional options
+        if options:
+            if "output_format" in options:
+                state.output_format = options["output_format"]
+            if "metadata" in options:
+                state.metadata.update(options["metadata"])
+
+        # Call existing extraction function
+        result_state = await extract_with_docling(state)
+
+        return ProcessorResult(
+            content=result_state.content or "",
+            mime_type=source.mime_type or "application/octet-stream",
+            metadata={
+                "extraction_engine": "docling",
+                "docling_format": result_state.metadata.get("docling_format", "markdown"),
+                **result_state.metadata,
+            },
+        )

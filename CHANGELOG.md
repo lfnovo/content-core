@@ -10,6 +10,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.0.0] - Unreleased
 
 ### Added
+- **Processor Registry System** - Declarative processor registration with auto-routing
+  - New base classes: `Processor`, `ProcessorCapabilities`, `ProcessorResult`, `Source`
+  - `ProcessorRegistry` singleton for discovering and selecting processors
+  - `@processor()` decorator for registering processors with MIME types, extensions, priority
+  - Priority-based selection when multiple processors support the same type
+  - Auto-discovery: processors register when imported
+
+- **New Extract API (v2.0)** - Simplified named parameters with backward compatibility
+  - New signature: `extract_content(url=..., file_path=..., content=..., engine=..., options=...)`
+  - Returns `ExtractionResult` with `content`, `engine_used`, `metadata`, `warnings`
+  - Engine fallback chains: `engine=["docling", "pymupdf4llm", "pymupdf"]`
+  - Legacy API still supported: `extract_content({"url": "..."})`
+
+- **Registry-Based Routing** - Replaced hardcoded conditionals with registry queries
+  - `route_and_extract()` for direct registry-based extraction
+  - `detect_mime_type()` for automatic MIME type detection
+  - `get_available_engines()` to list all registered processors
+
 - **Modular Benchmark System** - Extensible framework for comparing extraction engines
   - Unified CLI: `uv run python scripts/benchmark.py --type pdf|docx|all`
   - Support for PDF and DOCX benchmarks with quality scoring

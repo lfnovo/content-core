@@ -1,11 +1,14 @@
 import asyncio
 from functools import partial
+from typing import Any, Dict, Optional
 
 from docx import Document  # type: ignore
 from openpyxl import load_workbook  # type: ignore
 from pptx import Presentation  # type: ignore
 
 from content_core.common import ProcessSourceState
+from content_core.processors.base import Processor, ProcessorResult, Source
+from content_core.processors.registry import processor
 from content_core.logging import logger
 
 SUPPORTED_OFFICE_TYPES = [
@@ -329,3 +332,69 @@ async def extract_office_content(state: ProcessSourceState):
 
     del info["content"]
     return {"content": content, "metadata": info}
+
+
+# =============================================================================
+# New Processor API (v2.0)
+# =============================================================================
+
+
+@processor(
+    name="office",
+    mime_types=[
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ],
+    extensions=[".docx", ".pptx", ".xlsx"],
+    priority=50,
+    requires=["python-docx", "python-pptx", "openpyxl"],
+    category="documents",
+)
+class OfficeProcessor(Processor):
+    """Microsoft Office document extraction processor.
+
+    Extracts content from DOCX, PPTX, and XLSX files using
+    python-docx, python-pptx, and openpyxl libraries.
+    """
+
+    @classmethod
+    def is_available(cls) -> bool:
+        """Office processor is always available (dependencies are required)."""
+        return True
+
+    async def extract(
+        self, source: Source, options: Optional[Dict[str, Any]] = None
+    ) -> ProcessorResult:
+        """Extract content from Office document.
+
+        Args:
+            source: The Source to extract content from (must be file_path).
+            options: Optional extraction options.
+
+        Returns:
+            ProcessorResult with extracted content.
+        """
+        if not source.file_path:
+            raise ValueError("Office extraction requires a file_path")
+
+        if not source.mime_type or source.mime_type not in SUPPORTED_OFFICE_TYPES:
+            raise ValueError(f"Unsupported Office file type: {source.mime_type}")
+
+        # Convert Source to ProcessSourceState for backward compatibility
+        state = ProcessSourceState(
+            file_path=source.file_path,
+            identified_type=source.mime_type,
+        )
+
+        # Call existing extraction function
+        result = await extract_office_content(state)
+
+        return ProcessorResult(
+            content=result.get("content", ""),
+            mime_type=source.mime_type,
+            metadata={
+                "extraction_engine": "office",
+                **result.get("metadata", {}),
+            },
+        )

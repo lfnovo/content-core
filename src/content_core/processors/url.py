@@ -1,10 +1,13 @@
 import os
+from typing import Any, Dict, Optional
 
 import aiohttp
 from bs4 import BeautifulSoup
 from readability import Document
 
 from content_core.common import ProcessSourceState
+from content_core.processors.base import Processor, ProcessorResult, Source
+from content_core.processors.registry import processor
 from content_core.common.retry import retry_url_api, retry_url_network
 from content_core.config import (
     DEFAULT_FIRECRAWL_API_URL,
@@ -234,7 +237,7 @@ async def _fetch_url_crawl4ai(url: str) -> dict:
             run_config = CrawlerRunConfig(
                 proxy_config=ProxyConfig.from_string(proxy_url)
             )
-            logger.debug(f"Crawl4AI using proxy from environment")
+            logger.debug("Crawl4AI using proxy from environment")
         except Exception as e:
             logger.warning(f"Failed to configure proxy for Crawl4AI: {e}")
 
@@ -319,4 +322,199 @@ async def extract_url(state: ProcessSourceState):
         logger.error(f"URL extraction failed for URL: {url}")
         logger.exception(e)
         return None
+
+
+# =============================================================================
+# New Processor API (v2.0)
+# =============================================================================
+
+
+@processor(
+    name="jina",
+    mime_types=["text/html", "application/xhtml+xml"],
+    priority=60,
+    requires=[],
+    category="urls",
+)
+class JinaProcessor(Processor):
+    """Jina-based URL extraction processor.
+
+    Uses Jina's r.jina.ai service for URL content extraction.
+    """
+
+    @classmethod
+    def is_available(cls) -> bool:
+        """Jina is always available (no special dependencies)."""
+        return True
+
+    async def extract(
+        self, source: Source, options: Optional[Dict[str, Any]] = None
+    ) -> ProcessorResult:
+        """Extract content using Jina.
+
+        Args:
+            source: The Source to extract content from (must be URL).
+            options: Optional extraction options.
+
+        Returns:
+            ProcessorResult with extracted content.
+        """
+        if not source.url:
+            raise ValueError("Jina extraction requires a URL")
+
+        result = await extract_url_jina(source.url)
+
+        return ProcessorResult(
+            content=result.get("content", ""),
+            mime_type="text/html",
+            metadata={
+                "extraction_engine": "jina",
+                "title": result.get("title", ""),
+            },
+        )
+
+
+@processor(
+    name="firecrawl",
+    mime_types=["text/html", "application/xhtml+xml"],
+    priority=65,
+    requires=["firecrawl"],
+    category="urls",
+)
+class FirecrawlProcessor(Processor):
+    """Firecrawl-based URL extraction processor.
+
+    Uses the Firecrawl API for URL content extraction.
+    Requires FIRECRAWL_API_KEY environment variable.
+    """
+
+    @classmethod
+    def is_available(cls) -> bool:
+        """Check if Firecrawl API key is available."""
+        return bool(os.environ.get("FIRECRAWL_API_KEY"))
+
+    async def extract(
+        self, source: Source, options: Optional[Dict[str, Any]] = None
+    ) -> ProcessorResult:
+        """Extract content using Firecrawl.
+
+        Args:
+            source: The Source to extract content from (must be URL).
+            options: Optional extraction options.
+
+        Returns:
+            ProcessorResult with extracted content.
+        """
+        if not source.url:
+            raise ValueError("Firecrawl extraction requires a URL")
+
+        result = await extract_url_firecrawl(source.url)
+        if result is None:
+            raise RuntimeError("Firecrawl extraction failed")
+
+        return ProcessorResult(
+            content=result.get("content", ""),
+            mime_type="text/html",
+            metadata={
+                "extraction_engine": "firecrawl",
+                "title": result.get("title", ""),
+            },
+        )
+
+
+@processor(
+    name="crawl4ai",
+    mime_types=["text/html", "application/xhtml+xml"],
+    priority=55,
+    requires=["crawl4ai"],
+    category="urls",
+)
+class Crawl4AIProcessor(Processor):
+    """Crawl4AI-based URL extraction processor.
+
+    Uses Crawl4AI for local browser automation based extraction.
+    """
+
+    @classmethod
+    def is_available(cls) -> bool:
+        """Check if Crawl4AI is available."""
+        try:
+            from crawl4ai import AsyncWebCrawler  # noqa: F401
+            return True
+        except ImportError:
+            return False
+
+    async def extract(
+        self, source: Source, options: Optional[Dict[str, Any]] = None
+    ) -> ProcessorResult:
+        """Extract content using Crawl4AI.
+
+        Args:
+            source: The Source to extract content from (must be URL).
+            options: Optional extraction options.
+
+        Returns:
+            ProcessorResult with extracted content.
+        """
+        if not source.url:
+            raise ValueError("Crawl4AI extraction requires a URL")
+
+        result = await extract_url_crawl4ai(source.url)
+        if result is None:
+            raise RuntimeError("Crawl4AI extraction failed")
+
+        return ProcessorResult(
+            content=result.get("content", ""),
+            mime_type="text/html",
+            metadata={
+                "extraction_engine": "crawl4ai",
+                "title": result.get("title", ""),
+            },
+        )
+
+
+@processor(
+    name="bs4",
+    mime_types=["text/html", "application/xhtml+xml"],
+    priority=40,
+    requires=[],
+    category="urls",
+)
+class BS4Processor(Processor):
+    """BeautifulSoup-based URL extraction processor.
+
+    Uses BeautifulSoup with readability-lxml for basic
+    URL content extraction. Fallback when other engines fail.
+    """
+
+    @classmethod
+    def is_available(cls) -> bool:
+        """BS4 is always available."""
+        return True
+
+    async def extract(
+        self, source: Source, options: Optional[Dict[str, Any]] = None
+    ) -> ProcessorResult:
+        """Extract content using BeautifulSoup.
+
+        Args:
+            source: The Source to extract content from (must be URL).
+            options: Optional extraction options.
+
+        Returns:
+            ProcessorResult with extracted content.
+        """
+        if not source.url:
+            raise ValueError("BS4 extraction requires a URL")
+
+        result = await extract_url_bs4(source.url)
+
+        return ProcessorResult(
+            content=result.get("content", ""),
+            mime_type="text/html",
+            metadata={
+                "extraction_engine": "bs4",
+                "title": result.get("title", ""),
+            },
+        )
 

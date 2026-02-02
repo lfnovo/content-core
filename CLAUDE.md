@@ -29,20 +29,26 @@ src/content_core/
 │   └── utils.py         # Input content processing
 │
 ├── processors/          # Format-specific extractors (see processors/CLAUDE.md)
-│   ├── pdf.py           # PDF/EPUB via PyMuPDF
-│   ├── url.py           # URL extraction (jina/firecrawl/crawl4ai/bs4)
-│   ├── audio.py         # Audio transcription via Esperanto STT
-│   ├── video.py         # Video-to-audio via moviepy
-│   ├── youtube.py       # YouTube transcript extraction
-│   ├── office.py        # Office docs (docx/pptx/xlsx)
-│   ├── text.py          # Plain text files
-│   ├── docling.py       # Optional Docling integration
-│   ├── docling_vlm.py   # VLM-powered extraction (local/remote)
-│   └── marker.py        # Optional Marker PDF extraction (GPL-3.0)
+│   ├── __init__.py      # Auto-discovery and exports (ProcessorRegistry, Processor, Source)
+│   ├── base.py          # Base classes: Processor, ProcessorCapabilities, ProcessorResult, Source
+│   ├── registry.py      # ProcessorRegistry singleton and @processor decorator
+│   ├── pdf.py           # PDF/EPUB via PyMuPDF (PyMuPDFProcessor)
+│   ├── pdf_llm.py       # PDF via pymupdf4llm (PyMuPDF4LLMProcessor)
+│   ├── url.py           # URL extraction (JinaProcessor, FirecrawlProcessor, Crawl4AIProcessor, BS4Processor)
+│   ├── audio.py         # Audio transcription (WhisperProcessor)
+│   ├── video.py         # Video-to-audio (VideoProcessor)
+│   ├── youtube.py       # YouTube transcripts (YouTubeProcessor)
+│   ├── office.py        # Office docs (OfficeProcessor)
+│   ├── text.py          # Plain text (TextProcessor)
+│   ├── docling.py       # Docling integration (DoclingProcessor)
+│   ├── docling_vlm.py   # VLM-powered extraction (DoclingVLMProcessor)
+│   └── marker.py        # Marker PDF extraction (MarkerProcessor, GPL-3.0)
 │
 ├── content/             # High-level workflows
-│   ├── extraction/      # LangGraph extraction workflow
-│   │   └── graph.py     # Main extraction state graph
+│   ├── extraction/      # Content extraction
+│   │   ├── __init__.py  # extract_content() API (new v2.0 + legacy)
+│   │   ├── graph.py     # LangGraph workflow (legacy routing)
+│   │   └── router.py    # Registry-based routing (v2.0)
 │   ├── identification/  # File type detection
 │   │   └── file_detector.py
 │   ├── cleanup/         # Content cleaning via LLM
@@ -93,16 +99,32 @@ docs/
 
 ## Architecture
 
-**Data flow**: Input -> LangGraph workflow -> Processor -> Output
+**Two API modes** (v2.0):
 
-1. `ProcessSourceInput` received via API or CLI
-2. `content/extraction/graph.py` routes to appropriate processor based on source type
-3. Processor extracts content and returns state updates
-4. `ProcessSourceOutput` returned to caller
+1. **New API** - Named parameters with registry-based routing:
+   ```python
+   result = await extract_content(url="https://example.com/doc.pdf")
+   result = await extract_content(file_path="/path/to/file.pdf", engine="docling")
+   result = await extract_content(file_path="/path/to/file.pdf", engine=["docling", "pymupdf"])
+   # Returns ExtractionResult
+   ```
+
+2. **Legacy API** - Dict/ProcessSourceInput with LangGraph workflow:
+   ```python
+   result = await extract_content({"url": "https://example.com/doc.pdf"})
+   result = await extract_content(ProcessSourceInput(file_path="/path/to/file.pdf"))
+   # Returns ProcessSourceOutput
+   ```
+
+**Data flow (New API)**: Input -> Router -> Processor Registry -> Processor -> ExtractionResult
+
+**Data flow (Legacy)**: ProcessSourceInput -> LangGraph workflow -> Processor -> ProcessSourceOutput
 
 **Key patterns**:
-- LangGraph StateGraph orchestrates extraction workflow
-- Processors are stateless functions that take `ProcessSourceState` and return dict updates
+- **Processor Registry**: Singleton that manages processor discovery by MIME type/extension/priority
+- **@processor decorator**: Registers processors with capabilities (MIME types, extensions, priority)
+- **Stateless processors**: Each processor class implements `extract(source, options)` -> `ProcessorResult`
+- LangGraph StateGraph still used for legacy API and composite workflows (video -> audio -> transcribe)
 - Retry decorators handle transient failures for network/API operations
 - Configuration loaded from YAML with env var overrides
 

@@ -2,17 +2,58 @@
 
 Format-specific content extraction handlers. Each processor extracts content from a specific file type or source.
 
+## Architecture (v2.0)
+
+Processors now follow a registry-based pattern:
+
+1. **Base classes** (`base.py`): `Processor`, `ProcessorCapabilities`, `ProcessorResult`, `Source`
+2. **Registry** (`registry.py`): `ProcessorRegistry` singleton, `@processor()` decorator
+3. **Auto-discovery** (`__init__.py`): Imports all processors to trigger registration
+
+**Creating a new processor:**
+```python
+from content_core.processors.base import Processor, ProcessorResult, Source
+from content_core.processors.registry import processor
+
+@processor(
+    name="my-processor",
+    mime_types=["application/pdf", "image/*"],
+    extensions=[".pdf", ".png"],
+    priority=60,  # Higher = preferred (0-100)
+    requires=["my-dependency"],
+    category="documents",
+)
+class MyProcessor(Processor):
+    @classmethod
+    def is_available(cls) -> bool:
+        return MY_DEPENDENCY_AVAILABLE
+
+    async def extract(self, source: Source, options=None) -> ProcessorResult:
+        # source.file_path, source.url, or source.content
+        content = await my_extraction_logic(source.file_path)
+        return ProcessorResult(
+            content=content,
+            mime_type=source.mime_type,
+            metadata={"extraction_engine": "my-processor"},
+        )
+```
+
 ## Files
 
-- **`pdf.py`**: PDF/EPUB extraction using PyMuPDF (fitz). Handles table detection, OCR fallback for formulas, text cleaning. Exports `SUPPORTED_FITZ_TYPES`, `extract_pdf`
-- **`url.py`**: URL content extraction with multiple engines (simple/jina/firecrawl/crawl4ai). Handles MIME type detection via HEAD request. Exports `url_provider`, `extract_url`
-- **`audio.py`**: Audio transcription using Esperanto STT models. Handles segmentation for long files, parallel transcription with semaphore. Exports `extract_audio_data`
-- **`video.py`**: Video-to-audio extraction using moviepy. Extracts audio track for transcription pipeline. Exports `extract_best_audio_from_video`
-- **`youtube.py`**: YouTube transcript extraction using youtube-transcript-api. Handles multiple transcript formats, language fallbacks. Exports `extract_youtube_transcript`
-- **`office.py`**: Office document extraction (docx, pptx, xlsx) using python-docx, python-pptx, openpyxl. Exports `SUPPORTED_OFFICE_TYPES`, `extract_office_content`
-- **`text.py`**: Plain text file reading and HTML-to-markdown conversion. Detects HTML in text content and converts to markdown using `markdownify`. Exports `extract_txt`, `process_text_content`, `detect_html`
-- **`docling.py`**: Optional Docling-based extraction for advanced document processing. Supports picture description via VLM (SmolVLM/Granite Vision). Conditionally imported. Exports `DOCLING_AVAILABLE`, `DOCLING_SUPPORTED`, `PICTURE_DESCRIPTION_AVAILABLE`, `extract_with_docling`
-- **`docling_vlm.py`**: VLM-powered extraction using Docling's VlmPipeline or docling-serve. Supports local inference (transformers/MLX) and remote inference. Exports `DOCLING_VLM_LOCAL_AVAILABLE`, `DOCLING_VLM_MLX_AVAILABLE`, `HTTPX_AVAILABLE`, `extract_with_docling_vlm`, `extract_with_vlm_local`, `extract_with_vlm_remote`
+- **`__init__.py`**: Auto-discovery, exports `ProcessorRegistry`, `Processor`, `Source`, `ProcessorResult`
+- **`base.py`**: Base classes for processor system
+- **`registry.py`**: `ProcessorRegistry` singleton and `@processor()` decorator
+- **`pdf.py`**: PDF/EPUB via PyMuPDF (`PyMuPDFProcessor`, priority 50)
+- **`pdf_llm.py`**: PDF via pymupdf4llm (`PyMuPDF4LLMProcessor`, priority 55)
+- **`url.py`**: URL extraction (`JinaProcessor` 60, `FirecrawlProcessor` 65, `Crawl4AIProcessor` 55, `BS4Processor` 40)
+- **`audio.py`**: Audio transcription (`WhisperProcessor`, priority 60)
+- **`video.py`**: Video-to-audio (`VideoProcessor`, priority 50)
+- **`youtube.py`**: YouTube transcripts (`YouTubeProcessor`, priority 60)
+- **`office.py`**: Office docs (`OfficeProcessor`, priority 50)
+- **`text.py`**: Plain text (`TextProcessor`, priority 50)
+- **`docling.py`**: Docling integration (`DoclingProcessor`, priority 60)
+- **`docling_vlm.py`**: VLM-powered extraction (`DoclingVLMProcessor`, priority 70)
+- **`marker.py`**: Marker PDF extraction (`MarkerProcessor`, priority 65, GPL-3.0)
 
 ## Picture Description
 
@@ -31,15 +72,32 @@ The `docling.py` processor supports VLM-based image captioning when `do_picture_
 
 ## Patterns
 
-- **Function signature**: All extract functions take `ProcessSourceState` and return `Dict[str, Any]` with content/metadata updates
+**New v2.0 Pattern (Processor classes):**
+- Processors are classes decorated with `@processor()` that implement `Processor.extract(source, options)`
+- Each processor declares capabilities: MIME types, extensions, priority, required dependencies
+- Registry auto-selects highest priority available processor for a given MIME type
+- `is_available()` class method checks if optional dependencies are installed
+
+**Legacy Pattern (still supported):**
+- Extract functions take `ProcessSourceState` and return `Dict[str, Any]` with content/metadata updates
+- Used by LangGraph workflow in `content/extraction/graph.py`
+- Processor classes wrap legacy functions for backward compatibility
+
+**Common patterns:**
 - **Async execution**: CPU-bound work runs in thread pool via `asyncio.get_event_loop().run_in_executor()`
 - **Retry decorators**: Network operations wrapped with retry decorators from `common.retry`
-- **Engine selection**: URL and document engines selected via `config.get_url_engine()` / `config.get_document_engine()`
-- **Type constants**: Each processor exports `SUPPORTED_*_TYPES` lists used by the routing graph
+- **Type constants**: Each processor exports `SUPPORTED_*_TYPES` lists for legacy routing
 
 ## Integration
 
+**New API (v2.0):**
+- Called by: `content/extraction/router.py` via `ProcessorRegistry`
+- Access: `ProcessorRegistry.instance().find_for_mime_type("application/pdf")`
+
+**Legacy API:**
 - Called by: `content/extraction/graph.py` via LangGraph nodes
+
+**Common:**
 - Imports from: `content_core.common`, `content_core.config`, `content_core.logging`, `content_core.models`
 - `audio.py` uses `ModelFactory.get_model("speech_to_text")` for STT
 
@@ -54,8 +112,19 @@ The `docling.py` processor supports VLM-based image captioning when `do_picture_
 
 ## When Adding Code
 
-- New processors must: accept `ProcessSourceState`, return dict with state updates, handle errors gracefully
-- Add new MIME types to the appropriate `SUPPORTED_*_TYPES` constant
+**New v2.0 Pattern (preferred):**
+1. Create a class that extends `Processor`
+2. Decorate with `@processor(name=..., mime_types=..., priority=..., ...)`
+3. Implement `is_available()` if processor has optional dependencies
+4. Implement `async extract(self, source: Source, options: dict) -> ProcessorResult`
+5. Processor auto-registers when module is imported (via `processors/__init__.py`)
+
+**Legacy Pattern (if needed for LangGraph integration):**
+- Create extract function that accepts `ProcessSourceState`, returns dict with state updates
+- Add MIME types to `SUPPORTED_*_TYPES` constant
+- Register as node in `content/extraction/graph.py`
+
+**Common:**
 - Network operations should use retry decorators for resilience
-- For aiohttp sessions, use `trust_env=True` to automatically read HTTP_PROXY/HTTPS_PROXY environment variables
-- Register new processors as nodes in `content/extraction/graph.py`
+- For aiohttp sessions, use `trust_env=True` for HTTP_PROXY/HTTPS_PROXY
+- Handle errors gracefully, return empty content on failure rather than raising

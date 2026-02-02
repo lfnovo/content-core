@@ -3,8 +3,11 @@ import json
 import os
 import subprocess
 from functools import partial
+from typing import Any, Dict, Optional
 
 from content_core.common import ProcessSourceState
+from content_core.processors.base import Processor, ProcessorResult, Source
+from content_core.processors.registry import processor
 from content_core.logging import logger
 
 
@@ -172,3 +175,89 @@ async def extract_best_audio_from_video(data: ProcessSourceState):
     logger.debug(f"- Bit rate: {best_stream.get('bit_rate', 'unknown')} bits/s")
 
     return {"file_path": output_file, "identified_type": "audio/mp3"}
+
+
+# =============================================================================
+# New Processor API (v2.0)
+# =============================================================================
+
+
+@processor(
+    name="video",
+    mime_types=[
+        "video/mp4",
+        "video/mpeg",
+        "video/quicktime",
+        "video/x-msvideo",
+        "video/x-matroska",
+        "video/webm",
+        "video/*",
+    ],
+    extensions=[".mp4", ".mpeg", ".mov", ".avi", ".mkv", ".webm"],
+    priority=50,
+    requires=["ffmpeg"],
+    category="video",
+)
+class VideoProcessor(Processor):
+    """Video to audio extraction processor.
+
+    Extracts the best audio stream from video files using ffmpeg.
+    The extracted audio can then be transcribed.
+    """
+
+    @classmethod
+    def is_available(cls) -> bool:
+        """Check if ffmpeg is available."""
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["ffmpeg", "-version"],
+                capture_output=True,
+                text=True,
+            )
+            return result.returncode == 0
+        except FileNotFoundError:
+            return False
+        except Exception:
+            return False
+
+    async def extract(
+        self, source: Source, options: Optional[Dict[str, Any]] = None
+    ) -> ProcessorResult:
+        """Extract audio from video file.
+
+        Note: This processor extracts audio, not text content.
+        The result should be passed to an audio processor for transcription.
+
+        Args:
+            source: The Source to extract content from (must be file_path).
+            options: Optional extraction options.
+
+        Returns:
+            ProcessorResult with audio file path in metadata.
+        """
+        if not source.file_path:
+            raise ValueError("Video extraction requires a file_path")
+
+        # Convert Source to ProcessSourceState for backward compatibility
+        state = ProcessSourceState(
+            file_path=source.file_path,
+        )
+
+        # Call existing extraction function
+        result = await extract_best_audio_from_video(state)
+
+        # Video processor returns audio file path, not text content
+        if result.get("error"):
+            raise RuntimeError(result["error"])
+
+        return ProcessorResult(
+            content="",  # No text content - audio needs to be transcribed
+            mime_type="audio/mp3",
+            metadata={
+                "extraction_engine": "video",
+                "audio_file_path": result.get("file_path"),
+                "original_mime_type": source.mime_type,
+            },
+            warnings=["Video extraction produces audio file; use audio processor for transcription"],
+        )

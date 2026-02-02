@@ -15,9 +15,11 @@ Reference: https://pymupdf.readthedocs.io/en/latest/pymupdf4llm/
 """
 
 import asyncio
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from content_core.common.state import ProcessSourceState
+from content_core.processors.base import Processor, ProcessorResult, Source
+from content_core.processors.registry import processor
 from content_core.config import CONFIG
 from content_core.logging import logger
 
@@ -115,3 +117,72 @@ async def extract_with_pymupdf4llm(state: ProcessSourceState) -> Dict[str, Any]:
             "extraction_engine": "pymupdf4llm",
         },
     }
+
+
+# =============================================================================
+# New Processor API (v2.0)
+# =============================================================================
+
+
+@processor(
+    name="pymupdf4llm",
+    mime_types=[
+        "application/pdf",
+        "application/epub+zip",
+    ],
+    extensions=[".pdf", ".epub"],
+    priority=55,
+    requires=["pymupdf4llm"],
+    category="documents",
+)
+class PyMuPDF4LLMProcessor(Processor):
+    """PyMuPDF4LLM-based PDF extraction processor.
+
+    Uses pymupdf4llm for LLM-optimized markdown output with
+    better structure preservation than basic PyMuPDF.
+    """
+
+    @classmethod
+    def is_available(cls) -> bool:
+        """Check if pymupdf4llm is available."""
+        return PYMUPDF4LLM_AVAILABLE
+
+    async def extract(
+        self, source: Source, options: Optional[Dict[str, Any]] = None
+    ) -> ProcessorResult:
+        """Extract content using pymupdf4llm.
+
+        Args:
+            source: The Source to extract content from.
+            options: Optional extraction options.
+
+        Returns:
+            ProcessorResult with extracted content.
+        """
+        if not PYMUPDF4LLM_AVAILABLE:
+            raise ImportError(
+                "pymupdf4llm not installed. Install with: pip install content-core[pymupdf]"
+            )
+
+        if not source.file_path:
+            raise ValueError("pymupdf4llm extraction requires a file_path")
+
+        # Convert Source to ProcessSourceState for backward compatibility
+        state = ProcessSourceState(
+            file_path=source.file_path,
+            metadata=source.options.get("metadata", {}),
+        )
+
+        # Apply any additional options
+        if options:
+            if "metadata" in options:
+                state.metadata.update(options["metadata"])
+
+        # Call existing extraction function
+        result = await extract_with_pymupdf4llm(state)
+
+        return ProcessorResult(
+            content=result.get("content", ""),
+            mime_type=source.mime_type or "application/pdf",
+            metadata=result.get("metadata", {}),
+        )

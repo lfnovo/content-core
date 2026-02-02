@@ -1,10 +1,12 @@
 import asyncio
 import re
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from markdownify import markdownify as md
 
 from content_core.common import ProcessSourceState
+from content_core.processors.base import Processor, ProcessorResult, Source
+from content_core.processors.registry import processor
 from content_core.logging import logger
 
 
@@ -94,3 +96,76 @@ async def extract_txt(state: ProcessSourceState) -> Dict[str, Any]:
                 raise Exception(f"An error occurred: {e}")
 
     return return_dict
+
+
+# =============================================================================
+# New Processor API (v2.0)
+# =============================================================================
+
+
+@processor(
+    name="text",
+    mime_types=[
+        "text/plain",
+        "text/markdown",
+        "text/x-markdown",
+    ],
+    extensions=[".txt", ".md", ".markdown", ".text"],
+    priority=50,
+    requires=[],
+    category="documents",
+)
+class TextProcessor(Processor):
+    """Plain text file extraction processor.
+
+    Reads text files and optionally converts HTML content to markdown.
+    """
+
+    @classmethod
+    def is_available(cls) -> bool:
+        """Text processor is always available."""
+        return True
+
+    async def extract(
+        self, source: Source, options: Optional[Dict[str, Any]] = None
+    ) -> ProcessorResult:
+        """Extract content from text file or raw content.
+
+        Args:
+            source: The Source to extract content from.
+            options: Optional extraction options.
+
+        Returns:
+            ProcessorResult with extracted content.
+        """
+        content = ""
+
+        if source.file_path:
+            # Read from file
+            state = ProcessSourceState(
+                file_path=source.file_path,
+                identified_type=source.mime_type or "text/plain",
+            )
+            result = await extract_txt(state)
+            content = result.get("content", "")
+
+        elif source.content:
+            # Process raw content
+            if isinstance(source.content, bytes):
+                content = source.content.decode("utf-8", errors="replace")
+            else:
+                content = source.content
+
+            # Check for HTML and convert if needed
+            state = ProcessSourceState(content=content)
+            result = await process_text_content(state)
+            if result.get("content"):
+                content = result["content"]
+
+        return ProcessorResult(
+            content=content,
+            mime_type=source.mime_type or "text/plain",
+            metadata={
+                "extraction_engine": "text",
+            },
+        )

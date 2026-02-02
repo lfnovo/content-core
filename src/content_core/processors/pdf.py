@@ -7,9 +7,11 @@ Install with: pip install content-core[pymupdf]
 import asyncio
 import re
 import unicodedata
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from content_core.common import ProcessSourceState
+from content_core.processors.base import Processor, ProcessorResult, Source
+from content_core.processors.registry import processor
 from content_core.config import CONFIG
 from content_core.logging import logger
 
@@ -314,3 +316,71 @@ async def extract_pdf(state: ProcessSourceState) -> Dict[str, Any]:
             raise Exception(f"An error occurred: {e}")
 
     return return_dict
+
+
+# =============================================================================
+# New Processor API (v2.0)
+# =============================================================================
+
+
+@processor(
+    name="pymupdf",
+    mime_types=[
+        "application/pdf",
+        "application/epub+zip",
+    ],
+    extensions=[".pdf", ".epub"],
+    priority=50,
+    requires=["pymupdf"],
+    category="documents",
+)
+class PyMuPDFProcessor(Processor):
+    """PyMuPDF-based PDF extraction processor.
+
+    Uses PyMuPDF (fitz) for basic PDF text extraction with
+    table detection and optional OCR fallback.
+    """
+
+    @classmethod
+    def is_available(cls) -> bool:
+        """Check if PyMuPDF is available."""
+        return PYMUPDF_AVAILABLE
+
+    async def extract(
+        self, source: Source, options: Optional[Dict[str, Any]] = None
+    ) -> ProcessorResult:
+        """Extract content using PyMuPDF.
+
+        Args:
+            source: The Source to extract content from.
+            options: Optional extraction options.
+
+        Returns:
+            ProcessorResult with extracted content.
+        """
+        if not PYMUPDF_AVAILABLE:
+            raise ImportError(
+                "PyMuPDF not installed. Install with: pip install content-core[pymupdf]"
+            )
+
+        if not source.file_path:
+            raise ValueError("PyMuPDF extraction requires a file_path")
+
+        # Convert Source to ProcessSourceState for backward compatibility
+        state = ProcessSourceState(
+            file_path=source.file_path,
+            identified_type=source.mime_type or "application/pdf",
+            metadata=source.options.get("metadata", {}),
+        )
+
+        # Call existing extraction function
+        result = await extract_pdf(state)
+
+        return ProcessorResult(
+            content=result.get("content", ""),
+            mime_type=source.mime_type or "application/pdf",
+            metadata={
+                "extraction_engine": "pymupdf",
+                **state.metadata,
+            },
+        )

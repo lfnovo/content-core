@@ -15,7 +15,12 @@ from .retry import (
     retry_url_network,
     retry_youtube,
 )
-from .state import ProcessSourceInput, ProcessSourceOutput, ProcessSourceState
+from .state import (
+    ExtractionResult,
+    ProcessSourceInput,
+    ProcessSourceOutput,
+    ProcessSourceState,
+)
 from .utils import process_input_content
 
 __all__ = [
@@ -26,6 +31,7 @@ __all__ = [
     "ProcessSourceInput",
     "ProcessSourceState",
     "ProcessSourceOutput",
+    "ExtractionResult",
     "process_input_content",
     # Retry decorators
     "retry_youtube",

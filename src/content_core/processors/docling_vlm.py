@@ -13,9 +13,11 @@ import asyncio
 import base64
 import os
 import platform
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from content_core.common.state import ProcessSourceState
+from content_core.processors.base import Processor, ProcessorResult, Source
+from content_core.processors.registry import processor
 from content_core.config import (
     CONFIG,
     get_docling_options,
@@ -507,3 +509,84 @@ async def extract_with_docling_vlm(state: ProcessSourceState) -> Dict[str, Any]:
         return await extract_with_vlm_remote(state)
     else:
         return await extract_with_vlm_local(state)
+
+
+# =============================================================================
+# New Processor API (v2.0)
+# =============================================================================
+
+
+@processor(
+    name="docling-vlm",
+    mime_types=[
+        "application/pdf",
+        "image/png",
+        "image/jpeg",
+        "image/tiff",
+        "image/bmp",
+    ],
+    extensions=[".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".bmp"],
+    priority=70,
+    requires=["docling", "transformers"],
+    category="documents",
+)
+class DoclingVLMProcessor(Processor):
+    """VLM-powered document extraction processor.
+
+    Uses Docling's VlmPipeline for enhanced document understanding
+    through vision-language models. Supports local and remote inference.
+    """
+
+    @classmethod
+    def is_available(cls) -> bool:
+        """Check if VLM extraction is available (local or remote)."""
+        return DOCLING_VLM_LOCAL_AVAILABLE or HTTPX_AVAILABLE
+
+    async def extract(
+        self, source: Source, options: Optional[Dict[str, Any]] = None
+    ) -> ProcessorResult:
+        """Extract content using VLM pipeline.
+
+        Args:
+            source: The Source to extract content from.
+            options: Optional extraction options (vlm_inference_mode, vlm_backend, etc.)
+
+        Returns:
+            ProcessorResult with extracted content.
+        """
+        # Convert Source to ProcessSourceState for backward compatibility
+        state = ProcessSourceState(
+            file_path=source.file_path,
+            url=source.url,
+            content=source.content if isinstance(source.content, str) else None,
+            metadata=source.options.get("metadata", {}),
+            output_format=source.options.get("output_format"),
+            vlm_inference_mode=source.options.get("vlm_inference_mode"),
+            vlm_backend=source.options.get("vlm_backend"),
+            vlm_remote_url=source.options.get("vlm_remote_url"),
+        )
+
+        # Apply any additional options
+        if options:
+            if "output_format" in options:
+                state.output_format = options["output_format"]
+            if "vlm_inference_mode" in options:
+                state.vlm_inference_mode = options["vlm_inference_mode"]
+            if "vlm_backend" in options:
+                state.vlm_backend = options["vlm_backend"]
+            if "vlm_remote_url" in options:
+                state.vlm_remote_url = options["vlm_remote_url"]
+            if "metadata" in options:
+                state.metadata.update(options["metadata"])
+
+        # Call existing extraction function
+        result = await extract_with_docling_vlm(state)
+
+        return ProcessorResult(
+            content=result.get("content", ""),
+            mime_type=source.mime_type or "application/octet-stream",
+            metadata={
+                "extraction_engine": "docling-vlm",
+                **result.get("metadata", {}),
+            },
+        )

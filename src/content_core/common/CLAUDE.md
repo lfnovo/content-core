@@ -6,7 +6,7 @@ Shared infrastructure for content-core: exceptions, retry logic, state managemen
 
 - **`exceptions.py`**: Exception hierarchy with `ContentCoreError` as base. Key exceptions: `UnsupportedTypeException`, `InvalidInputError`, `NotFoundError`, `NoTranscriptFound`, `NetworkError`
 - **`retry.py`**: Tenacity-based retry decorators for transient failures. Uses `get_retry_config()` from config. Exports: `retry_youtube`, `retry_url_api`, `retry_url_network`, `retry_audio_transcription`, `retry_llm`, `retry_download`
-- **`state.py`**: Pydantic models for LangGraph workflow state. `ProcessSourceInput` (API input), `ProcessSourceState` (internal state), `ProcessSourceOutput` (API output)
+- **`state.py`**: Pydantic models for extraction. `ProcessSourceInput` (legacy API input), `ProcessSourceState` (internal state), `ProcessSourceOutput` (legacy API output), `ExtractionResult` (new v2.0 API output)
 - **`types.py`**: Type aliases for engine selection: `DocumentEngine`, `UrlEngine`
 - **`utils.py`**: Helper `process_input_content()` to detect and extract from URLs/files
 

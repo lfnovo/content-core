@@ -4,10 +4,13 @@ import os
 import tempfile
 import traceback
 from functools import partial
+from typing import Any, Dict, Optional
 
 from moviepy import AudioFileClip
 
 from content_core.common import ProcessSourceState
+from content_core.processors.base import Processor, ProcessorResult, Source
+from content_core.processors.registry import processor
 from content_core.common.retry import retry_audio_transcription
 from content_core.config import get_audio_concurrency
 from content_core.logging import logger
@@ -267,3 +270,85 @@ async def extract_audio_data(data: ProcessSourceState):
                 audio.close()
             except Exception:
                 pass
+
+
+# =============================================================================
+# New Processor API (v2.0)
+# =============================================================================
+
+
+@processor(
+    name="whisper",
+    mime_types=[
+        "audio/mpeg",
+        "audio/mp3",
+        "audio/wav",
+        "audio/x-wav",
+        "audio/ogg",
+        "audio/flac",
+        "audio/m4a",
+        "audio/x-m4a",
+        "audio/aac",
+        "audio/*",
+    ],
+    extensions=[".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aac", ".wma"],
+    priority=60,
+    requires=["esperanto"],
+    category="audio",
+)
+class WhisperProcessor(Processor):
+    """Audio transcription processor using Esperanto STT.
+
+    Transcribes audio files using speech-to-text models via Esperanto.
+    Supports automatic segmentation for long audio files.
+    """
+
+    @classmethod
+    def is_available(cls) -> bool:
+        """Check if STT model is available."""
+        try:
+            from content_core.models import ModelFactory  # noqa: F401
+            return True
+        except ImportError:
+            return False
+
+    async def extract(
+        self, source: Source, options: Optional[Dict[str, Any]] = None
+    ) -> ProcessorResult:
+        """Transcribe audio using Esperanto STT.
+
+        Args:
+            source: The Source to extract content from (must be file_path).
+            options: Optional extraction options (audio_provider, audio_model).
+
+        Returns:
+            ProcessorResult with transcribed content.
+        """
+        if not source.file_path:
+            raise ValueError("Audio transcription requires a file_path")
+
+        # Convert Source to ProcessSourceState for backward compatibility
+        state = ProcessSourceState(
+            file_path=source.file_path,
+            audio_provider=source.options.get("audio_provider"),
+            audio_model=source.options.get("audio_model"),
+        )
+
+        # Apply any additional options
+        if options:
+            if "audio_provider" in options:
+                state.audio_provider = options["audio_provider"]
+            if "audio_model" in options:
+                state.audio_model = options["audio_model"]
+
+        # Call existing extraction function
+        result = await extract_audio_data(state)
+
+        return ProcessorResult(
+            content=result.get("content", ""),
+            mime_type=source.mime_type or "audio/mpeg",
+            metadata={
+                "extraction_engine": "whisper",
+                **result.get("metadata", {}),
+            },
+        )

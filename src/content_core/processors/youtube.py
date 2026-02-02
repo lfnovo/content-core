@@ -1,5 +1,6 @@
 import re
 import ssl
+from typing import Any, Dict, Optional
 
 import aiohttp
 from bs4 import BeautifulSoup
@@ -7,6 +8,8 @@ from youtube_transcript_api import YouTubeTranscriptApi  # type: ignore
 from youtube_transcript_api.formatters import TextFormatter  # type: ignore
 
 from content_core.common import ProcessSourceState
+from content_core.processors.base import Processor, ProcessorResult, Source
+from content_core.processors.registry import processor
 from content_core.common.exceptions import NoTranscriptFound
 from content_core.common.retry import retry_youtube
 from content_core.config import CONFIG
@@ -192,7 +195,7 @@ async def extract_youtube_transcript(state: ProcessSourceState):
     # Primary: youtube-transcript-api
     transcript = await get_best_transcript(video_id, languages)
     if transcript:
-        logger.debug(f"Found transcript via youtube-transcript-api")
+        logger.debug("Found transcript via youtube-transcript-api")
         formatter = TextFormatter()
 
         try:
@@ -223,3 +226,71 @@ async def extract_youtube_transcript(state: ProcessSourceState):
         "title": title,
         "metadata": {"video_id": video_id, "transcript": transcript_raw},
     }
+
+
+# =============================================================================
+# New Processor API (v2.0)
+# =============================================================================
+
+
+@processor(
+    name="youtube",
+    mime_types=[],  # YouTube is detected by URL pattern, not MIME type
+    priority=60,
+    requires=[],
+    category="urls",
+)
+class YouTubeProcessor(Processor):
+    """YouTube transcript extraction processor.
+
+    Extracts transcripts from YouTube videos using youtube-transcript-api
+    with pytubefix as fallback.
+    """
+
+    @classmethod
+    def is_available(cls) -> bool:
+        """YouTube processor is always available."""
+        return True
+
+    @classmethod
+    def supports_url(cls, url: str) -> bool:
+        """Check if the URL is a YouTube URL."""
+        if not url:
+            return False
+        return "youtube.com" in url or "youtu.be" in url
+
+    async def extract(
+        self, source: Source, options: Optional[Dict[str, Any]] = None
+    ) -> ProcessorResult:
+        """Extract transcript from YouTube video.
+
+        Args:
+            source: The Source to extract content from (must be YouTube URL).
+            options: Optional extraction options.
+
+        Returns:
+            ProcessorResult with video transcript.
+        """
+        if not source.url:
+            raise ValueError("YouTube extraction requires a URL")
+
+        if not self.supports_url(source.url):
+            raise ValueError(f"Not a YouTube URL: {source.url}")
+
+        # Convert Source to ProcessSourceState for backward compatibility
+        state = ProcessSourceState(
+            url=source.url,
+        )
+
+        # Call existing extraction function
+        result = await extract_youtube_transcript(state)
+
+        return ProcessorResult(
+            content=result.get("content", ""),
+            mime_type="text/plain",
+            metadata={
+                "extraction_engine": "youtube",
+                "title": result.get("title", ""),
+                **result.get("metadata", {}),
+            },
+        )
