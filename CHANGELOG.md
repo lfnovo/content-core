@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - Unreleased
+
+### Added
+- **Modular Benchmark System** - Extensible framework for comparing extraction engines
+  - Unified CLI: `uv run python scripts/benchmark.py --type pdf|docx|all`
+  - Support for PDF and DOCX benchmarks with quality scoring
+  - Pluggable engine architecture (Engine, QualityScorer, ContentAnalyzer base classes)
+  - Automatic report generation (Markdown and JSON)
+  - Per-file quality scoring against expected content
+
+- **DOCX Extraction Engines** - New engines for Word document extraction
+  - `python-docx` engine: Fast, lightweight extraction (0.1s, 7MB)
+  - `docling` engine: Full structure preservation with table detection
+
+- **VLM-Powered Document Extraction** - Vision-language model support via Docling
+  - Local inference with transformers or MLX (Apple Silicon optimized)
+  - Remote inference via docling-serve API
+  - Configurable via environment variables or YAML
+  - Support for granite-docling and smol-docling models
+
+- **Picture Description** - VLM-based image captioning in documents
+  - SmolVLM-256M-Instruct and Granite Vision 3.3-2B models
+  - Configurable via `CCORE_DOCLING_DO_PICTURE_DESCRIPTION`
+  - CPU inference (MPS produces incorrect output)
+
+- **Unified Docling Options** - Centralized configuration for all Docling settings
+  - Environment variables: `CCORE_VLM_*`, `CCORE_DOCLING_*`
+  - YAML configuration under `extraction.docling`
+  - Per-request overrides via ProcessSourceInput
+
+- **Marker PDF Engine** - Optional GPL-3.0 licensed deep learning extraction
+  - High-quality markdown output for complex documents
+  - Check `MARKER_AVAILABLE` before using
+
+### Changed
+- **PyMuPDF Now Optional** - Default to MIT-licensed Docling for PDF extraction
+  - PyMuPDF/pymupdf4llm require explicit installation: `pip install content-core[pymupdf]`
+  - Check `PYMUPDF_AVAILABLE` / `PYMUPDF4LLM_AVAILABLE` before using
+  - Maintains AGPL-3.0 compliance for users who need MIT-only dependencies
+
+- **Documentation Restructured** - Modular, topic-based documentation
+  - Simplified README (~130 lines vs 798)
+  - Engine-specific docs: `docs/engines/` (docling, pymupdf, marker, url-engines, etc.)
+  - Benchmark results: `docs/benchmarks/`
+  - Integration guides: `docs/integrations/` (MCP, Raycast, macOS, LangChain)
+  - Legacy docs preserved in `docs/_legacy/`
+
+- **Enhanced Simple PDF Extraction** - Upgraded to use pymupdf4llm when available
+  - Better table detection and markdown formatting
+  - Quality flags for improved text extraction
+
+### Fixed
+- **MLX Backend Selection** - Use `vlm_options=` parameter to preserve inference framework
+- **VLM Pipeline Options** - Proper configuration propagation for local/remote modes
+
 ## [1.14.1] - 2026-01-29
 
 ### Fixed
