@@ -27,10 +27,15 @@ PDF Engines:
     - marker: Deep learning-based extraction for high-quality markdown.
     - docling: Standard docling pipeline with OCR and table detection.
     - docling-vlm: Vision-Language Model for complex document layouts.
+    - docling-serve: Remote extraction via docling-serve API.
 
 DOCX Engines:
     - python-docx: Basic python-docx extraction.
     - docling: Docling extraction for best quality.
+
+Remote Engines:
+    For docling-serve, provide the server URL:
+    uv run python scripts/benchmark.py --type pdf --engines docling-serve --docling-serve-url http://server:5001
 """
 
 import argparse
@@ -44,7 +49,11 @@ TEST_INPUT_DIR = Path(__file__).parent.parent / "tests" / "input_content"
 OUTPUT_BASE_DIR = Path(__file__).parent.parent / "tests" / "output"
 
 
-def get_engines_for_type(file_type: str, engine_names: Optional[List[str]] = None):
+def get_engines_for_type(
+    file_type: str,
+    engine_names: Optional[List[str]] = None,
+    docling_serve_url: Optional[str] = None,
+):
     """Get engines for the specified file type."""
     from benchmarks.types.pdf import AVAILABLE_PDF_ENGINES, get_pdf_engines
     from benchmarks.types.docx import AVAILABLE_DOCX_ENGINES, get_docx_engines
@@ -57,8 +66,8 @@ def get_engines_for_type(file_type: str, engine_names: Optional[List[str]] = Non
                 raise ValueError(
                     f"No valid PDF engines in: {engine_names}. Available: {AVAILABLE_PDF_ENGINES}"
                 )
-            return get_pdf_engines(valid_names)
-        return get_pdf_engines()
+            return get_pdf_engines(valid_names, docling_serve_url=docling_serve_url)
+        return get_pdf_engines(docling_serve_url=docling_serve_url)
     elif file_type == "docx":
         if engine_names:
             # Filter to only valid DOCX engines
@@ -129,6 +138,7 @@ async def run_benchmark_for_type(
     timeout_seconds: int,
     options: dict,
     output_dir: Path,
+    docling_serve_url: Optional[str] = None,
     verbose: bool = True,
 ):
     """Run benchmark for a specific file type."""
@@ -142,7 +152,7 @@ async def run_benchmark_for_type(
             print(f"\nNo {file_type.upper()} files to benchmark.")
         return [], {}
 
-    engines = get_engines_for_type(file_type, engine_names)
+    engines = get_engines_for_type(file_type, engine_names, docling_serve_url=docling_serve_url)
     scorer = get_scorer_for_type(file_type)
     analyzer = get_analyzer_for_type(file_type)
 
@@ -209,6 +219,9 @@ async def main_async(args):
         "describe_images": args.describe_images,
     }
 
+    # Get docling-serve URL
+    docling_serve_url = getattr(args, "docling_serve_url", None)
+
     print("=" * 60)
     print("Document Extraction Benchmark")
     print("=" * 60)
@@ -216,6 +229,8 @@ async def main_async(args):
     print(f"Timeout: {args.timeout}s per extraction")
     if args.describe_images:
         print("Image description: ENABLED")
+    if docling_serve_url:
+        print(f"Docling-serve URL: {docling_serve_url}")
     print(f"Output: {output_dir}")
 
     # Run benchmarks by type
@@ -226,7 +241,8 @@ async def main_async(args):
         pdf_files = [f for f in all_files if f.suffix.lower() == ".pdf"]
         if pdf_files:
             results, outputs = await run_benchmark_for_type(
-                "pdf", pdf_files, engine_names, args.timeout, options, output_dir
+                "pdf", pdf_files, engine_names, args.timeout, options, output_dir,
+                docling_serve_url=docling_serve_url
             )
             all_results.extend(results)
             all_outputs.update(outputs)
@@ -261,8 +277,9 @@ Examples:
   %(prog)s --type pdf --engines docling       # Only test docling on PDFs
   %(prog)s --files benchmark.pdf              # Only test specific file
   %(prog)s --type pdf --describe-images       # With image descriptions
+  %(prog)s --type pdf --engines docling-serve --docling-serve-url http://server:5001
 
-PDF Engines: simple, pymupdf4llm, marker, docling, docling-vlm
+PDF Engines: simple, pymupdf4llm, marker, docling, docling-vlm, docling-serve
 DOCX Engines: python-docx, docling
         """,
     )
@@ -307,6 +324,12 @@ DOCX Engines: python-docx, docling
         "--describe-images",
         action="store_true",
         help="Enable VLM-based image descriptions (PDF only, uses SmolVLM on CPU)",
+    )
+    parser.add_argument(
+        "--docling-serve-url",
+        type=str,
+        default=None,
+        help="URL for docling-serve remote extraction (e.g., http://server:5001)",
     )
 
     args = parser.parse_args()

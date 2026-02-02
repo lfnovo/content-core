@@ -8,6 +8,7 @@ from .pdf import (
     MarkerEngine,
     DoclingEngine,
     DoclingVLMEngine,
+    DoclingServeEngine,
     get_pdf_engines,
 )
 from .docx import (

@@ -263,14 +263,100 @@ class DoclingVLMEngine(Engine):
         return doc.export_to_markdown()
 
 
+class DoclingServeEngine(Engine):
+    """Remote extraction via docling-serve API.
+
+    Requires a running docling-serve instance. Useful for offloading
+    processing to a GPU server.
+    """
+
+    name = "docling-serve"
+    supported_types = ["pdf"]
+
+    def __init__(self, server_url: str = "http://localhost:5001"):
+        """Initialize with server URL.
+
+        Args:
+            server_url: Base URL of the docling-serve instance
+        """
+        self.server_url = server_url
+
+    async def extract(self, file_path: str, options: Dict[str, Any]) -> str:
+        """Extract PDF using remote docling-serve API."""
+        import httpx
+        import base64
+
+        # Read file and encode as base64
+        with open(file_path, "rb") as f:
+            file_content = base64.standard_b64encode(f.read()).decode("utf-8")
+
+        # Get filename for the request
+        from pathlib import Path
+        filename = Path(file_path).name
+
+        # Build payload according to docling-serve API
+        # See: /openapi.json for schema details
+        payload = {
+            "options": {
+                "pipeline": "vlm",  # Use VLM pipeline for best quality
+                "to_formats": ["md"],
+                "do_ocr": True,
+                "ocr_engine": "easyocr",
+                "table_mode": "accurate",
+                "do_table_structure": True,
+                "do_formula_enrichment": True,
+            },
+            "sources": [
+                {
+                    "kind": "file",
+                    "base64_string": file_content,
+                    "filename": filename,
+                }
+            ],
+        }
+
+        timeout = options.get("timeout", 300)
+
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(
+                f"{self.server_url}/v1/convert/source",
+                json=payload,
+            )
+            response.raise_for_status()
+            result = response.json()
+
+        # Extract markdown from response
+        if "document" in result:
+            # Single document response
+            doc = result["document"]
+            if "md_content" in doc:
+                return doc["md_content"]
+            elif "markdown" in doc:
+                return doc["markdown"]
+        elif "documents" in result and len(result["documents"]) > 0:
+            # Multiple documents response
+            doc = result["documents"][0]
+            if "md_content" in doc:
+                return doc["md_content"]
+            elif "markdown" in doc:
+                return doc["markdown"]
+
+        # Fallback: return raw response as string
+        return str(result)
+
+
 # --- Factory Functions ---
 
 
-def get_pdf_engines(names: Optional[List[str]] = None) -> List[Engine]:
+def get_pdf_engines(
+    names: Optional[List[str]] = None,
+    docling_serve_url: Optional[str] = None,
+) -> List[Engine]:
     """Get PDF extraction engines by name.
 
     Args:
         names: List of engine names to get. If None, returns all available engines.
+        docling_serve_url: URL for docling-serve engine (required if using docling-serve)
 
     Returns:
         List of Engine instances
@@ -283,11 +369,17 @@ def get_pdf_engines(names: Optional[List[str]] = None) -> List[Engine]:
         "docling-vlm": DoclingVLMEngine(),
     }
 
+    # Add docling-serve if URL provided
+    if docling_serve_url:
+        all_engines["docling-serve"] = DoclingServeEngine(server_url=docling_serve_url)
+
     if names is None:
         return list(all_engines.values())
 
     engines = []
     for name in names:
+        if name == "docling-serve" and not docling_serve_url:
+            raise ValueError("docling-serve engine requires --docling-serve-url")
         if name in all_engines:
             engines.append(all_engines[name])
         else:
@@ -296,4 +388,4 @@ def get_pdf_engines(names: Optional[List[str]] = None) -> List[Engine]:
 
 
 # List of available PDF engine names
-AVAILABLE_PDF_ENGINES = ["simple", "pymupdf4llm", "marker", "docling", "docling-vlm"]
+AVAILABLE_PDF_ENGINES = ["simple", "pymupdf4llm", "marker", "docling", "docling-vlm", "docling-serve"]
