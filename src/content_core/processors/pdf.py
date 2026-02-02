@@ -1,12 +1,32 @@
+"""PDF extraction using PyMuPDF (fitz).
+
+This module is optional - PyMuPDF uses AGPL-3.0 license.
+Install with: pip install content-core[pymupdf]
+"""
+
 import asyncio
 import re
 import unicodedata
-
-import fitz  # type: ignore
+from typing import Any, Dict, List
 
 from content_core.common import ProcessSourceState
 from content_core.config import CONFIG
 from content_core.logging import logger
+
+# PyMuPDF availability check (AGPL-3.0 license - optional dependency)
+PYMUPDF_AVAILABLE = False
+SUPPORTED_FITZ_TYPES: List[str] = []
+
+try:
+    import fitz  # type: ignore
+    PYMUPDF_AVAILABLE = True
+    SUPPORTED_FITZ_TYPES = [
+        "application/pdf",
+        "application/epub+zip",
+    ]
+except ImportError:
+    fitz = None  # type: ignore
+
 
 def count_formula_placeholders(text):
     """
@@ -89,11 +109,6 @@ def convert_table_to_markdown(table):
 # Configuration constants
 DEFAULT_FORMULA_THRESHOLD = 3
 DEFAULT_OCR_FALLBACK = True
-
-SUPPORTED_FITZ_TYPES = [
-    "application/pdf",
-    "application/epub+zip",
-]
 
 
 def clean_pdf_text(text):
@@ -271,11 +286,20 @@ async def _extract_text_from_pdf(pdf_path):
     return await asyncio.get_event_loop().run_in_executor(None, _extract)
 
 
-async def extract_pdf(state: ProcessSourceState):
+async def extract_pdf(state: ProcessSourceState) -> Dict[str, Any]:
     """
     Parse the PDF file and extract its content asynchronously.
+
+    Raises:
+        ImportError: If PyMuPDF is not installed
     """
-    return_dict = {}
+    if not PYMUPDF_AVAILABLE:
+        raise ImportError(
+            "PyMuPDF (fitz) is required for this extraction method. "
+            "Install with: pip install content-core[pymupdf]"
+        )
+
+    return_dict: Dict[str, Any] = {}
     assert state.file_path, "No file path provided"
     assert state.identified_type in SUPPORTED_FITZ_TYPES, "Unsupported File Type"
 

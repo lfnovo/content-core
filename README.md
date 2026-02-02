@@ -83,11 +83,11 @@ summary = await cc.summarize_content(result, context="explain to a child")
 Install Content Core using `pip` - **no system dependencies required!**
 
 ```bash
-# Basic installation (PyMuPDF + BeautifulSoup/Jina extraction)
+# Basic installation (Docling for PDF extraction - MIT license)
 pip install content-core
 
-# With enhanced document processing (adds Docling)
-pip install content-core[docling]
+# With PyMuPDF for faster PDF extraction (AGPL-3.0 license)
+pip install content-core[pymupdf]
 
 # With local browser-based URL extraction (adds Crawl4AI)
 # Note: Requires Playwright browsers (~300MB). Run:
@@ -101,7 +101,7 @@ pip install content-core[docling-vlm]
 pip install content-core[docling-mlx]
 
 # Full installation (with all optional features)
-pip install content-core[docling,docling-vlm,crawl4ai]
+pip install content-core[pymupdf,docling-vlm,crawl4ai]
 ```
 
 > **Note:** The core installation uses pure Python implementations and doesn't require system libraries like libmagic, ensuring consistent, hassle-free installation across Windows, macOS, and Linux. Optional features like Crawl4AI (browser automation) may require additional system dependencies.
@@ -774,6 +774,23 @@ make help
 ## License
 
 This project is licensed under the [MIT License](LICENSE). See the [LICENSE](LICENSE) file for details.
+
+### License Notice for Optional Dependencies
+
+Content Core is MIT-licensed, but some optional dependencies have different licenses:
+
+| Package | License | Installation |
+|---------|---------|--------------|
+| **content-core** | MIT | `pip install content-core` |
+| **docling** | MIT | Included by default |
+| **pymupdf/pymupdf4llm** | **AGPL-3.0** | `pip install content-core[pymupdf]` |
+
+**For Commercial Use:**
+
+The default installation uses Docling (MIT) for PDF extraction. PyMuPDF provides faster extraction but uses the AGPL-3.0 license. If you need PyMuPDF's performance, you have two options:
+
+1. Use under AGPL terms (open-source your application)
+2. Contact [Artifex](https://artifex.com/licensing) for a commercial license
 
 ## Contributing
 

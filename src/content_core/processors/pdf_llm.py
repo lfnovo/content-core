@@ -8,21 +8,32 @@ This processor uses pymupdf4llm to extract content from PDFs with:
 - Image extraction (optional)
 - Better structure preservation than basic PyMuPDF
 
+Note: This module is optional - PyMuPDF uses AGPL-3.0 license.
+Install with: pip install content-core[pymupdf]
+
 Reference: https://pymupdf.readthedocs.io/en/latest/pymupdf4llm/
 """
 
 import asyncio
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from content_core.common.state import ProcessSourceState
 from content_core.config import CONFIG
 from content_core.logging import logger
 
-# Supported MIME types (same as pdf.py)
-SUPPORTED_PYMUPDF4LLM_TYPES = [
-    "application/pdf",
-    "application/epub+zip",
-]
+# pymupdf4llm availability check (AGPL-3.0 license - optional dependency)
+PYMUPDF4LLM_AVAILABLE = False
+SUPPORTED_PYMUPDF4LLM_TYPES: List[str] = []
+
+try:
+    import pymupdf4llm  # type: ignore
+    PYMUPDF4LLM_AVAILABLE = True
+    SUPPORTED_PYMUPDF4LLM_TYPES = [
+        "application/pdf",
+        "application/epub+zip",
+    ]
+except ImportError:
+    pymupdf4llm = None  # type: ignore
 
 
 async def extract_with_pymupdf4llm(state: ProcessSourceState) -> Dict[str, Any]:
@@ -43,13 +54,11 @@ async def extract_with_pymupdf4llm(state: ProcessSourceState) -> Dict[str, Any]:
         ValueError: If no file_path is provided
         FileNotFoundError: If file doesn't exist
     """
-    try:
-        import pymupdf4llm
-    except ImportError as e:
+    if not PYMUPDF4LLM_AVAILABLE:
         raise ImportError(
             "pymupdf4llm is required for this extraction method. "
-            "Install with: pip install pymupdf4llm"
-        ) from e
+            "Install with: pip install content-core[pymupdf]"
+        )
 
     if not state.file_path:
         raise ValueError("pymupdf4llm extraction requires a file_path")

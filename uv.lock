@@ -778,8 +778,6 @@ dependencies = [
     { name = "openpyxl" },
     { name = "pandas" },
     { name = "pillow" },
-    { name = "pymupdf" },
-    { name = "pymupdf4llm" },
     { name = "python-docx" },
     { name = "python-dotenv" },
     { name = "python-pptx" },
@@ -805,6 +803,10 @@ docling-mlx = [
 docling-vlm = [
     { name = "docling", extra = ["vlm"] },
     { name = "httpx" },
+]
+pymupdf = [
+    { name = "pymupdf" },
+    { name = "pymupdf4llm" },
 ]
 
 [package.dev-dependencies]
@@ -847,9 +849,9 @@ requires-dist = [
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "pillow", specifier = ">=10.4.0" },
-    { name = "pymupdf", specifier = ">=1.25.5" },
-    { name = "pymupdf4llm", specifier = ">=0.0.17" },
-    { name = "python-docx", specifier = ">=1.1.2" },
+    { name = "pymupdf", marker = "extra == 'pymupdf'", specifier = ">=1.25.5" },
+    { name = "pymupdf4llm", marker = "extra == 'pymupdf'", specifier = ">=0.0.17" },
+    { name = "python-docx", specifier = ">=1.2.0" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
     { name = "python-pptx", specifier = ">=1.0.2" },
     { name = "pytubefix", specifier = ">=9.1.1" },
@@ -858,7 +860,7 @@ requires-dist = [
     { name = "validators", specifier = ">=0.34.0" },
     { name = "youtube-transcript-api", specifier = ">=1.0.3" },
 ]
-provides-extras = ["docling", "docling-vlm", "docling-mlx", "crawl4ai"]
+provides-extras = ["pymupdf", "docling", "docling-vlm", "docling-mlx", "crawl4ai"]
 
 [package.metadata.requires-dev]
 dev = [

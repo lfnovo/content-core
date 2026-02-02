@@ -81,6 +81,9 @@ src/content_core/
 ## Gotchas
 
 - Import aliases: `content_core.extraction` = `content_core.content.extraction`
+- `pymupdf` is optional (AGPL-3.0 license): check `PYMUPDF_AVAILABLE` before using
+- `pymupdf4llm` is optional (AGPL-3.0 license): check `PYMUPDF4LLM_AVAILABLE` before using
+- Default PDF extraction uses Docling (MIT) when PyMuPDF not installed
 - `docling` is optional: check `DOCLING_AVAILABLE` before using
 - `docling_vlm` is optional: check `DOCLING_VLM_LOCAL_AVAILABLE` for local inference
 - VLM remote mode requires `httpx`: check `HTTPX_AVAILABLE`
