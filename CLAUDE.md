@@ -9,7 +9,7 @@ Library for extracting, cleaning, and summarizing content from URLs, files, and 
 - **Run single test**: `uv run pytest -k "test_name"`
 - **Linting**: `make ruff` (runs `ruff check . --fix`)
 - **Build package**: `uv build`
-- **Build docs**: `make build-docs`
+- **Run benchmarks**: `uv run python scripts/benchmark.py`
 
 ## Codebase Structure
 
@@ -37,7 +37,8 @@ src/content_core/
 │   ├── office.py        # Office docs (docx/pptx/xlsx)
 │   ├── text.py          # Plain text files
 │   ├── docling.py       # Optional Docling integration
-│   └── docling_vlm.py   # VLM-powered extraction (local/remote)
+│   ├── docling_vlm.py   # VLM-powered extraction (local/remote)
+│   └── marker.py        # Optional Marker PDF extraction (GPL-3.0)
 │
 ├── content/             # High-level workflows
 │   ├── extraction/      # LangGraph extraction workflow
@@ -54,6 +55,40 @@ src/content_core/
 │
 └── mcp/                 # MCP server for AI assistant integration
     └── server.py        # FastMCP server implementation
+
+scripts/
+├── benchmark.py         # Unified benchmark CLI
+└── benchmarks/          # Benchmark framework
+    ├── base.py          # Abstract classes (Engine, QualityScorer, etc.)
+    ├── runner.py        # BenchmarkRunner
+    ├── reporter.py      # ReportGenerator
+    ├── types/           # Engine implementations by file type
+    │   ├── pdf.py       # PDF engines and scorer
+    │   └── docx.py      # DOCX engines and scorer
+    └── test_data/       # Expected content for quality scoring
+        ├── pdf_expected.py
+        └── docx_expected.py
+
+docs/
+├── getting-started.md   # Quick start guide
+├── configuration.md     # All configuration options
+├── cli.md               # CLI reference (ccore, cclean, csum)
+├── engines/             # Engine-specific documentation
+│   ├── overview.md      # Engine comparison and selection
+│   ├── docling.md       # Docling (MIT, default)
+│   ├── docling-vlm.md   # Docling VLM (MIT)
+│   ├── pymupdf.md       # PyMuPDF (AGPL-3.0)
+│   ├── marker.md        # Marker (GPL-3.0)
+│   ├── url-engines.md   # URL engines (firecrawl, jina, crawl4ai, bs4)
+│   └── audio-video.md   # Audio/video transcription
+├── benchmarks/          # Performance benchmarks
+│   ├── pdf-benchmark.md
+│   └── docx-benchmark.md
+└── integrations/        # Integration guides
+    ├── mcp.md           # Claude Desktop / MCP
+    ├── raycast.md       # Raycast extension
+    ├── macos.md         # macOS Services
+    └── langchain.md     # LangChain tools
 ```
 
 ## Architecture
@@ -86,11 +121,32 @@ src/content_core/
 - Default PDF extraction uses Docling (MIT) when PyMuPDF not installed
 - `docling` is optional: check `DOCLING_AVAILABLE` before using
 - `docling_vlm` is optional: check `DOCLING_VLM_LOCAL_AVAILABLE` for local inference
+- `marker` is optional (GPL-3.0 license): check `MARKER_AVAILABLE` before using
 - VLM remote mode requires `httpx`: check `HTTPX_AVAILABLE`
 - Proxy must be passed through state or config, not set globally on requests
 - All async operations should use retry decorators for resilience
 - `ModelFactory` caches models but invalidates on proxy change
-- **Picture description**: Use `docling` engine (not `docling-vlm`) with `CCORE_DOCLING_DO_PICTURE_DESCRIPTION=true`. Forces CPU due to MPS issues. See `docs/processors.md` for details.
+- **Picture description**: Use `docling` engine (not `docling-vlm`) with `CCORE_DOCLING_DO_PICTURE_DESCRIPTION=true`. Forces CPU due to MPS issues.
+
+## Benchmarking
+
+Run extraction benchmarks:
+
+```bash
+# All types
+uv run python scripts/benchmark.py
+
+# PDF only
+uv run python scripts/benchmark.py --type pdf --files benchmark.pdf
+
+# DOCX only
+uv run python scripts/benchmark.py --type docx --files benchmark.docx
+
+# Specific engines
+uv run python scripts/benchmark.py --type pdf --engines docling,docling-vlm
+```
+
+Results saved to `tests/output/benchmark_TIMESTAMP/`.
 
 ## Code Style
 
