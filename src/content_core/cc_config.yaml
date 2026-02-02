@@ -59,9 +59,13 @@ extraction:
       # Image/picture settings - minimal by default (smaller output)
       generate_page_images: false
       generate_picture_images: false
-      images_scale: 1.0
+      images_scale: 2.0  # Higher resolution for better VLM processing
       do_picture_classification: false
       do_picture_description: false  # Requires VLM, computationally expensive
+      # Picture description settings (only used when do_picture_description: true)
+      # Note: Forces CPU device due to MPS compatibility issues with SmolVLM/Granite Vision
+      picture_description_model: granite  # smolvlm (256M, faster) | granite (2B, better quality)
+      picture_description_prompt: "Describe this image in detail. Include the type of visualization, axes labels, data trends, and any text visible in the image."
       # Timeout - no limit by default
       document_timeout: null
     vlm:

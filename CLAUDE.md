@@ -87,6 +87,7 @@ src/content_core/
 - Proxy must be passed through state or config, not set globally on requests
 - All async operations should use retry decorators for resilience
 - `ModelFactory` caches models but invalidates on proxy change
+- **Picture description**: Use `docling` engine (not `docling-vlm`) with `CCORE_DOCLING_DO_PICTURE_DESCRIPTION=true`. Forces CPU due to MPS issues. See `docs/processors.md` for details.
 
 ## Code Style
 

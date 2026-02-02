@@ -11,8 +11,23 @@ Format-specific content extraction handlers. Each processor extracts content fro
 - **`youtube.py`**: YouTube transcript extraction using youtube-transcript-api. Handles multiple transcript formats, language fallbacks. Exports `extract_youtube_transcript`
 - **`office.py`**: Office document extraction (docx, pptx, xlsx) using python-docx, python-pptx, openpyxl. Exports `SUPPORTED_OFFICE_TYPES`, `extract_office_content`
 - **`text.py`**: Plain text file reading and HTML-to-markdown conversion. Detects HTML in text content and converts to markdown using `markdownify`. Exports `extract_txt`, `process_text_content`, `detect_html`
-- **`docling.py`**: Optional Docling-based extraction for advanced document processing. Conditionally imported. Exports `DOCLING_AVAILABLE`, `DOCLING_SUPPORTED`, `extract_with_docling`
+- **`docling.py`**: Optional Docling-based extraction for advanced document processing. Supports picture description via VLM (SmolVLM/Granite Vision). Conditionally imported. Exports `DOCLING_AVAILABLE`, `DOCLING_SUPPORTED`, `PICTURE_DESCRIPTION_AVAILABLE`, `extract_with_docling`
 - **`docling_vlm.py`**: VLM-powered extraction using Docling's VlmPipeline or docling-serve. Supports local inference (transformers/MLX) and remote inference. Exports `DOCLING_VLM_LOCAL_AVAILABLE`, `DOCLING_VLM_MLX_AVAILABLE`, `HTTPX_AVAILABLE`, `extract_with_docling_vlm`, `extract_with_vlm_local`, `extract_with_vlm_remote`
+
+## Picture Description
+
+The `docling.py` processor supports VLM-based image captioning when `do_picture_description=True`.
+
+**Configuration (env vars or YAML):**
+- `CCORE_DOCLING_DO_PICTURE_DESCRIPTION=true` - Enable picture description
+- `CCORE_DOCLING_PICTURE_MODEL=granite` - Model: `smolvlm` (256M, faster) or `granite` (2B, better)
+- `CCORE_DOCLING_PICTURE_PROMPT="..."` - Custom prompt for image description
+
+**Important notes:**
+- Forces CPU device due to MPS (Apple Silicon) compatibility issues
+- Descriptions stored in `pic.meta.description.text`, not exported to markdown
+- Use `docling` engine (not `docling-vlm`) for reliable picture descriptions
+- See: https://github.com/docling-project/docling/discussions/2434
 
 ## Patterns
 

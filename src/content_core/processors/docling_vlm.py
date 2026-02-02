@@ -211,6 +211,54 @@ async def extract_with_vlm_local(state: ProcessSourceState) -> Dict[str, Any]:
     pipeline_options.do_picture_classification = options.get("do_picture_classification", False)
     pipeline_options.do_picture_description = options.get("do_picture_description", False)
 
+    # Configure picture description model if enabled
+    # Note: Picture description with VlmPipeline is experimental and may not work
+    # as expected. For reliable picture descriptions, use the standard docling
+    # pipeline (document_engine="docling") instead of docling-vlm.
+    # See: https://github.com/docling-project/docling/discussions/2434
+    if options.get("do_picture_description", False):
+        from docling.datamodel.pipeline_options import (
+            smolvlm_picture_description,
+            granite_picture_description,
+            PictureDescriptionVlmOptions,
+        )
+        from docling.datamodel.accelerator_options import AcceleratorOptions
+
+        logger.warning(
+            "Picture description with VlmPipeline is experimental. "
+            "For reliable results, use document_engine='docling' instead."
+        )
+
+        # Get model and prompt from config (supports env var overrides)
+        picture_model = options.get("picture_description_model", "granite").lower()
+        picture_prompt = options.get(
+            "picture_description_prompt",
+            "Describe this image in detail. Include the type of visualization, "
+            "axes labels, data trends, and any text visible in the image."
+        )
+
+        # Select base model
+        if picture_model == "smolvlm":
+            base_options = smolvlm_picture_description
+            logger.info("Using SmolVLM-256M-Instruct for picture description")
+        else:
+            base_options = granite_picture_description
+            logger.info("Using Granite Vision 3.3-2B for picture description")
+
+        # Create custom options with user prompt
+        pipeline_options.picture_description_options = PictureDescriptionVlmOptions(
+            repo_id=base_options.repo_id,
+            prompt=picture_prompt,
+            generation_config={"max_new_tokens": 300, "do_sample": False},
+        )
+
+        # Force CPU for picture description - MPS produces incorrect output
+        # with SmolVLM and Granite Vision models on Apple Silicon
+        pipeline_options.accelerator_options = AcceleratorOptions(device="cpu")
+        logger.debug(
+            f"Picture description: model={picture_model}, prompt={picture_prompt[:50]}..."
+        )
+
     # Apply timeout if configured
     timeout = options.get("document_timeout")
     if timeout is not None:

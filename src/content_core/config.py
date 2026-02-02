@@ -724,9 +724,16 @@ def get_docling_options() -> dict:
         "do_formula_enrichment": True,  # Enabled for scientific papers
         "generate_page_images": False,
         "generate_picture_images": False,
-        "images_scale": 1.0,
+        "images_scale": 2.0,  # Higher resolution for better VLM processing
         "do_picture_classification": False,
         "do_picture_description": False,
+        # Picture description settings (used when do_picture_description=True)
+        # Note: Forces CPU device due to MPS compatibility issues with SmolVLM/Granite Vision
+        "picture_description_model": "granite",  # smolvlm (256M) | granite (2B, better quality)
+        "picture_description_prompt": (
+            "Describe this image in detail. Include the type of visualization, "
+            "axes labels, data trends, and any text visible in the image."
+        ),
         "document_timeout": None,
     }
 
@@ -767,6 +774,8 @@ def get_docling_options() -> dict:
         "CCORE_DOCLING_IMAGES_SCALE": ("images_scale", parse_optional_float),
         "CCORE_DOCLING_DO_PICTURE_CLASSIFICATION": ("do_picture_classification", parse_bool),
         "CCORE_DOCLING_DO_PICTURE_DESCRIPTION": ("do_picture_description", parse_bool),
+        "CCORE_DOCLING_PICTURE_MODEL": ("picture_description_model", str),
+        "CCORE_DOCLING_PICTURE_PROMPT": ("picture_description_prompt", str),
         "CCORE_DOCLING_DOCUMENT_TIMEOUT": ("document_timeout", parse_optional_int),
     }
 

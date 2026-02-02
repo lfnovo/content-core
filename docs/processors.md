@@ -103,13 +103,46 @@ Content Core uses a modular approach to process content from different sources. 
 
   # switch document engine to Docling
   set_document_engine("docling")
-  
+
   # switch URL engine to Firecrawl
   set_url_engine("firecrawl")
 
   # choose output format
   set_docling_output_format("html")
   ```
+
+#### Picture Description (VLM-based Image Captioning)
+
+The Docling processor supports automatic image description using Vision Language Models. When enabled, images in documents are analyzed and described in natural language.
+
+- **Models Available**:
+  - `smolvlm`: SmolVLM-256M-Instruct (faster, 256M parameters)
+  - `granite`: Granite Vision 3.3-2B (better quality, 2B parameters) - **recommended**
+
+- **Configuration via Environment Variables**:
+  ```bash
+  export CCORE_DOCLING_DO_PICTURE_DESCRIPTION=true
+  export CCORE_DOCLING_PICTURE_MODEL=granite  # or smolvlm
+  export CCORE_DOCLING_PICTURE_PROMPT="Describe this image in detail. Include the type of visualization, axes labels, data trends, and any text visible in the image."
+  ```
+
+- **Configuration via YAML**:
+  ```yaml
+  extraction:
+    docling:
+      options:
+        do_picture_description: true
+        picture_description_model: granite  # smolvlm | granite
+        picture_description_prompt: "Describe this image in detail..."
+        images_scale: 2.0  # Higher resolution for better descriptions
+  ```
+
+- **Important Notes**:
+  - Uses CPU for inference (MPS/Apple Silicon GPU produces incorrect output)
+  - Processing time: ~100s for granite, ~30s for smolvlm (per document)
+  - Descriptions are stored in `pic.meta.description.text` in the document model
+  - Markdown export shows `<!-- image -->` placeholder; access descriptions programmatically
+  - Use `docling` engine (not `docling-vlm`) for reliable picture descriptions
 
 ## How Processors Work
 

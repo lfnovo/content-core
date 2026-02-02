@@ -1,5 +1,19 @@
 """
 Docling-based document extraction processor.
+
+Picture Description:
+    When do_picture_description=True, uses a VLM to generate textual descriptions
+    of images found in documents. Two models are available:
+    - smolvlm: SmolVLM-256M-Instruct (faster, smaller, 256M params)
+    - granite: Granite Vision 3.3-2B (better quality, 2B params)
+
+    Note: Forces CPU device due to MPS (Apple Silicon) compatibility issues.
+    Descriptions are stored in pic.meta.description.text but not exported to markdown.
+
+    Configuration:
+    - CCORE_DOCLING_DO_PICTURE_DESCRIPTION=true
+    - CCORE_DOCLING_PICTURE_MODEL=granite (or smolvlm)
+    - CCORE_DOCLING_PICTURE_PROMPT="Your custom prompt here"
 """
 
 from content_core.common.state import ProcessSourceState
@@ -7,6 +21,8 @@ from content_core.config import CONFIG, get_docling_options
 from content_core.logging import logger
 
 DOCLING_AVAILABLE = False
+PICTURE_DESCRIPTION_AVAILABLE = False
+
 try:
     from docling.datamodel.base_models import InputFormat
     from docling.datamodel.pipeline_options import (
@@ -18,6 +34,19 @@ try:
     from docling.document_converter import DocumentConverter, PdfFormatOption
 
     DOCLING_AVAILABLE = True
+
+    # Check if picture description models are available
+    try:
+        from docling.datamodel.pipeline_options import (
+            PictureDescriptionVlmOptions,
+            smolvlm_picture_description,
+            granite_picture_description,
+        )
+        from docling.datamodel.accelerator_options import AcceleratorOptions
+
+        PICTURE_DESCRIPTION_AVAILABLE = True
+    except ImportError:
+        pass
 except ImportError:
 
     class DocumentConverter:
@@ -123,16 +152,53 @@ def _build_pdf_pipeline_options(options: dict) -> "PdfPipelineOptions":
     pipeline_options.do_picture_classification = options.get(
         "do_picture_classification", False
     )
-    pipeline_options.do_picture_description = options.get(
-        "do_picture_description", False
-    )
+    do_picture_description = options.get("do_picture_description", False)
+    pipeline_options.do_picture_description = do_picture_description
+
+    # Configure picture description model if enabled
+    if do_picture_description and PICTURE_DESCRIPTION_AVAILABLE:
+        picture_model = options.get("picture_description_model", "granite").lower()
+        picture_prompt = options.get(
+            "picture_description_prompt",
+            "Describe this image in detail. Include the type of visualization, "
+            "axes labels, data trends, and any text visible in the image."
+        )
+
+        # Create custom options with the configured prompt
+        if picture_model == "smolvlm":
+            base_options = smolvlm_picture_description
+            logger.info("Using SmolVLM-256M-Instruct for picture description")
+        else:
+            base_options = granite_picture_description
+            logger.info("Using Granite Vision 3.3-2B for picture description")
+
+        # Create custom options with user prompt
+        pipeline_options.picture_description_options = PictureDescriptionVlmOptions(
+            repo_id=base_options.repo_id,
+            prompt=picture_prompt,
+            generation_config={"max_new_tokens": 300, "do_sample": False},
+        )
+
+        # Force CPU device due to MPS compatibility issues with SmolVLM/Granite Vision
+        pipeline_options.accelerator_options = AcceleratorOptions(device="cpu")
+        logger.debug(
+            f"Picture description: model={picture_model}, prompt={picture_prompt[:50]}..."
+        )
+    elif do_picture_description and not PICTURE_DESCRIPTION_AVAILABLE:
+        logger.warning(
+            "Picture description requested but VLM options not available. "
+            "Install docling[vlm] for picture description support."
+        )
 
     # Image generation settings
     pipeline_options.generate_page_images = options.get("generate_page_images", False)
     pipeline_options.generate_picture_images = options.get(
         "generate_picture_images", False
     )
-    pipeline_options.images_scale = options.get("images_scale", 1.0)
+    # Enable picture images when picture description is on
+    if do_picture_description:
+        pipeline_options.generate_picture_images = True
+    pipeline_options.images_scale = options.get("images_scale", 2.0)
 
     # Timeout setting
     timeout = options.get("document_timeout")

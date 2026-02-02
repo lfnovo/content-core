@@ -321,6 +321,30 @@ For advanced users, you can override the extraction engines:
 - Set `CCORE_URL_ENGINE=firecrawl` to always use paid service for better reliability
 - Set `CCORE_URL_ENGINE=simple` for faster processing without external API calls
 
+### Picture Description (Image Captioning)
+
+Enable VLM-based image description for documents with images:
+
+```json
+{
+  "mcpServers": {
+    "content-core": {
+      "env": {
+        "CCORE_DOCUMENT_ENGINE": "docling",
+        "CCORE_DOCLING_DO_PICTURE_DESCRIPTION": "true",
+        "CCORE_DOCLING_PICTURE_MODEL": "granite",
+        "CCORE_DOCLING_PICTURE_PROMPT": "Describe this image in detail. Include the type of visualization, axes labels, data trends, and any text visible in the image."
+      }
+    }
+  }
+}
+```
+
+**Options:**
+- `CCORE_DOCLING_PICTURE_MODEL`: `granite` (2B, better quality) or `smolvlm` (256M, faster)
+- Processing uses CPU (MPS/GPU has compatibility issues)
+- Adds ~100s per document with granite, ~30s with smolvlm
+
 ### Custom Prompts
 
 You can customize Content Core's behavior by setting a custom prompt path:
