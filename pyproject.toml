@@ -73,8 +73,10 @@ package-dir = {"content_core" = "src/content_core"}
 
 [dependency-groups]
 dev = [
+    "fpdf2>=2.8.5",
     "ipykernel>=4.0.1",
     "ipywidgets>=4.0.0",
+    "matplotlib>=3.10.8",
     "openai>=1.78.1",
     "pyperclip>=1.9.0",
     "pytest>=7.2.0",

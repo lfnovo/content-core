@@ -12,6 +12,32 @@ Examples:
     uv run python scripts/benchmark_pdf_engines.py --engines pymupdf4llm,docling
     uv run python scripts/benchmark_pdf_engines.py --files 2601.20958v1.pdf
     uv run python scripts/benchmark_pdf_engines.py --timeout 300
+    uv run python scripts/benchmark_pdf_engines.py --engines docling --describe-images
+
+Engines:
+    - pymupdf4llm: Fast, lightweight extraction using PyMuPDF. Best for simple documents.
+    - docling: Standard docling pipeline with OCR and table detection.
+    - docling-vlm: Vision-Language Model (granite-docling) for complex document layouts.
+
+Picture Description (--describe-images):
+    Enables VLM-based image captioning using SmolVLM-256M-Instruct model.
+
+    IMPORTANT FINDINGS:
+    1. Use with 'docling' engine, NOT 'docling-vlm'. The VlmPipeline does not
+       properly support picture description enrichment.
+       See: https://github.com/docling-project/docling/discussions/2434
+
+    2. MPS (Apple Silicon GPU) produces garbage output with SmolVLM/Granite Vision.
+       This script forces CPU inference for picture descriptions as a workaround.
+
+    3. Descriptions are stored in pic.meta.description.text but the markdown export
+       shows <!-- image --> by default. Access descriptions via the document model.
+
+    4. CPU inference is slower (~100s vs ~25s) but produces correct results.
+
+    Example output with --describe-images:
+        Description: "The image is a line graph titled 'Trigonometric Functions.'
+        The graph shows a downward trend, with the y-axis increasing..."
 """
 
 import argparse
@@ -32,6 +58,16 @@ OUTPUT_BASE_DIR = Path(__file__).parent.parent / "tests" / "output"
 
 # Available engines
 AVAILABLE_ENGINES = ["pymupdf4llm", "docling", "docling-vlm"]
+
+
+@dataclass
+class QualityScore:
+    """Quality metrics for extraction accuracy."""
+
+    score: float  # 0.0 to 1.0
+    found: int  # Number of expected elements found
+    total: int  # Total expected elements
+    details: Dict[str, bool]  # Which elements were found
 
 
 @dataclass
@@ -59,6 +95,88 @@ class BenchmarkResult:
     has_content: bool
     error: Optional[str] = None
 
+    # Quality score (for files with known content)
+    quality_score: Optional[float] = None
+    quality_found: Optional[int] = None
+    quality_total: Optional[int] = None
+
+
+# Expected content for benchmark.pdf (our synthetic test file)
+BENCHMARK_PDF_EXPECTED = {
+    "title": "Benchmark Document for PDF Extraction",
+    "sections": [
+        "Introduction",
+        "Mathematical Formulas",
+        "Data Table",
+        "Figure",
+        "Conclusion",
+        "References",
+    ],
+    "subsections": [
+        "Famous Equations",
+        "LaTeX Block Formula",
+    ],
+    "formulas": [
+        "E = mc",  # E = mc^2 (partial match)
+        "e^(i",  # Euler's identity (partial)
+        "a^2 + b^2",  # Pythagorean
+        "sqrt(b^2",  # Quadratic formula (partial)
+    ],
+    "table_data": [
+        "Quick Sort",
+        "Merge Sort",
+        "Bubble Sort",
+        "Neural Net",
+        "45.2",  # Quick Sort time
+        "98.7",  # Neural Net accuracy (unique value)
+    ],
+    "figure": [
+        "Figure 1",
+        "sin(x)",
+        "cos(x)",
+    ],
+}
+
+
+def score_benchmark_pdf(content: str) -> QualityScore:
+    """Score extraction quality against expected benchmark.pdf content."""
+    content_lower = content.lower()
+    details = {}
+
+    # Check title
+    details["title"] = BENCHMARK_PDF_EXPECTED["title"].lower() in content_lower
+
+    # Check sections
+    for section in BENCHMARK_PDF_EXPECTED["sections"]:
+        key = f"section_{section.lower().replace(' ', '_')}"
+        details[key] = section.lower() in content_lower
+
+    # Check subsections
+    for subsection in BENCHMARK_PDF_EXPECTED["subsections"]:
+        key = f"subsection_{subsection.lower().replace(' ', '_')}"
+        details[key] = subsection.lower() in content_lower
+
+    # Check formulas (case-sensitive for math)
+    for formula in BENCHMARK_PDF_EXPECTED["formulas"]:
+        key = f"formula_{formula[:10].replace(' ', '_')}"
+        details[key] = formula in content
+
+    # Check table data
+    for data in BENCHMARK_PDF_EXPECTED["table_data"]:
+        key = f"table_{data.lower().replace(' ', '_')}"
+        details[key] = data.lower() in content_lower
+
+    # Check figure references
+    for fig in BENCHMARK_PDF_EXPECTED["figure"]:
+        key = f"figure_{fig.lower().replace(' ', '_')}"
+        details[key] = fig.lower() in content_lower
+
+    found = sum(1 for v in details.values() if v)
+    total = len(details)
+    score = found / total if total > 0 else 0.0
+
+    return QualityScore(score=score, found=found, total=total, details=details)
+
 
 def count_headers(content: str) -> int:
     """Count markdown headers (## style)."""
@@ -85,7 +203,7 @@ def count_formulas(content: str) -> int:
     return block_formulas + inline_formulas
 
 
-def analyze_content(content: str) -> Dict:
+def analyze_content(content: str, file_name: str = "") -> Dict:
     """Analyze content and return metrics."""
     lines = content.split("\n")
     first_line = ""
@@ -95,7 +213,7 @@ def analyze_content(content: str) -> Dict:
             first_line = stripped[:100]  # Truncate for display
             break
 
-    return {
+    result = {
         "output_size_bytes": len(content.encode("utf-8")),
         "output_lines": len(lines),
         "headers_count": count_headers(content),
@@ -103,7 +221,19 @@ def analyze_content(content: str) -> Dict:
         "formulas_count": count_formulas(content),
         "first_line": first_line,
         "has_content": len(content.strip()) > 0,
+        "quality_score": None,
+        "quality_found": None,
+        "quality_total": None,
     }
+
+    # Score quality for benchmark.pdf
+    if file_name == "benchmark.pdf":
+        quality = score_benchmark_pdf(content)
+        result["quality_score"] = round(quality.score, 3)
+        result["quality_found"] = quality.found
+        result["quality_total"] = quality.total
+
+    return result
 
 
 # --- Engine Implementations ---
@@ -116,24 +246,94 @@ def benchmark_pymupdf4llm(file_path: str) -> str:
     return pymupdf4llm.to_markdown(file_path, page_chunks=False, write_images=False)
 
 
-async def benchmark_docling(file_path: str) -> str:
-    """Extract PDF using docling via content-core."""
-    from content_core.common.state import ProcessSourceState
-    from content_core.processors.docling import extract_with_docling
+async def benchmark_docling(file_path: str, describe_images: bool = False) -> str:
+    """Extract PDF using docling standard pipeline.
 
-    state = ProcessSourceState(file_path=file_path)
-    result = await extract_with_docling(state)
-    return result.content
+    When describe_images=True, enables VLM-based picture description using
+    the SmolVLM-256M-Instruct model. This is the recommended approach for
+    image descriptions as per docling documentation.
+
+    Note: Picture description uses CPU device because the SmolVLM model
+    produces incorrect output with MPS (Apple Silicon GPU).
+    """
+    import asyncio
+    from docling.datamodel.base_models import InputFormat
+    from docling.datamodel.pipeline_options import (
+        PdfPipelineOptions,
+        smolvlm_picture_description,
+    )
+    from docling.datamodel.accelerator_options import AcceleratorOptions
+    from docling.document_converter import DocumentConverter, PdfFormatOption
+
+    pipeline_options = PdfPipelineOptions()
+
+    # Enable image description if requested
+    # Uses SmolVLM-256M-Instruct for describing images found in the document
+    # See: https://docling-project.github.io/docling/examples/pictures_description/
+    if describe_images:
+        pipeline_options.do_picture_description = True
+        pipeline_options.generate_picture_images = True
+        pipeline_options.images_scale = 2.0  # Higher resolution for better descriptions
+        pipeline_options.picture_description_options = smolvlm_picture_description
+        # Use CPU for picture description - MPS produces incorrect output with SmolVLM
+        pipeline_options.accelerator_options = AcceleratorOptions(device='cpu')
+
+    converter = DocumentConverter(
+        format_options={
+            InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
+        }
+    )
+
+    # Run in executor to avoid blocking
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(None, converter.convert, file_path)
+
+    doc = result.document
+    return doc.export_to_markdown()
 
 
-async def benchmark_docling_vlm(file_path: str) -> str:
-    """Extract PDF using docling-vlm via content-core."""
-    from content_core.common.state import ProcessSourceState
-    from content_core.processors.docling_vlm import extract_with_docling_vlm
+async def benchmark_docling_vlm(file_path: str, describe_images: bool = False) -> str:
+    """Extract PDF using docling VLM pipeline (granite-docling model).
 
-    state = ProcessSourceState(file_path=file_path, vlm_inference_mode="local")
-    result = await extract_with_docling_vlm(state)
-    return result["content"]
+    The VLM pipeline uses a vision-language model for document structure
+    understanding. This is different from picture description which is
+    an enrichment step available on the standard pipeline.
+
+    Note: Picture description with VlmPipeline is not fully supported.
+    Use --describe-images with the 'docling' engine instead for best results.
+    See: https://github.com/docling-project/docling/discussions/2434
+    """
+    import asyncio
+    from docling.datamodel.pipeline_options import VlmPipelineOptions
+    from docling.document_converter import DocumentConverter, PdfFormatOption
+    from docling.pipeline.vlm_pipeline import VlmPipeline
+    from docling.datamodel import vlm_model_specs
+
+    model_spec = vlm_model_specs.GRANITEDOCLING_MLX
+    pipeline_options = VlmPipelineOptions(vlm_options=model_spec)
+
+    # Note: Picture description is not well-supported with VlmPipeline.
+    # The options below are kept for testing purposes but may not produce
+    # meaningful descriptions. Use the 'docling' engine with --describe-images
+    # for proper picture descriptions.
+    if describe_images:
+        from docling.datamodel.pipeline_options import smolvlm_picture_description
+        pipeline_options.do_picture_description = True
+        pipeline_options.generate_picture_images = True
+        pipeline_options.picture_description_options = smolvlm_picture_description
+
+    converter = DocumentConverter(
+        format_options={
+            "pdf": PdfFormatOption(pipeline_cls=VlmPipeline, pipeline_options=pipeline_options)
+        }
+    )
+
+    # Run in executor to avoid blocking
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(None, converter.convert, file_path)
+
+    doc = result.document
+    return doc.export_to_markdown()
 
 
 # --- Benchmark Runner ---
@@ -143,11 +343,16 @@ async def run_single_benchmark(
     engine: str,
     file_path: Path,
     timeout_seconds: int = 600,
+    describe_images: bool = False,
 ) -> BenchmarkResult:
     """Run a single benchmark for one engine on one file."""
     file_name = file_path.name
 
-    print(f"  Running {engine} on {file_name}...", end=" ", flush=True)
+    engine_display = engine
+    if describe_images and engine in ("docling", "docling-vlm"):
+        engine_display = f"{engine} (describe_images)"
+
+    print(f"  Running {engine_display} on {file_name}...", end=" ", flush=True)
 
     # Start memory tracking
     tracemalloc.start()
@@ -166,12 +371,12 @@ async def run_single_benchmark(
             )
         elif engine == "docling":
             content = await asyncio.wait_for(
-                benchmark_docling(str(file_path)),
+                benchmark_docling(str(file_path), describe_images=describe_images),
                 timeout=timeout_seconds,
             )
         elif engine == "docling-vlm":
             content = await asyncio.wait_for(
-                benchmark_docling_vlm(str(file_path)),
+                benchmark_docling_vlm(str(file_path), describe_images=describe_images),
                 timeout=timeout_seconds,
             )
         else:
@@ -190,7 +395,7 @@ async def run_single_benchmark(
     peak_mb = peak / (1024 * 1024)
 
     # Analyze content
-    metrics = analyze_content(content) if content else {
+    metrics = analyze_content(content, file_name) if content else {
         "output_size_bytes": 0,
         "output_lines": 0,
         "headers_count": 0,
@@ -198,6 +403,9 @@ async def run_single_benchmark(
         "formulas_count": 0,
         "first_line": "",
         "has_content": False,
+        "quality_score": None,
+        "quality_found": None,
+        "quality_total": None,
     }
 
     result = BenchmarkResult(
@@ -213,7 +421,10 @@ async def run_single_benchmark(
     if error:
         print(f"FAILED ({elapsed:.1f}s) - {error}")
     else:
-        print(f"OK ({elapsed:.1f}s, {metrics['output_size_bytes'] / 1024:.1f}KB)")
+        quality_str = ""
+        if metrics.get("quality_score") is not None:
+            quality_str = f", quality={metrics['quality_score']:.0%}"
+        print(f"OK ({elapsed:.1f}s, {metrics['output_size_bytes'] / 1024:.1f}KB{quality_str})")
 
     return result, content
 
@@ -222,6 +433,7 @@ async def run_benchmarks(
     engines: List[str],
     files: List[Path],
     timeout_seconds: int,
+    describe_images: bool = False,
 ) -> tuple[List[BenchmarkResult], Dict[str, Dict[str, str]]]:
     """Run all benchmarks and return results with outputs."""
     results = []
@@ -233,7 +445,7 @@ async def run_benchmarks(
 
         for engine in engines:
             result, content = await run_single_benchmark(
-                engine, file_path, timeout_seconds
+                engine, file_path, timeout_seconds, describe_images=describe_images
             )
             results.append(result)
             if content:
@@ -280,7 +492,25 @@ def generate_markdown_report(
 
         report += f"| {engine} | {avg_time:.1f}s | {max_memory:.0f}MB | {avg_size/1024:.1f}KB | {success_rate:.0f}% |\n"
 
-    report += "\n## Per-File Results\n\n"
+    # Check if any results have quality scores
+    has_quality_scores = any(r.quality_score is not None for r in results)
+
+    if has_quality_scores:
+        report += "\n## Quality Scores (benchmark.pdf)\n\n"
+        report += "| Engine | Quality | Found/Total | Time | Status |\n"
+        report += "|--------|---------|-------------|------|--------|\n"
+
+        quality_results = [r for r in results if r.quality_score is not None]
+        for r in sorted(quality_results, key=lambda x: x.quality_score or 0, reverse=True):
+            status = "✅" if r.error is None else f"❌"
+            report += (
+                f"| {r.engine} | **{r.quality_score:.0%}** | {r.quality_found}/{r.quality_total} | "
+                f"{r.time_seconds:.1f}s | {status} |\n"
+            )
+
+        report += "\n"
+
+    report += "## Per-File Results\n\n"
 
     # Per-file results
     for file_path in files:
@@ -288,16 +518,29 @@ def generate_markdown_report(
         file_results = [r for r in results if r.file == file_name]
 
         report += f"### {file_name}\n\n"
-        report += "| Engine | Time | Memory | Size | Lines | Headers | Tables | Formulas | Status |\n"
-        report += "|--------|------|--------|------|-------|---------|--------|----------|--------|\n"
 
-        for r in file_results:
-            status = "✅" if r.error is None else f"❌ {r.error[:30]}"
-            report += (
-                f"| {r.engine} | {r.time_seconds:.1f}s | {r.memory_peak_mb:.0f}MB | "
-                f"{r.output_size_bytes/1024:.1f}KB | {r.output_lines} | "
-                f"{r.headers_count} | {r.tables_count} | {r.formulas_count} | {status} |\n"
-            )
+        # Include Quality column for benchmark.pdf
+        if file_name == "benchmark.pdf":
+            report += "| Engine | Time | Memory | Size | Headers | Tables | Quality | Status |\n"
+            report += "|--------|------|--------|------|---------|--------|---------|--------|\n"
+            for r in file_results:
+                status = "✅" if r.error is None else f"❌ {r.error[:30]}"
+                quality = f"{r.quality_score:.0%}" if r.quality_score is not None else "N/A"
+                report += (
+                    f"| {r.engine} | {r.time_seconds:.1f}s | {r.memory_peak_mb:.0f}MB | "
+                    f"{r.output_size_bytes/1024:.1f}KB | {r.headers_count} | "
+                    f"{r.tables_count} | {quality} | {status} |\n"
+                )
+        else:
+            report += "| Engine | Time | Memory | Size | Lines | Headers | Tables | Formulas | Status |\n"
+            report += "|--------|------|--------|------|-------|---------|--------|----------|--------|\n"
+            for r in file_results:
+                status = "✅" if r.error is None else f"❌ {r.error[:30]}"
+                report += (
+                    f"| {r.engine} | {r.time_seconds:.1f}s | {r.memory_peak_mb:.0f}MB | "
+                    f"{r.output_size_bytes/1024:.1f}KB | {r.output_lines} | "
+                    f"{r.headers_count} | {r.tables_count} | {r.formulas_count} | {status} |\n"
+                )
 
         report += "\n"
 
@@ -394,6 +637,14 @@ Examples:
   %(prog)s --engines pymupdf4llm,docling      # Only test specific engines
   %(prog)s --files 2601.20958v1.pdf           # Only test specific file
   %(prog)s --timeout 300                      # Set 5 minute timeout
+  %(prog)s --engines docling --describe-images  # With image descriptions
+
+Notes on --describe-images:
+  - Best used with 'docling' engine (not 'docling-vlm')
+  - Uses SmolVLM-256M-Instruct model for image captioning
+  - Forces CPU inference (MPS produces incorrect output)
+  - Slower (~100s vs ~25s) but generates accurate descriptions
+  - Descriptions stored in document model, not in markdown export
         """,
     )
     parser.add_argument(
@@ -425,6 +676,14 @@ Examples:
         type=str,
         default=None,
         help="Output directory (default: tests/output/benchmark_TIMESTAMP)",
+    )
+    parser.add_argument(
+        "--describe-images",
+        action="store_true",
+        help=(
+            "Enable VLM-based image descriptions (recommended with 'docling' engine). "
+            "Uses SmolVLM-256M on CPU. Slower but generates accurate captions."
+        ),
     )
 
     args = parser.parse_args()
@@ -462,11 +721,13 @@ Examples:
         size_kb = f.stat().st_size / 1024
         print(f"  - {f.name} ({size_kb:.1f} KB)")
     print(f"Timeout: {args.timeout}s per extraction")
+    if args.describe_images:
+        print("Image description: ENABLED (SmolVLM-256M on CPU, best with 'docling' engine)")
     print(f"Output: {output_dir}")
 
     # Run benchmarks
     results, outputs = asyncio.run(
-        run_benchmarks(engines, pdf_files, args.timeout)
+        run_benchmarks(engines, pdf_files, args.timeout, describe_images=args.describe_images)
     )
 
     # Save results
