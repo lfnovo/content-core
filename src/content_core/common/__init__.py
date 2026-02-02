@@ -2,6 +2,8 @@
 
 from .exceptions import (
     ContentCoreError,
+    ExtractionError,
+    FatalExtractionError,
     InvalidInputError,
     NotFoundError,
     UnsupportedTypeException,
@@ -25,6 +27,8 @@ from .utils import process_input_content
 
 __all__ = [
     "ContentCoreError",
+    "ExtractionError",
+    "FatalExtractionError",
     "UnsupportedTypeException",
     "InvalidInputError",
     "NotFoundError",

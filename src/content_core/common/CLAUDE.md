@@ -4,7 +4,7 @@ Shared infrastructure for content-core: exceptions, retry logic, state managemen
 
 ## Files
 
-- **`exceptions.py`**: Exception hierarchy with `ContentCoreError` as base. Key exceptions: `UnsupportedTypeException`, `InvalidInputError`, `NotFoundError`, `NoTranscriptFound`, `NetworkError`
+- **`exceptions.py`**: Exception hierarchy with `ContentCoreError` as base. Key exceptions: `UnsupportedTypeException`, `InvalidInputError`, `NotFoundError`, `NoTranscriptFound`, `NetworkError`, `ExtractionError` (retryable), `FatalExtractionError` (non-retryable)
 - **`retry.py`**: Tenacity-based retry decorators for transient failures. Uses `get_retry_config()` from config. Exports: `retry_youtube`, `retry_url_api`, `retry_url_network`, `retry_audio_transcription`, `retry_llm`, `retry_download`
 - **`state.py`**: Pydantic models for extraction. `ProcessSourceInput` (legacy API input), `ProcessSourceState` (internal state), `ProcessSourceOutput` (legacy API output), `ExtractionResult` (new v2.0 API output)
 - **`types.py`**: Type aliases for engine selection: `DocumentEngine`, `UrlEngine`

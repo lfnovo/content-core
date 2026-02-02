@@ -68,3 +68,25 @@ class NoTranscriptFound(ContentCoreError):
     """Raised when no transcript is found for a video."""
 
     pass
+
+
+class ExtractionError(ContentCoreError):
+    """Raised when content extraction fails.
+
+    This exception indicates a potentially retryable extraction failure.
+    The fallback executor will try the next engine in the chain when this
+    is raised.
+    """
+
+    pass
+
+
+class FatalExtractionError(ExtractionError):
+    """Raised when extraction fails with a non-retryable error.
+
+    This exception indicates a permanent failure that should not be retried,
+    such as file not found, permission denied, or validation errors.
+    The fallback executor will immediately fail without trying other engines.
+    """
+
+    pass

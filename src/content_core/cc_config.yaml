@@ -34,8 +34,53 @@ summary_model:
     timeout: 300  # 5 minutes - for content summarization
 
 extraction:
+  # Global extraction timeout in seconds
+  timeout: 300
+
+  # Legacy engine config (v1.x compatibility)
+  # These are used as fallback when no engines config matches
   document_engine: auto  # auto | simple | docling - for files/documents
   url_engine: auto  # auto | simple | firecrawl | jina | crawl4ai | docling - for URLs
+
+  # Engine configuration by MIME type or category (v2.0)
+  # Keys can be:
+  #   - Specific MIME types: "application/pdf", "image/png"
+  #   - Wildcard MIME types: "image/*", "audio/*"
+  #   - Categories: "documents", "urls", "audio", "video"
+  # Values can be a single engine name or list (fallback chain)
+  # Environment variables override: CCORE_ENGINE_<KEY> (e.g., CCORE_ENGINE_APPLICATION_PDF)
+  engines: {}
+  # Example configuration:
+  # engines:
+  #   "application/pdf":
+  #     - docling-vlm
+  #     - docling
+  #     - pymupdf
+  #   "image/*": docling
+  #   documents: docling
+  #   urls: jina
+
+  # Fallback behavior when extraction fails
+  # Environment variables: CCORE_FALLBACK_ENABLED, CCORE_FALLBACK_MAX_ATTEMPTS, CCORE_FALLBACK_ON_ERROR
+  fallback:
+    enabled: true           # Enable fallback to next engine on failure
+    max_attempts: 3         # Maximum number of engines to try
+    on_error: warn          # How to handle errors: next | warn | fail
+    fatal_errors:           # Errors that should not trigger fallback
+      - FileNotFoundError
+      - PermissionError
+      - ValidationError
+      - FatalExtractionError
+
+  # Engine-specific options (merged with processor options)
+  engine_options: {}
+  # Example:
+  # engine_options:
+  #   docling:
+  #     do_ocr: true
+  #   docling-vlm:
+  #     backend: mlx
+
   audio:
     concurrency: 3              # Number of concurrent audio transcriptions (1-10)
   firecrawl:

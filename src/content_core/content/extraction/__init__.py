@@ -164,6 +164,7 @@ async def extract_content(
         mime_type=mime_type,
         engine=engine,
         options=opts,
+        timeout=timeout,
     )
 
     # Convert ProcessorResult to ExtractionResult

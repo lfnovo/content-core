@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Allowed engine values for validation
-ALLOWED_DOCUMENT_ENGINES = {"auto", "simple", "docling", "docling-vlm"}
+ALLOWED_DOCUMENT_ENGINES = {"auto", "simple", "docling", "docling-vlm", "marker"}
 ALLOWED_URL_ENGINES = {"auto", "simple", "firecrawl", "jina", "crawl4ai"}
 
 # VLM-specific allowed values
@@ -135,6 +135,91 @@ def load_config() -> Dict[str, Any]:
 
 CONFIG: Dict[str, Any] = load_config()
 apply_timeout_env_overrides(CONFIG)
+
+# Cached extraction config instance
+_extraction_config = None
+
+
+def get_extraction_config():
+    """Get the extraction configuration with all ENV overrides applied.
+
+    This function returns an ExtractionConfig instance that includes:
+    - YAML config from cc_config.yaml
+    - ENV variable overrides
+    - Legacy config (document_engine/url_engine) for backward compatibility
+
+    Returns:
+        ExtractionConfig: The complete extraction configuration.
+
+    Example:
+        >>> config = get_extraction_config()
+        >>> config.fallback.max_attempts
+        3
+        >>> config.engines.get("application/pdf")
+        ['docling-vlm', 'docling']
+    """
+    # Import here to avoid circular imports
+    from content_core.engine_config.env import get_fallback_config_from_env
+    from content_core.engine_config.schema import ExtractionConfig, FallbackConfig
+
+    global _extraction_config
+    if _extraction_config is not None:
+        return _extraction_config
+
+    extraction_yaml = CONFIG.get("extraction", {})
+
+    # Build fallback config with ENV overrides
+    fallback_yaml = extraction_yaml.get("fallback", {})
+    fallback_env = get_fallback_config_from_env()
+    fallback_config = FallbackConfig(
+        enabled=fallback_env.get("enabled", fallback_yaml.get("enabled", True)),
+        max_attempts=fallback_env.get(
+            "max_attempts", fallback_yaml.get("max_attempts", 3)
+        ),
+        on_error=fallback_env.get("on_error", fallback_yaml.get("on_error", "warn")),
+        fatal_errors=fallback_yaml.get(
+            "fatal_errors",
+            [
+                "FileNotFoundError",
+                "PermissionError",
+                "ValidationError",
+                "FatalExtractionError",
+            ],
+        ),
+    )
+
+    # Build extraction config
+    _extraction_config = ExtractionConfig(
+        timeout=extraction_yaml.get("timeout", 300),
+        engines=extraction_yaml.get("engines", {}),
+        fallback=fallback_config,
+        engine_options=extraction_yaml.get("engine_options", {}),
+        document_engine=extraction_yaml.get("document_engine", "auto"),
+        url_engine=extraction_yaml.get("url_engine", "auto"),
+    )
+
+    return _extraction_config
+
+
+def get_fallback_config():
+    """Get the fallback configuration for extraction.
+
+    This is a convenience wrapper around get_extraction_config().
+
+    Returns:
+        FallbackConfig: The fallback configuration.
+    """
+    return get_extraction_config().fallback
+
+
+def reset_extraction_config():
+    """Reset the cached extraction config (primarily for testing).
+
+    After calling this, the next call to get_extraction_config()
+    will reload from CONFIG and ENV variables.
+    """
+    global _extraction_config
+    _extraction_config = None
 
 
 # Environment variable engine selectors for MCP/Raycast users
@@ -801,6 +886,68 @@ def get_vlm_options() -> dict:
 def get_vlm_remote_options() -> dict:
     """Alias for get_docling_options() for backward compatibility."""
     return get_docling_options()
+
+
+# Marker Configuration Functions
+# ==============================
+
+
+def get_marker_options() -> dict:
+    """
+    Get Marker processing options from config with environment variable overrides.
+
+    Environment variable overrides (all optional):
+    - CCORE_MARKER_USE_LLM: Enable LLM for enhanced extraction (true/false)
+    - CCORE_MARKER_FORCE_OCR: Force OCR on all pages (true/false)
+    - CCORE_MARKER_PAGE_RANGE: Page range to extract e.g. "0-10" (null for all)
+    - CCORE_MARKER_OUTPUT_FORMAT: Output format (markdown, json, html)
+
+    Returns:
+        dict: Options for Marker processing
+    """
+    # Default options
+    defaults = {
+        "use_llm": False,
+        "force_ocr": False,
+        "page_range": None,
+        "output_format": "markdown",
+    }
+
+    # Get from YAML config (extraction.marker.options)
+    yaml_options = (
+        CONFIG.get("extraction", {}).get("marker", {}).get("options", {})
+    )
+
+    # Merge with defaults
+    options = {**defaults, **yaml_options}
+
+    # Environment variable overrides
+    def parse_bool(val: str) -> bool:
+        return val.lower() in ("true", "1", "yes", "on")
+
+    def parse_optional_str(val: str):
+        if val.lower() in ("null", "none", ""):
+            return None
+        return val
+
+    env_mappings = {
+        "CCORE_MARKER_USE_LLM": ("use_llm", parse_bool),
+        "CCORE_MARKER_FORCE_OCR": ("force_ocr", parse_bool),
+        "CCORE_MARKER_PAGE_RANGE": ("page_range", parse_optional_str),
+        "CCORE_MARKER_OUTPUT_FORMAT": ("output_format", str),
+    }
+
+    for env_var, (option_key, converter) in env_mappings.items():
+        env_val = os.environ.get(env_var)
+        if env_val is not None:
+            try:
+                options[option_key] = converter(env_val)
+            except (ValueError, TypeError):
+                from content_core.logging import logger
+
+                logger.warning(f"Invalid {env_var}: '{env_val}'. Using default.")
+
+    return options
 
 
 # VLM Programmatic Setters

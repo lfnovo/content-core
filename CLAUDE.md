@@ -22,11 +22,17 @@ src/content_core/
 ├── logging.py           # Loguru configuration
 │
 ├── common/              # Shared infrastructure (see common/CLAUDE.md)
-│   ├── exceptions.py    # Exception hierarchy
+│   ├── exceptions.py    # Exception hierarchy (ExtractionError, FatalExtractionError)
 │   ├── retry.py         # Retry decorators for transient failures
 │   ├── state.py         # Pydantic state models for LangGraph
 │   ├── types.py         # Type aliases (DocumentEngine, UrlEngine, VlmInferenceMode, VlmBackend)
 │   └── utils.py         # Input content processing
+│
+├── engine_config/       # Engine configuration (v2.0)
+│   ├── __init__.py      # Exports: EngineResolver, ExtractionConfig, FallbackConfig
+│   ├── schema.py        # Pydantic models: FallbackConfig, ExtractionConfig
+│   ├── env.py           # ENV var parsing: CCORE_ENGINE_*, CCORE_FALLBACK_*
+│   └── resolver.py      # EngineResolver: resolves engine chain per MIME type
 │
 ├── processors/          # Format-specific extractors (see processors/CLAUDE.md)
 │   ├── __init__.py      # Auto-discovery and exports (ProcessorRegistry, Processor, Source)
@@ -48,7 +54,8 @@ src/content_core/
 │   ├── extraction/      # Content extraction
 │   │   ├── __init__.py  # extract_content() API (new v2.0 + legacy)
 │   │   ├── graph.py     # LangGraph workflow (legacy routing)
-│   │   └── router.py    # Registry-based routing (v2.0)
+│   │   ├── router.py    # Registry-based routing with EngineResolver (v2.0)
+│   │   └── fallback.py  # FallbackExecutor: executes engine chain with fallback
 │   ├── identification/  # File type detection
 │   │   └── file_detector.py
 │   ├── cleanup/         # Content cleaning via LLM
@@ -116,17 +123,30 @@ docs/
    # Returns ProcessSourceOutput
    ```
 
-**Data flow (New API)**: Input -> Router -> Processor Registry -> Processor -> ExtractionResult
+**Data flow (New API)**: Input -> Router -> EngineResolver -> FallbackExecutor -> Processor -> ExtractionResult
 
 **Data flow (Legacy)**: ProcessSourceInput -> LangGraph workflow -> Processor -> ProcessSourceOutput
 
 **Key patterns**:
 - **Processor Registry**: Singleton that manages processor discovery by MIME type/extension/priority
 - **@processor decorator**: Registers processors with capabilities (MIME types, extensions, priority)
+- **EngineResolver**: Resolves engine chain based on config hierarchy (explicit > ENV > YAML > legacy > auto)
+- **FallbackExecutor**: Executes engine chain with fallback on failure, handles fatal errors
 - **Stateless processors**: Each processor class implements `extract(source, options)` -> `ProcessorResult`
 - LangGraph StateGraph still used for legacy API and composite workflows (video -> audio -> transcribe)
 - Retry decorators handle transient failures for network/API operations
 - Configuration loaded from YAML with env var overrides
+
+**Engine Resolution Order** (v2.0):
+1. Explicit `engine` param in `extract_content()` call
+2. ENV var for specific MIME type (`CCORE_ENGINE_APPLICATION_PDF`)
+3. YAML config for specific MIME type (`engines["application/pdf"]`)
+4. ENV var for wildcard MIME type (`CCORE_ENGINE_IMAGE`)
+5. YAML config for wildcard MIME type (`engines["image/*"]`)
+6. ENV var for category (`CCORE_ENGINE_DOCUMENTS`)
+7. YAML config for category (`engines["documents"]`)
+8. Legacy config (`document_engine`/`url_engine` for backward compat)
+9. Auto-detect from ProcessorRegistry (highest priority available)
 
 ## Integration
 

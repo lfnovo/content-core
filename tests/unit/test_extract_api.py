@@ -6,6 +6,7 @@ import tempfile
 import pytest
 
 from content_core.common import ExtractionResult, ProcessSourceInput, ProcessSourceOutput
+from content_core.common.exceptions import ExtractionError
 from content_core.content.extraction import extract_content
 from content_core.processors.registry import ProcessorRegistry
 
@@ -144,13 +145,13 @@ class TestExtractContentNewAPI:
 
     @pytest.mark.asyncio
     async def test_unknown_engine_raises_error(self):
-        """Test that unknown engine raises ValueError."""
+        """Test that unknown engine raises ExtractionError."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write("Test")
             temp_path = f.name
 
         try:
-            with pytest.raises(ValueError, match="No processor found"):
+            with pytest.raises(ExtractionError, match="not found"):
                 await extract_content(file_path=temp_path, engine="nonexistent-engine")
         finally:
             os.unlink(temp_path)

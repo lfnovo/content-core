@@ -1,16 +1,20 @@
 """Registry-based routing for content extraction.
 
-This module provides the routing logic that uses the processor registry
-to find and execute the appropriate processor for a given source.
+This module provides the routing logic that uses the EngineResolver
+and FallbackExecutor to find and execute the appropriate processor(s)
+for a given source.
 """
 
 import mimetypes
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Union
 
+from content_core.config import get_extraction_config
+from content_core.engine_config.resolver import EngineResolver
+from content_core.content.extraction.fallback import FallbackExecutor
 from content_core.logging import logger
-from content_core.processors import ProcessorRegistry, Source
-from content_core.processors.base import Processor, ProcessorResult
+from content_core.processors import ProcessorRegistry
+from content_core.processors.base import ProcessorResult, Source
 
 
 async def detect_mime_type(
@@ -62,49 +66,6 @@ async def detect_mime_type(
     return None
 
 
-def select_processor(
-    mime_type: str,
-    engine: Optional[Union[str, List[str]]] = None,
-) -> Optional[Type[Processor]]:
-    """Select the best processor for a given MIME type and engine preference.
-
-    Args:
-        mime_type: The MIME type to find a processor for.
-        engine: Optional engine name(s). If a list, tries each in order.
-
-    Returns:
-        The best matching Processor class, or None if no match found.
-    """
-    registry = ProcessorRegistry.instance()
-
-    # If specific engine(s) requested, use those
-    if engine:
-        engines = [engine] if isinstance(engine, str) else engine
-        for eng in engines:
-            processor_cls = registry.get(eng)
-            if processor_cls and processor_cls.is_available():
-                # Verify it supports the MIME type (if specified)
-                if mime_type and processor_cls.supports_mime_type(mime_type):
-                    return processor_cls
-                elif not mime_type:
-                    return processor_cls
-                else:
-                    logger.warning(
-                        f"Engine '{eng}' doesn't support MIME type '{mime_type}'"
-                    )
-            else:
-                logger.debug(f"Engine '{eng}' not available")
-        return None
-
-    # Auto-select based on MIME type
-    if mime_type:
-        processors = registry.find_for_mime_type(mime_type)
-        if processors:
-            return processors[0]  # Highest priority
-
-    return None
-
-
 async def route_and_extract(
     file_path: Optional[Union[str, Path]] = None,
     url: Optional[str] = None,
@@ -112,25 +73,30 @@ async def route_and_extract(
     mime_type: Optional[str] = None,
     engine: Optional[Union[str, List[str]]] = None,
     options: Optional[Dict[str, Any]] = None,
+    timeout: Optional[int] = None,
 ) -> ProcessorResult:
     """Route to the appropriate processor and extract content.
 
-    This is the main entry point for the new extraction API.
+    This is the main entry point for the new extraction API. It uses
+    the EngineResolver to determine which engines to use and the
+    FallbackExecutor to handle the extraction with fallback support.
 
     Args:
         file_path: Path to a local file.
         url: URL to fetch content from.
         content: Raw content (string or bytes).
         mime_type: MIME type (detected automatically if not provided).
-        engine: Engine name(s) to use. If a list, tries each in order.
+        engine: Engine name(s) to use. If provided, overrides config.
         options: Additional processor-specific options.
+        timeout: Timeout in seconds (uses config default if not provided).
 
     Returns:
         ProcessorResult with extracted content.
 
     Raises:
         ValueError: If no source is provided or no processor is found.
-        ImportError: If the required processor dependencies are not installed.
+        ExtractionError: If all engines fail.
+        FatalExtractionError: If a fatal error occurs.
     """
     # Validate inputs
     sources = [file_path, url, content]
@@ -154,18 +120,21 @@ async def route_and_extract(
     if url and ("youtube.com" in url or "youtu.be" in url):
         detected_mime = "youtube"
 
-    # Select processor
-    processor_cls = select_processor(detected_mime, engine)
-
-    if not processor_cls:
-        available = ProcessorRegistry.instance().list_names()
+    if not detected_mime:
         raise ValueError(
-            f"No processor found for MIME type '{detected_mime}'. "
-            f"Available processors: {available}"
+            "Could not detect MIME type. Please provide mime_type parameter."
         )
 
+    # Get configuration
+    config = get_extraction_config()
+    effective_timeout = timeout if timeout is not None else config.timeout
+
+    # Resolve engines
+    resolver = EngineResolver(config)
+    engines = resolver.resolve(detected_mime, explicit=engine)
+
     logger.info(
-        f"Using processor '{processor_cls.name}' for MIME type '{detected_mime}'"
+        f"Resolved engines for MIME type '{detected_mime}': {engines}"
     )
 
     # Create source object
@@ -177,13 +146,17 @@ async def route_and_extract(
         options=options or {},
     )
 
-    # Instantiate and run processor
-    processor = processor_cls()
-    result = await processor.extract(source, options)
-
-    # Ensure engine_used is in metadata
-    if "extraction_engine" not in result.metadata:
-        result.metadata["extraction_engine"] = processor_cls.name
+    # Execute with fallback
+    executor = FallbackExecutor(config.fallback)
+    result = await executor.execute(
+        source=source,
+        engines=engines,
+        options=options,
+        engine_options={
+            name: resolver.get_engine_options(name) for name in engines
+        },
+        timeout=effective_timeout,
+    )
 
     return result
 
