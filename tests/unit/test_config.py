@@ -79,7 +79,7 @@ class TestEngineConstants:
     
     def test_document_engine_constants(self):
         """Test document engine allowed values."""
-        expected = {"auto", "simple", "docling", "docling-vlm"}
+        expected = {"auto", "simple", "docling", "docling-vlm", "marker"}
         assert ALLOWED_DOCUMENT_ENGINES == expected
     
     def test_url_engine_constants(self):
