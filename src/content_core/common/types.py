@@ -5,6 +5,7 @@ DocumentEngine = Literal[
     "simple",
     "docling",
     "docling-vlm",
+    "marker",
 ]
 
 UrlEngine = Literal[

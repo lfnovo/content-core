@@ -15,7 +15,9 @@ Examples:
     uv run python scripts/benchmark_pdf_engines.py --engines docling --describe-images
 
 Engines:
+    - simple: Basic PyMuPDF text extraction without markdown formatting.
     - pymupdf4llm: Fast, lightweight extraction using PyMuPDF. Best for simple documents.
+    - marker: Deep learning-based extraction for high-quality markdown output.
     - docling: Standard docling pipeline with OCR and table detection.
     - docling-vlm: Vision-Language Model (granite-docling) for complex document layouts.
 
@@ -57,7 +59,7 @@ TEST_INPUT_DIR = Path(__file__).parent.parent / "tests" / "input_content"
 OUTPUT_BASE_DIR = Path(__file__).parent.parent / "tests" / "output"
 
 # Available engines
-AVAILABLE_ENGINES = ["pymupdf4llm", "docling", "docling-vlm"]
+AVAILABLE_ENGINES = ["simple", "pymupdf4llm", "marker", "docling", "docling-vlm"]
 
 
 @dataclass
@@ -102,6 +104,7 @@ class BenchmarkResult:
 
 
 # Expected content for benchmark.pdf (our synthetic test file)
+# Formulas use pattern lists to handle both ASCII and LaTeX variations
 BENCHMARK_PDF_EXPECTED = {
     "title": "Benchmark Document for PDF Extraction",
     "sections": [
@@ -116,11 +119,13 @@ BENCHMARK_PDF_EXPECTED = {
         "Famous Equations",
         "LaTeX Block Formula",
     ],
+    # Each formula entry is a tuple: (key_name, [pattern_variants])
+    # This handles both ASCII (e.g., e^(i) and LaTeX (e.g., e^{(i}) formats
     "formulas": [
-        "E = mc",  # E = mc^2 (partial match)
-        "e^(i",  # Euler's identity (partial)
-        "a^2 + b^2",  # Pythagorean
-        "sqrt(b^2",  # Quadratic formula (partial)
+        ("E=mc2", ["E = mc", "E=mc"]),  # E = mc^2
+        ("euler", ["e^(i", "e^{(i", "e^{i"]),  # Euler's identity: e^(i*pi) or e^{(i*pi)}
+        ("pythagorean", ["a^2 + b^2", "a^{2} + b^{2}", "a² + b²"]),  # Pythagorean theorem
+        ("quadratic", ["sqrt(b^2", "sqrt{b^2", "\\sqrt{b", "√"]),  # Quadratic formula
     ],
     "table_data": [
         "Quick Sort",
@@ -139,7 +144,11 @@ BENCHMARK_PDF_EXPECTED = {
 
 
 def score_benchmark_pdf(content: str) -> QualityScore:
-    """Score extraction quality against expected benchmark.pdf content."""
+    """Score extraction quality against expected benchmark.pdf content.
+
+    Handles both ASCII and LaTeX formula variations by checking multiple
+    pattern variants for each expected formula.
+    """
     content_lower = content.lower()
     details = {}
 
@@ -157,9 +166,11 @@ def score_benchmark_pdf(content: str) -> QualityScore:
         details[key] = subsection.lower() in content_lower
 
     # Check formulas (case-sensitive for math)
-    for formula in BENCHMARK_PDF_EXPECTED["formulas"]:
-        key = f"formula_{formula[:10].replace(' ', '_')}"
-        details[key] = formula in content
+    # Each formula is a tuple: (key_name, [pattern_variants])
+    for formula_name, patterns in BENCHMARK_PDF_EXPECTED["formulas"]:
+        key = f"formula_{formula_name}"
+        # Check if any pattern variant matches
+        details[key] = any(pattern in content for pattern in patterns)
 
     # Check table data
     for data in BENCHMARK_PDF_EXPECTED["table_data"]:
@@ -239,11 +250,47 @@ def analyze_content(content: str, file_name: str = "") -> Dict:
 # --- Engine Implementations ---
 
 
+def benchmark_simple(file_path: str) -> str:
+    """Extract PDF using basic PyMuPDF text extraction (no markdown formatting)."""
+    import fitz
+
+    doc = fitz.open(file_path)
+    try:
+        pages = []
+        for page in doc:
+            text = page.get_text()
+            if text.strip():
+                pages.append(text)
+        return "\n\n".join(pages)
+    finally:
+        doc.close()
+
+
 def benchmark_pymupdf4llm(file_path: str) -> str:
     """Extract PDF using pymupdf4llm."""
     import pymupdf4llm
 
     return pymupdf4llm.to_markdown(file_path, page_chunks=False, write_images=False)
+
+
+async def benchmark_marker(file_path: str) -> str:
+    """Extract PDF using Marker.
+
+    Marker uses deep learning models to convert PDFs to high-quality markdown.
+    Note: First run will be slow as models are loaded (~2-5GB).
+    """
+    import asyncio
+    from marker.converters.pdf import PdfConverter
+    from marker.models import create_model_dict
+
+    def _extract():
+        artifact_dict = create_model_dict()
+        converter = PdfConverter(artifact_dict=artifact_dict)
+        result = converter(file_path)
+        return result.markdown
+
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _extract)
 
 
 async def benchmark_docling(file_path: str, describe_images: bool = False) -> str:
@@ -362,11 +409,23 @@ async def run_single_benchmark(
     error = None
 
     try:
-        if engine == "pymupdf4llm":
+        if engine == "simple":
+            # Sync function, run in executor
+            loop = asyncio.get_event_loop()
+            content = await asyncio.wait_for(
+                loop.run_in_executor(None, benchmark_simple, str(file_path)),
+                timeout=timeout_seconds,
+            )
+        elif engine == "pymupdf4llm":
             # Sync function, run in executor
             loop = asyncio.get_event_loop()
             content = await asyncio.wait_for(
                 loop.run_in_executor(None, benchmark_pymupdf4llm, str(file_path)),
+                timeout=timeout_seconds,
+            )
+        elif engine == "marker":
+            content = await asyncio.wait_for(
+                benchmark_marker(str(file_path)),
                 timeout=timeout_seconds,
             )
         elif engine == "docling":
@@ -552,7 +611,9 @@ def generate_markdown_report(
 
 ## Engine Details
 
-- **pymupdf4llm**: Fast, lightweight, uses PyMuPDF for text extraction
+- **simple**: Basic PyMuPDF text extraction, no markdown formatting
+- **pymupdf4llm**: Fast, lightweight, uses PyMuPDF for markdown output
+- **marker**: Deep learning-based extraction for high-quality markdown (GPL-3.0)
 - **docling**: Document understanding with OCR and table detection
 - **docling-vlm**: Vision-Language Model for complex document layouts
 """

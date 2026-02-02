@@ -54,6 +54,13 @@ docling-mlx = [
     "httpx>=0.27.0",
 ]
 crawl4ai = ["crawl4ai>=0.7.0"]
+# Note: marker[full] requires system dependencies for weasyprint (DOCX/XLSX/PPTX support)
+# On macOS:
+#   brew install cairo pango gdk-pixbuf libffi gobject-introspection
+#   export DYLD_LIBRARY_PATH=/opt/homebrew/lib
+# On Ubuntu:
+#   apt-get install libcairo2-dev libpango1.0-dev libgdk-pixbuf2.0-dev libffi-dev
+marker = ["marker-pdf[full]>=1.0.0"]
 
 [project.scripts]
 ccore = "content_core:ccore"

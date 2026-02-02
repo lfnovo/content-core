@@ -34,6 +34,18 @@ try:
 except ImportError:
     DOCLING_VLM_LOCAL_AVAILABLE = False
     extract_with_docling_vlm = None
+
+# Marker imports (optional - GPL-3.0 license)
+try:
+    from content_core.processors.marker import (
+        MARKER_AVAILABLE,
+        SUPPORTED_MARKER_TYPES,
+        extract_with_marker,
+    )
+except ImportError:
+    MARKER_AVAILABLE = False
+    SUPPORTED_MARKER_TYPES = []
+    extract_with_marker = None
 from content_core.processors.office import (
     SUPPORTED_OFFICE_TYPES,
     extract_office_content,
@@ -194,12 +206,29 @@ async def download_remote_file(state: ProcessSourceState) -> Dict[str, Any]:
 async def file_type_router_docling(state: ProcessSourceState) -> str:
     """
     Route to appropriate extraction engine based on configuration.
-    Supports 'auto', 'simple', 'docling', 'docling-vlm'.
+    Supports 'auto', 'simple', 'docling', 'docling-vlm', 'marker'.
     'auto' tries docling first, then falls back to simple if docling fails.
     'simple' uses pymupdf4llm for optimized markdown output.
+    'marker' uses the Marker library for high-quality markdown conversion.
     """
     # Use environment-aware engine selection
     engine = state.document_engine or get_document_engine()
+
+    if engine == "marker":
+        if extract_with_marker is None:
+            raise ImportError(
+                "Marker engine requested but not available. "
+                "Install with: pip install content-core[marker]"
+            )
+        # Marker only supports PDF
+        if state.identified_type in SUPPORTED_MARKER_TYPES:
+            logger.debug("Using marker engine")
+            return "extract_marker"
+        # Fall back to docling or simple for unsupported types
+        logger.debug(f"Marker doesn't support {state.identified_type}, falling back")
+        if DOCLING_AVAILABLE and state.identified_type in DOCLING_SUPPORTED:
+            return "extract_docling"
+        return await file_type_edge(state)
 
     if engine == "docling-vlm":
         if extract_with_docling_vlm is None:
@@ -295,6 +324,10 @@ if DOCLING_AVAILABLE:
 if extract_with_docling_vlm is not None:
     workflow.add_node("extract_docling_vlm", extract_with_docling_vlm)
 
+# Only add marker node if available (GPL-3.0 license - optional)
+if MARKER_AVAILABLE and extract_with_marker is not None:
+    workflow.add_node("extract_marker", extract_with_marker)
+
 # Add edges
 workflow.add_edge(START, "source")
 workflow.add_conditional_edges(
@@ -348,5 +381,9 @@ workflow.add_edge("download_remote_file", "file_type")
 # Conditionally add docling-vlm edge
 if extract_with_docling_vlm is not None:
     workflow.add_edge("extract_docling_vlm", "delete_file")
+
+# Conditionally add marker edge
+if MARKER_AVAILABLE and extract_with_marker is not None:
+    workflow.add_edge("extract_marker", "delete_file")
 
 graph = workflow.compile()
