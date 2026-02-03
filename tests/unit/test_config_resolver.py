@@ -1,9 +1,19 @@
-"""Tests for EngineResolver and configuration resolution order."""
+"""Tests for EngineResolver and configuration resolution order.
+
+Resolution order (v2.0 - ENV only):
+1. Explicit engine param in extract_content() call
+2. ENV var for specific MIME type (CCORE_ENGINE_APPLICATION_PDF)
+3. ENV var for wildcard MIME type (CCORE_ENGINE_IMAGE)
+4. ENV var for category (CCORE_ENGINE_DOCUMENTS)
+5. Legacy config (document_engine/url_engine)
+6. Auto-detect from registry
+"""
 
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from content_core.config import reset_config
 from content_core.engine_config.resolver import (
     EngineResolver,
     _get_category_for_mime_type,
@@ -67,26 +77,22 @@ class TestEngineResolver:
 
     def setup_method(self):
         """Set up test fixtures."""
+        reset_config()
         self.config = ExtractionConfig(
-            engines={
-                "application/pdf": ["docling", "pymupdf"],
-                "image/*": ["docling"],
-                "documents": ["docling"],
-                "urls": ["jina", "firecrawl"],
-            },
+            engines={},  # No YAML engines in v2.0
             fallback=FallbackConfig(),
             document_engine="auto",
             url_engine="auto",
         )
 
+    def teardown_method(self):
+        reset_config()
+
     def test_explicit_engine_takes_priority(self):
         """Explicit engine param should take highest priority."""
         resolver = EngineResolver(self.config)
-        # Mock registry
-        with patch.object(resolver, "_registry") as mock_registry:
-            engines = resolver.resolve(
-                "application/pdf", explicit="pymupdf4llm"
-            )
+        with patch.object(resolver, "_registry"):
+            engines = resolver.resolve("application/pdf", explicit="pymupdf4llm")
             assert engines == ["pymupdf4llm"]
 
     def test_explicit_engine_list(self):
@@ -99,7 +105,7 @@ class TestEngineResolver:
             assert engines == ["docling-vlm", "docling"]
 
     def test_env_mime_type_override(self):
-        """ENV var for specific MIME type should override config."""
+        """ENV var for specific MIME type should be used."""
         resolver = EngineResolver(self.config)
         with patch(
             "content_core.engine_config.resolver.get_engine_chain_from_env_for_mime_type",
@@ -108,18 +114,8 @@ class TestEngineResolver:
             engines = resolver.resolve("application/pdf")
             assert engines == ["marker"]
 
-    def test_yaml_mime_type_config(self):
-        """YAML config for specific MIME type should be used."""
-        resolver = EngineResolver(self.config)
-        with patch(
-            "content_core.engine_config.resolver.get_engine_chain_from_env_for_mime_type",
-            return_value=None,
-        ):
-            engines = resolver.resolve("application/pdf")
-            assert engines == ["docling", "pymupdf"]
-
     def test_env_wildcard_override(self):
-        """ENV var for wildcard MIME type should override config."""
+        """ENV var for wildcard MIME type should be used."""
         resolver = EngineResolver(self.config)
         with patch(
             "content_core.engine_config.resolver.get_engine_chain_from_env_for_mime_type",
@@ -128,28 +124,11 @@ class TestEngineResolver:
             "content_core.engine_config.resolver.get_engine_chain_from_env_for_wildcard",
             return_value=["docling-vlm"],
         ):
-            # image/png is not in specific config, should use wildcard
-            config = ExtractionConfig(engines={})
-            resolver = EngineResolver(config)
             engines = resolver.resolve("image/png")
             assert engines == ["docling-vlm"]
 
-    def test_yaml_wildcard_config(self):
-        """YAML config for wildcard MIME type should be used."""
-        resolver = EngineResolver(self.config)
-        with patch(
-            "content_core.engine_config.resolver.get_engine_chain_from_env_for_mime_type",
-            return_value=None,
-        ), patch(
-            "content_core.engine_config.resolver.get_engine_chain_from_env_for_wildcard",
-            return_value=None,
-        ):
-            # image/png should match image/* in config
-            engines = resolver.resolve("image/png")
-            assert engines == ["docling"]
-
     def test_env_category_override(self):
-        """ENV var for category should override config."""
+        """ENV var for category should be used."""
         resolver = EngineResolver(self.config)
         with patch(
             "content_core.engine_config.resolver.get_engine_chain_from_env_for_mime_type",
@@ -161,30 +140,8 @@ class TestEngineResolver:
             "content_core.engine_config.resolver.get_engine_chain_from_env_for_category",
             return_value=["marker"],
         ):
-            # Use a config without specific MIME type config
-            config = ExtractionConfig(engines={})
-            resolver = EngineResolver(config)
             engines = resolver.resolve("application/pdf")
             assert engines == ["marker"]
-
-    def test_yaml_category_config(self):
-        """YAML config for category should be used."""
-        resolver = EngineResolver(self.config)
-        with patch(
-            "content_core.engine_config.resolver.get_engine_chain_from_env_for_mime_type",
-            return_value=None,
-        ), patch(
-            "content_core.engine_config.resolver.get_engine_chain_from_env_for_wildcard",
-            return_value=None,
-        ), patch(
-            "content_core.engine_config.resolver.get_engine_chain_from_env_for_category",
-            return_value=None,
-        ):
-            # Use a config with only category config
-            config = ExtractionConfig(engines={"documents": ["docling"]})
-            resolver = EngineResolver(config)
-            engines = resolver.resolve("application/pdf")
-            assert engines == ["docling"]
 
     def test_legacy_document_engine(self):
         """Legacy document_engine should be used for documents."""
@@ -296,34 +253,62 @@ class TestEngineResolver:
 class TestEngineOptions:
     """Test engine options retrieval."""
 
-    def test_get_engine_options(self):
-        """Should return engine-specific options."""
-        config = ExtractionConfig(
-            engines={},
-            engine_options={
-                "docling": {"do_ocr": True},
-                "docling-vlm": {"backend": "mlx"},
-            },
-        )
+    def setup_method(self):
+        reset_config()
+
+    def teardown_method(self):
+        reset_config()
+
+    def test_get_docling_options(self):
+        """Should return docling options from config."""
+        config = ExtractionConfig(engines={})
         resolver = EngineResolver(config)
 
-        assert resolver.get_engine_options("docling") == {"do_ocr": True}
-        assert resolver.get_engine_options("docling-vlm") == {"backend": "mlx"}
+        with patch.dict("os.environ", {}, clear=True):
+            options = resolver.get_engine_options("docling")
+            assert "do_ocr" in options
+            assert "output_format" in options
 
-    def test_get_engine_options_missing(self):
+    def test_get_marker_options(self):
+        """Should return marker options from config."""
+        config = ExtractionConfig(engines={})
+        resolver = EngineResolver(config)
+
+        with patch.dict("os.environ", {}, clear=True):
+            options = resolver.get_engine_options("marker")
+            assert "use_llm" in options
+            assert "force_ocr" in options
+
+    def test_get_pymupdf_options(self):
+        """Should return pymupdf options from config."""
+        config = ExtractionConfig(engines={})
+        resolver = EngineResolver(config)
+
+        with patch.dict("os.environ", {}, clear=True):
+            options = resolver.get_engine_options("pymupdf")
+            assert "enable_formula_ocr" in options
+            assert "formula_threshold" in options
+
+    def test_get_engine_options_unknown(self):
         """Should return empty dict for unknown engine."""
         config = ExtractionConfig(engines={})
         resolver = EngineResolver(config)
 
-        assert resolver.get_engine_options("unknown") == {}
+        options = resolver.get_engine_options("unknown")
+        assert options == {}
 
 
 class TestBackwardCompatibility:
     """Test backward compatibility with legacy config."""
 
-    def test_legacy_document_engine_env_override(self):
-        """Legacy CCORE_DOCUMENT_ENGINE should work."""
-        # This test verifies the legacy path is reached when no new config
+    def setup_method(self):
+        reset_config()
+
+    def teardown_method(self):
+        reset_config()
+
+    def test_legacy_document_engine_from_config(self):
+        """Legacy document_engine in config should work."""
         config = ExtractionConfig(
             engines={},
             document_engine="docling",

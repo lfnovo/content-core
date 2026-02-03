@@ -5,13 +5,12 @@ engine(s) to use for content extraction based on the resolution order:
 
 1. Explicit engine param in extract_content() call
 2. ENV var for specific MIME type (CCORE_ENGINE_APPLICATION_PDF)
-3. YAML config for specific MIME type
-4. ENV var for wildcard MIME type (CCORE_ENGINE_IMAGE)
-5. YAML config for wildcard MIME type
-6. ENV var for category (CCORE_ENGINE_DOCUMENTS)
-7. YAML config for category
-8. Legacy config (document_engine/url_engine for backward compat)
-9. Auto-detect (highest priority available processor from registry)
+3. ENV var for wildcard MIME type (CCORE_ENGINE_IMAGE)
+4. ENV var for category (CCORE_ENGINE_DOCUMENTS)
+5. Legacy config (document_engine/url_engine for backward compat)
+6. Auto-detect (highest priority available processor from registry)
+
+Note: YAML configuration is no longer used (removed in v2.0).
 """
 
 import fnmatch
@@ -117,6 +116,14 @@ class EngineResolver:
     ) -> List[str]:
         """Resolve engine chain following resolution order.
 
+        Resolution order:
+        1. Explicit engine param
+        2. ENV var for specific MIME type
+        3. ENV var for wildcard MIME type
+        4. ENV var for category
+        5. Legacy config (document_engine/url_engine)
+        6. Auto-detect from registry
+
         Args:
             mime_type: The MIME type of the content to extract.
             explicit: Explicit engine(s) from extract_content() call.
@@ -134,19 +141,22 @@ class EngineResolver:
             logger.debug(f"Using explicit engines: {engines}")
             return engines
 
+        # Special case: YouTube URLs always use the youtube processor
+        # This takes precedence over CCORE_ENGINE_URLS to ensure YouTube
+        # videos are handled by the specialized transcript extractor
+        if mime_type == "youtube":
+            youtube_processor = self.registry.get("youtube")
+            if youtube_processor and youtube_processor.is_available():
+                logger.debug("Using youtube processor for YouTube URL")
+                return ["youtube"]
+
         # 2. ENV var for specific MIME type
         engines = get_engine_chain_from_env_for_mime_type(mime_type)
         if engines:
             logger.debug(f"Using ENV engines for MIME type '{mime_type}': {engines}")
             return engines
 
-        # 3. YAML config for specific MIME type
-        engines = self.config.get_engines_for_key(mime_type)
-        if engines:
-            logger.debug(f"Using YAML engines for MIME type '{mime_type}': {engines}")
-            return engines
-
-        # 4. ENV var for wildcard MIME type
+        # 3. ENV var for wildcard MIME type
         wildcard = _get_wildcard_mime_type(mime_type)
         if wildcard:
             engines = get_engine_chain_from_env_for_wildcard(mime_type)
@@ -154,19 +164,11 @@ class EngineResolver:
                 logger.debug(f"Using ENV engines for wildcard '{wildcard}': {engines}")
                 return engines
 
-            # 5. YAML config for wildcard MIME type
-            engines = self.config.get_engines_for_key(wildcard)
-            if engines:
-                logger.debug(
-                    f"Using YAML engines for wildcard '{wildcard}': {engines}"
-                )
-                return engines
-
         # Determine category if not provided
         resolved_category = category or _get_category_for_mime_type(mime_type)
 
         if resolved_category:
-            # 6. ENV var for category
+            # 4. ENV var for category
             engines = get_engine_chain_from_env_for_category(resolved_category)
             if engines:
                 logger.debug(
@@ -174,21 +176,13 @@ class EngineResolver:
                 )
                 return engines
 
-            # 7. YAML config for category
-            engines = self.config.get_engines_for_key(resolved_category)
-            if engines:
-                logger.debug(
-                    f"Using YAML engines for category '{resolved_category}': {engines}"
-                )
-                return engines
-
-        # 8. Legacy config (document_engine/url_engine)
+        # 5. Legacy config (document_engine/url_engine)
         legacy_engine = self._get_legacy_engine(mime_type, resolved_category)
         if legacy_engine and legacy_engine != "auto":
             logger.debug(f"Using legacy engine: {legacy_engine}")
             return [legacy_engine]
 
-        # 9. Auto-detect from registry
+        # 6. Auto-detect from registry
         engines = self._auto_detect_engines(mime_type)
         if engines:
             logger.debug(f"Auto-detected engines for '{mime_type}': {engines}")
@@ -233,10 +227,29 @@ class EngineResolver:
     def get_engine_options(self, engine_name: str) -> dict:
         """Get options for a specific engine.
 
+        Note: In the ENV-only configuration, options come from
+        get_*_options() functions in config.py, not from YAML.
+
         Args:
             engine_name: The engine name.
 
         Returns:
             Dict of engine options.
         """
+        # Import here to avoid circular imports
+        from content_core.config import (
+            get_docling_options,
+            get_marker_options,
+            get_pymupdf_options,
+        )
+
+        # Return options from config functions
+        if engine_name in ("docling", "docling-vlm"):
+            return get_docling_options()
+        elif engine_name == "marker":
+            return get_marker_options()
+        elif engine_name in ("pymupdf", "pymupdf4llm"):
+            return get_pymupdf_options()
+
+        # Fallback to config engine_options (for backward compat)
         return self.config.get_engine_options(engine_name)

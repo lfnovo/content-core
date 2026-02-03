@@ -1,369 +1,335 @@
-import os
-import pkgutil
-from typing import Any, Dict, cast
+"""Configuration management for content-core.
 
-import yaml  # type: ignore[import]
+This module provides ENV-only configuration. All configuration is done via
+environment variables or programmatic setters. No YAML files are used.
+
+Resolution order for each setting:
+1. Programmatic override (set via set_*() functions)
+2. Environment variable
+3. Default value from defaults.py
+
+Example:
+    # Set via environment variable
+    export CCORE_DOCUMENT_ENGINE=docling
+
+    # Or programmatically
+    from content_core.config import set_document_engine
+    set_document_engine("docling")
+
+    # Get the value
+    from content_core.config import get_document_engine
+    engine = get_document_engine()  # Returns "docling"
+"""
+
+import os
+import warnings
+from typing import Any, Dict, Optional, cast
+
 from dotenv import load_dotenv
+
+from content_core.defaults import (
+    ALLOWED_DOCUMENT_ENGINES,
+    ALLOWED_RETRY_OPERATIONS,
+    ALLOWED_URL_ENGINES,
+    ALLOWED_VLM_BACKENDS,
+    ALLOWED_VLM_INFERENCE_MODES,
+    ALLOWED_VLM_MODELS,
+    DEFAULT_AUDIO,
+    DEFAULT_CLEANUP_MODEL,
+    DEFAULT_DOCLING_OPTIONS,
+    DEFAULT_EXTRACTION,
+    DEFAULT_FALLBACK,
+    DEFAULT_FIRECRAWL,
+    DEFAULT_LLM_MODEL,
+    DEFAULT_MARKER_OPTIONS,
+    DEFAULT_PYMUPDF_OPTIONS,
+    DEFAULT_RETRY_CONFIG,
+    DEFAULT_SPEECH_TO_TEXT,
+    DEFAULT_SUMMARY_MODEL,
+    DEFAULT_VLM_CONFIG,
+    DEFAULT_YOUTUBE,
+    MAX_TIMEOUT_SECONDS,
+    MIN_TIMEOUT_SECONDS,
+)
+
+# Re-export for backward compatibility
+__all__ = [
+    "ALLOWED_DOCUMENT_ENGINES",
+    "ALLOWED_URL_ENGINES",
+    "ALLOWED_VLM_INFERENCE_MODES",
+    "ALLOWED_VLM_BACKENDS",
+    "ALLOWED_VLM_MODELS",
+    "ALLOWED_RETRY_OPERATIONS",
+    "MIN_TIMEOUT_SECONDS",
+    "MAX_TIMEOUT_SECONDS",
+    "DEFAULT_FIRECRAWL_API_URL",
+    "DEFAULT_RETRY_CONFIG",
+    # Functions
+    "get_document_engine",
+    "get_url_engine",
+    "get_audio_concurrency",
+    "get_firecrawl_api_url",
+    "get_retry_config",
+    "get_docling_options",
+    "get_vlm_inference_mode",
+    "get_vlm_backend",
+    "get_vlm_model",
+    "get_vlm_remote_url",
+    "get_vlm_remote_api_key",
+    "get_vlm_remote_timeout",
+    "get_marker_options",
+    "get_pymupdf_options",
+    "get_youtube_preferred_languages",
+    "get_extraction_config",
+    "get_fallback_config",
+    "get_model_config",
+    # Setters
+    "set_document_engine",
+    "set_url_engine",
+    "set_audio_concurrency",
+    "set_firecrawl_api_url",
+    "set_docling_output_format",
+    "set_vlm_inference_mode",
+    "set_vlm_backend",
+    "set_vlm_model",
+    "set_vlm_remote_url",
+    "set_vlm_remote_api_key",
+    "set_vlm_remote_timeout",
+    "set_pymupdf_ocr_enabled",
+    "set_pymupdf_formula_threshold",
+    "set_pymupdf_ocr_fallback",
+    # Config management
+    "reset_config",
+    "reset_extraction_config",
+]
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Allowed engine values for validation
-ALLOWED_DOCUMENT_ENGINES = {"auto", "simple", "docling", "docling-vlm", "marker"}
-ALLOWED_URL_ENGINES = {"auto", "simple", "firecrawl", "jina", "crawl4ai"}
-
-# VLM-specific allowed values
-ALLOWED_VLM_INFERENCE_MODES = {"local", "remote"}
-ALLOWED_VLM_BACKENDS = {"auto", "transformers", "mlx"}
-ALLOWED_VLM_MODELS = {"granite-docling", "smol-docling"}
-
-# Allowed retry operation types
-ALLOWED_RETRY_OPERATIONS = {
-    "youtube",
-    "url_api",
-    "url_network",
-    "audio",
-    "llm",
-    "download",
-}
-
-# Timeout validation bounds (seconds)
-MIN_TIMEOUT_SECONDS = 1
-MAX_TIMEOUT_SECONDS = 3600
-
-# Default retry configurations (used when not in config file)
-DEFAULT_RETRY_CONFIG = {
-    "youtube": {"max_attempts": 5, "base_delay": 2, "max_delay": 60},
-    "url_api": {"max_attempts": 3, "base_delay": 1, "max_delay": 30},
-    "url_network": {"max_attempts": 3, "base_delay": 0.5, "max_delay": 10},
-    "audio": {"max_attempts": 3, "base_delay": 2, "max_delay": 30},
-    "llm": {"max_attempts": 3, "base_delay": 1, "max_delay": 30},
-    "download": {"max_attempts": 3, "base_delay": 1, "max_delay": 15},
-}
-
-
-def _warn_invalid_timeout(var_name: str, value: str, reason: str):
-    """Log a warning for invalid timeout overrides."""
-    from content_core.logging import logger
-
-    logger.warning(
-        f"Invalid {var_name}: '{value}'. {reason} "
-        f"(expected {MIN_TIMEOUT_SECONDS}-{MAX_TIMEOUT_SECONDS} seconds). "
-        f"Using timeout from config."
+# Warn about deprecated CCORE_CONFIG_PATH
+if os.environ.get("CCORE_CONFIG_PATH") or os.environ.get("CCORE_MODEL_CONFIG_PATH"):
+    warnings.warn(
+        "CCORE_CONFIG_PATH and CCORE_MODEL_CONFIG_PATH are deprecated and ignored. "
+        "Configuration is now done via environment variables only. "
+        "See docs/configuration.md for the new ENV-based configuration.",
+        DeprecationWarning,
+        stacklevel=1,
     )
 
+# Backward compatibility alias
+DEFAULT_FIRECRAWL_API_URL = DEFAULT_FIRECRAWL["api_url"]
 
-def _parse_timeout_env(var_name: str):
-    """
-    Parse timeout overrides from environment variables.
+# =============================================================================
+# Programmatic Overrides Storage
+# =============================================================================
 
-    Returns:
-        int | None: Parsed timeout in seconds, or None if not provided/invalid.
-    """
-    value = os.environ.get(var_name)
-    if value is None or value == "":
-        return None
-
-    try:
-        timeout = int(value)
-    except ValueError:
-        _warn_invalid_timeout(var_name, value, "Must be an integer value")
-        return None
-
-    if timeout < MIN_TIMEOUT_SECONDS or timeout > MAX_TIMEOUT_SECONDS:
-        _warn_invalid_timeout(
-            var_name,
-            value,
-            f"Must be between {MIN_TIMEOUT_SECONDS} and {MAX_TIMEOUT_SECONDS} seconds",
-        )
-        return None
-
-    return timeout
-
-
-def apply_timeout_env_overrides(config: dict):
-    """
-    Apply environment variable overrides for Esperanto timeouts.
-
-    Priority order (highest to lowest):
-    1. YAML configuration defaults
-    2. Environment variables (ESPERANTO_LLM_TIMEOUT / ESPERANTO_STT_TIMEOUT) used as fallback when YAML does not set a timeout
-    """
-    if not isinstance(config, dict):
-        return
-
-    llm_timeout = _parse_timeout_env("ESPERANTO_LLM_TIMEOUT")
-    if llm_timeout is not None:
-        for alias in ("default_model", "cleanup_model", "summary_model"):
-            alias_cfg = config.setdefault(alias, {})
-            model_cfg = alias_cfg.setdefault("config", {})
-            if "timeout" not in model_cfg or model_cfg["timeout"] is None:
-                model_cfg["timeout"] = llm_timeout
-
-    stt_timeout = _parse_timeout_env("ESPERANTO_STT_TIMEOUT")
-    if stt_timeout is not None:
-        stt_cfg = config.setdefault("speech_to_text", {})
-        if "timeout" not in stt_cfg or stt_cfg["timeout"] is None:
-            stt_cfg["timeout"] = stt_timeout
-
-
-def load_config() -> Dict[str, Any]:
-    config_path = os.environ.get("CCORE_CONFIG_PATH") or os.environ.get(
-        "CCORE_MODEL_CONFIG_PATH"
-    )
-    if config_path and os.path.exists(config_path):
-        try:
-            with open(config_path, "r") as file:
-                return yaml.safe_load(file)
-        except Exception as e:
-            print(f"Error loading configuration file from {config_path}: {e}")
-            print("Using internal default settings.")
-
-    default_config_data = pkgutil.get_data("content_core", "models_config.yaml")
-    if default_config_data:
-        base = yaml.safe_load(default_config_data)
-    else:
-        base = {}
-    # load new cc_config.yaml defaults
-    cc_default = pkgutil.get_data("content_core", "cc_config.yaml")
-    if cc_default:
-        cc_cfg = yaml.safe_load(cc_default)
-        # merge extraction section
-        base["extraction"] = cc_cfg.get("extraction", {})
-    return base or {}
-
-
-CONFIG: Dict[str, Any] = load_config()
-apply_timeout_env_overrides(CONFIG)
+# Stores programmatic overrides set via set_*() functions
+# Format: {"setting_name": value}
+_OVERRIDES: Dict[str, Any] = {}
 
 # Cached extraction config instance
 _extraction_config = None
 
 
-def get_extraction_config():
-    """Get the extraction configuration with all ENV overrides applied.
+def reset_config():
+    """Reset all programmatic overrides.
 
-    This function returns an ExtractionConfig instance that includes:
-    - YAML config from cc_config.yaml
-    - ENV variable overrides
-    - Legacy config (document_engine/url_engine) for backward compatibility
-
-    Returns:
-        ExtractionConfig: The complete extraction configuration.
-
-    Example:
-        >>> config = get_extraction_config()
-        >>> config.fallback.max_attempts
-        3
-        >>> config.engines.get("application/pdf")
-        ['docling-vlm', 'docling']
+    This clears all values set via set_*() functions. Useful for testing.
+    After calling this, get_*() functions will return ENV values or defaults.
     """
-    # Import here to avoid circular imports
-    from content_core.engine_config.env import get_fallback_config_from_env
-    from content_core.engine_config.schema import ExtractionConfig, FallbackConfig
-
     global _extraction_config
-    if _extraction_config is not None:
-        return _extraction_config
-
-    extraction_yaml = CONFIG.get("extraction", {})
-
-    # Build fallback config with ENV overrides
-    fallback_yaml = extraction_yaml.get("fallback", {})
-    fallback_env = get_fallback_config_from_env()
-    fallback_config = FallbackConfig(
-        enabled=fallback_env.get("enabled", fallback_yaml.get("enabled", True)),
-        max_attempts=fallback_env.get(
-            "max_attempts", fallback_yaml.get("max_attempts", 3)
-        ),
-        on_error=fallback_env.get("on_error", fallback_yaml.get("on_error", "warn")),
-        fatal_errors=fallback_yaml.get(
-            "fatal_errors",
-            [
-                "FileNotFoundError",
-                "PermissionError",
-                "ValidationError",
-                "FatalExtractionError",
-            ],
-        ),
-    )
-
-    # Build extraction config
-    _extraction_config = ExtractionConfig(
-        timeout=extraction_yaml.get("timeout", 300),
-        engines=extraction_yaml.get("engines", {}),
-        fallback=fallback_config,
-        engine_options=extraction_yaml.get("engine_options", {}),
-        document_engine=extraction_yaml.get("document_engine", "auto"),
-        url_engine=extraction_yaml.get("url_engine", "auto"),
-    )
-
-    return _extraction_config
-
-
-def get_fallback_config():
-    """Get the fallback configuration for extraction.
-
-    This is a convenience wrapper around get_extraction_config().
-
-    Returns:
-        FallbackConfig: The fallback configuration.
-    """
-    return get_extraction_config().fallback
+    _OVERRIDES.clear()
+    _extraction_config = None
 
 
 def reset_extraction_config():
-    """Reset the cached extraction config (primarily for testing).
+    """Reset only the cached extraction config (backward compatibility).
 
-    After calling this, the next call to get_extraction_config()
-    will reload from CONFIG and ENV variables.
+    Prefer using reset_config() which resets everything.
     """
     global _extraction_config
     _extraction_config = None
 
 
-# Environment variable engine selectors for MCP/Raycast users
-def get_document_engine():
-    """Get document engine with environment variable override and validation."""
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+
+def _parse_bool(value: str) -> bool:
+    """Parse a boolean from string."""
+    return value.lower() in ("true", "1", "yes", "on")
+
+
+def _parse_optional_int(value: str) -> Optional[int]:
+    """Parse an optional integer (None for 'null', 'none', '')."""
+    if value.lower() in ("null", "none", ""):
+        return None
+    return int(value)
+
+
+def _parse_optional_float(value: str) -> Optional[float]:
+    """Parse an optional float (None for 'null', 'none', '')."""
+    if value.lower() in ("null", "none", ""):
+        return None
+    return float(value)
+
+
+def _parse_optional_str(value: str) -> Optional[str]:
+    """Parse an optional string (None for 'null', 'none', '')."""
+    if value.lower() in ("null", "none", ""):
+        return None
+    return value
+
+
+def _warn_invalid(var_name: str, value: str, reason: str, default: Any):
+    """Log a warning for invalid configuration values."""
+    from content_core.logging import logger
+
+    logger.warning(
+        f"Invalid {var_name}: '{value}'. {reason}. Using default: {default}"
+    )
+
+
+# =============================================================================
+# Engine Selection
+# =============================================================================
+
+
+def get_document_engine() -> str:
+    """Get document engine.
+
+    Resolution order:
+    1. Programmatic override via set_document_engine()
+    2. CCORE_DOCUMENT_ENGINE environment variable
+    3. Default: "auto"
+
+    Returns:
+        str: Engine name ('auto', 'simple', 'docling', 'docling-vlm', 'marker')
+    """
+    # 1. Programmatic override
+    if "document_engine" in _OVERRIDES:
+        return _OVERRIDES["document_engine"]
+
+    # 2. Environment variable
     env_engine = os.environ.get("CCORE_DOCUMENT_ENGINE")
     if env_engine:
         if env_engine not in ALLOWED_DOCUMENT_ENGINES:
-            # Import logger here to avoid circular imports
-            from content_core.logging import logger
-
-            logger.warning(
-                f"Invalid CCORE_DOCUMENT_ENGINE: '{env_engine}'. "
-                f"Allowed values: {', '.join(sorted(ALLOWED_DOCUMENT_ENGINES))}. "
-                f"Using default from config."
+            _warn_invalid(
+                "CCORE_DOCUMENT_ENGINE",
+                env_engine,
+                f"Allowed: {', '.join(sorted(ALLOWED_DOCUMENT_ENGINES))}",
+                DEFAULT_EXTRACTION["document_engine"],
             )
-            return CONFIG.get("extraction", {}).get("document_engine", "auto")
+            return DEFAULT_EXTRACTION["document_engine"]
         return env_engine
-    return CONFIG.get("extraction", {}).get("document_engine", "auto")
+
+    # 3. Default
+    return DEFAULT_EXTRACTION["document_engine"]
 
 
-def get_url_engine():
-    """Get URL engine with environment variable override and validation."""
+def set_document_engine(engine: str):
+    """Override the document extraction engine.
+
+    Args:
+        engine: Engine name ('auto', 'simple', 'docling', 'docling-vlm', 'marker')
+    """
+    _OVERRIDES["document_engine"] = engine
+
+
+def get_url_engine() -> str:
+    """Get URL engine.
+
+    Resolution order:
+    1. Programmatic override via set_url_engine()
+    2. CCORE_URL_ENGINE environment variable
+    3. Default: "auto"
+
+    Returns:
+        str: Engine name ('auto', 'simple', 'firecrawl', 'jina', 'crawl4ai')
+    """
+    # 1. Programmatic override
+    if "url_engine" in _OVERRIDES:
+        return _OVERRIDES["url_engine"]
+
+    # 2. Environment variable
     env_engine = os.environ.get("CCORE_URL_ENGINE")
     if env_engine:
         if env_engine not in ALLOWED_URL_ENGINES:
-            # Import logger here to avoid circular imports
-            from content_core.logging import logger
-
-            logger.warning(
-                f"Invalid CCORE_URL_ENGINE: '{env_engine}'. "
-                f"Allowed values: {', '.join(sorted(ALLOWED_URL_ENGINES))}. "
-                f"Using default from config."
+            _warn_invalid(
+                "CCORE_URL_ENGINE",
+                env_engine,
+                f"Allowed: {', '.join(sorted(ALLOWED_URL_ENGINES))}",
+                DEFAULT_EXTRACTION["url_engine"],
             )
-            return CONFIG.get("extraction", {}).get("url_engine", "auto")
+            return DEFAULT_EXTRACTION["url_engine"]
         return env_engine
-    return CONFIG.get("extraction", {}).get("url_engine", "auto")
 
-
-def get_audio_concurrency():
-    """
-    Get audio concurrency with environment variable override and validation.
-
-    Returns the configured number of concurrent audio transcriptions, with automatic
-    validation and fallback to safe defaults.
-
-    Configuration priority (highest to lowest):
-    1. CCORE_AUDIO_CONCURRENCY environment variable
-    2. extraction.audio.concurrency in YAML config
-    3. Default value: 3
-
-    Returns:
-        int: Number of concurrent transcriptions (1-10)
-
-    Validation:
-        - Values must be integers between 1 and 10 (inclusive)
-        - Invalid values (out of range, non-integer, etc.) automatically fall back to default
-        - A warning is logged when invalid values are detected
-
-    Examples:
-        >>> import os
-        >>> os.environ["CCORE_AUDIO_CONCURRENCY"] = "5"
-        >>> get_audio_concurrency()
-        5
-
-        >>> os.environ["CCORE_AUDIO_CONCURRENCY"] = "20"  # Too high
-        >>> get_audio_concurrency()  # Falls back to default
-        3
-    """
-    env_concurrency = os.environ.get("CCORE_AUDIO_CONCURRENCY")
-    if env_concurrency:
-        try:
-            concurrency = int(env_concurrency)
-            if concurrency < 1 or concurrency > 10:
-                # Import logger here to avoid circular imports
-                from content_core.logging import logger
-
-                logger.warning(
-                    f"Invalid CCORE_AUDIO_CONCURRENCY: '{env_concurrency}'. "
-                    f"Must be between 1 and 10. "
-                    f"Using default from config."
-                )
-                return (
-                    CONFIG.get("extraction", {}).get("audio", {}).get("concurrency", 3)
-                )
-            return concurrency
-        except ValueError:
-            # Import logger here to avoid circular imports
-            from content_core.logging import logger
-
-            logger.warning(
-                f"Invalid CCORE_AUDIO_CONCURRENCY: '{env_concurrency}'. "
-                f"Must be a valid integer. "
-                f"Using default from config."
-            )
-            return CONFIG.get("extraction", {}).get("audio", {}).get("concurrency", 3)
-    return CONFIG.get("extraction", {}).get("audio", {}).get("concurrency", 3)
-
-
-# Programmatic config overrides: use in notebooks or scripts
-def set_document_engine(engine: str):
-    """Override the document extraction engine ('auto', 'simple', or 'docling')."""
-    CONFIG.setdefault("extraction", {})["document_engine"] = engine
+    # 3. Default
+    return DEFAULT_EXTRACTION["url_engine"]
 
 
 def set_url_engine(engine: str):
-    """Override the URL extraction engine ('auto', 'simple', 'firecrawl', 'jina', 'crawl4ai', or 'docling')."""
-    CONFIG.setdefault("extraction", {})["url_engine"] = engine
+    """Override the URL extraction engine.
+
+    Args:
+        engine: Engine name ('auto', 'simple', 'firecrawl', 'jina', 'crawl4ai')
+    """
+    _OVERRIDES["url_engine"] = engine
 
 
-def set_docling_output_format(fmt: str):
-    """Override Docling output_format ('markdown', 'html', or 'json')."""
-    extraction = CONFIG.setdefault("extraction", {})
-    docling_cfg = extraction.setdefault("docling", {})
-    docling_cfg["output_format"] = fmt
+# =============================================================================
+# Audio Configuration
+# =============================================================================
 
 
-def set_pymupdf_ocr_enabled(enabled: bool):
-    """Enable or disable PyMuPDF OCR for formula-heavy pages."""
-    extraction = CONFIG.setdefault("extraction", {})
-    pymupdf_cfg = extraction.setdefault("pymupdf", {})
-    pymupdf_cfg["enable_formula_ocr"] = enabled
+def get_audio_concurrency() -> int:
+    """Get audio concurrency (number of parallel transcriptions).
 
+    Resolution order:
+    1. Programmatic override via set_audio_concurrency()
+    2. CCORE_AUDIO_CONCURRENCY environment variable
+    3. Default: 3
 
-def set_pymupdf_formula_threshold(threshold: int):
-    """Set the minimum number of formulas per page to trigger OCR."""
-    extraction = CONFIG.setdefault("extraction", {})
-    pymupdf_cfg = extraction.setdefault("pymupdf", {})
-    pymupdf_cfg["formula_threshold"] = threshold
+    Returns:
+        int: Number of concurrent transcriptions (1-10)
+    """
+    default = DEFAULT_AUDIO["concurrency"]
 
+    # 1. Programmatic override
+    if "audio_concurrency" in _OVERRIDES:
+        return _OVERRIDES["audio_concurrency"]
 
-def set_pymupdf_ocr_fallback(enabled: bool):
-    """Enable or disable fallback to standard extraction when OCR fails."""
-    extraction = CONFIG.setdefault("extraction", {})
-    pymupdf_cfg = extraction.setdefault("pymupdf", {})
-    pymupdf_cfg["ocr_fallback"] = enabled
+    # 2. Environment variable
+    env_val = os.environ.get("CCORE_AUDIO_CONCURRENCY")
+    if env_val:
+        try:
+            concurrency = int(env_val)
+            if 1 <= concurrency <= 10:
+                return concurrency
+            _warn_invalid(
+                "CCORE_AUDIO_CONCURRENCY",
+                env_val,
+                "Must be between 1 and 10",
+                default,
+            )
+        except ValueError:
+            _warn_invalid(
+                "CCORE_AUDIO_CONCURRENCY",
+                env_val,
+                "Must be a valid integer",
+                default,
+            )
+
+    # 3. Default
+    return default
 
 
 def set_audio_concurrency(concurrency: int):
-    """
-    Override the audio concurrency setting (1-10).
+    """Override the audio concurrency setting.
 
     Args:
-        concurrency (int): Number of concurrent audio transcriptions (1-10)
+        concurrency: Number of concurrent audio transcriptions (1-10)
 
     Raises:
         ValueError: If concurrency is not between 1 and 10
@@ -372,90 +338,64 @@ def set_audio_concurrency(concurrency: int):
         raise ValueError(
             f"Audio concurrency must be an integer between 1 and 10, got: {concurrency}"
         )
-    extraction = CONFIG.setdefault("extraction", {})
-    audio_cfg = extraction.setdefault("audio", {})
-    audio_cfg["concurrency"] = concurrency
+    _OVERRIDES["audio_concurrency"] = concurrency
 
 
-# Default Firecrawl API URL
-DEFAULT_FIRECRAWL_API_URL = "https://api.firecrawl.dev"
+# =============================================================================
+# Firecrawl Configuration
+# =============================================================================
 
 
 def get_firecrawl_api_url() -> str:
-    """
-    Get the Firecrawl API URL with environment variable override.
+    """Get the Firecrawl API URL.
 
-    Configuration priority (highest to lowest):
-    1. Environment variable FIRECRAWL_API_BASE_URL
-    2. YAML config (extraction.firecrawl.api_url)
-    3. Default: https://api.firecrawl.dev
+    Resolution order:
+    1. Programmatic override via set_firecrawl_api_url()
+    2. FIRECRAWL_API_BASE_URL environment variable
+    3. Default: "https://api.firecrawl.dev"
 
     Returns:
-        str: The Firecrawl API URL to use
-
-    Examples:
-        >>> import os
-        >>> os.environ["FIRECRAWL_API_BASE_URL"] = "http://localhost:3002"
-        >>> get_firecrawl_api_url()
-        'http://localhost:3002'
+        str: The Firecrawl API URL
     """
-    # 1. Environment variable (highest priority)
+    # 1. Programmatic override
+    if "firecrawl_api_url" in _OVERRIDES:
+        return _OVERRIDES["firecrawl_api_url"]
+
+    # 2. Environment variable
     env_url = os.environ.get("FIRECRAWL_API_BASE_URL")
     if env_url:
         return env_url
 
-    # 2. YAML config
-    yaml_url = CONFIG.get("extraction", {}).get("firecrawl", {}).get("api_url")
-    if yaml_url:
-        return yaml_url
-
     # 3. Default
-    return DEFAULT_FIRECRAWL_API_URL
+    return DEFAULT_FIRECRAWL["api_url"]
 
 
-def set_firecrawl_api_url(api_url: str) -> None:
-    """
-    Override the Firecrawl API URL programmatically.
-
-    This sets the URL in the config, which takes precedence over the default
-    but can still be overridden by the FIRECRAWL_API_BASE_URL environment variable.
+def set_firecrawl_api_url(api_url: str):
+    """Override the Firecrawl API URL.
 
     Args:
         api_url: The Firecrawl API URL (e.g., 'http://localhost:3002')
-
-    Examples:
-        >>> set_firecrawl_api_url("http://localhost:3002")
-        >>> get_firecrawl_api_url()  # Returns 'http://localhost:3002' (unless env var is set)
-        'http://localhost:3002'
     """
-    extraction = CONFIG.setdefault("extraction", {})
-    firecrawl_cfg = extraction.setdefault("firecrawl", {})
-    firecrawl_cfg["api_url"] = api_url
+    _OVERRIDES["firecrawl_api_url"] = api_url
+
+
+# =============================================================================
+# Retry Configuration
+# =============================================================================
 
 
 def get_retry_config(operation_type: str) -> dict:
-    """
-    Get retry configuration for a specific operation type.
+    """Get retry configuration for a specific operation type.
 
-    Configuration priority (highest to lowest):
-    1. Environment variables (CCORE_{TYPE}_MAX_RETRIES, CCORE_{TYPE}_BASE_DELAY, CCORE_{TYPE}_MAX_DELAY)
-    2. YAML config (retry.{type}.{param})
-    3. Hardcoded defaults
+    Resolution order:
+    1. Environment variables (CCORE_{TYPE}_MAX_RETRIES, etc.)
+    2. Default values
 
     Args:
         operation_type: One of 'youtube', 'url_api', 'url_network', 'audio', 'llm', 'download'
 
     Returns:
         dict: Configuration with 'max_attempts', 'base_delay', 'max_delay'
-
-    Examples:
-        >>> get_retry_config("youtube")
-        {'max_attempts': 5, 'base_delay': 2, 'max_delay': 60}
-
-        >>> import os
-        >>> os.environ["CCORE_YOUTUBE_MAX_RETRIES"] = "10"
-        >>> get_retry_config("youtube")
-        {'max_attempts': 10, 'base_delay': 2, 'max_delay': 60}
     """
     if operation_type not in ALLOWED_RETRY_OPERATIONS:
         from content_core.logging import logger
@@ -472,16 +412,14 @@ def get_retry_config(operation_type: str) -> dict:
         operation_type, DEFAULT_RETRY_CONFIG["url_network"]
     )
 
-    # Get from YAML config (falls back to defaults)
-    retry_config = cast(Dict[str, Any], CONFIG.get("retry", {}))
-    yaml_config = cast(Dict[str, Any], retry_config.get(operation_type, {}))
-    max_attempts = int(yaml_config.get("max_attempts", defaults["max_attempts"]))
-    base_delay: float = float(yaml_config.get("base_delay", defaults["base_delay"]))
-    max_delay: float = float(yaml_config.get("max_delay", defaults["max_delay"]))
+    max_attempts = defaults["max_attempts"]
+    base_delay: float = defaults["base_delay"]
+    max_delay: float = defaults["max_delay"]
 
     # Environment variable overrides
     env_prefix = f"CCORE_{operation_type.upper()}"
 
+    # Max retries
     env_max_retries = os.environ.get(f"{env_prefix}_MAX_RETRIES")
     if env_max_retries:
         try:
@@ -489,60 +427,62 @@ def get_retry_config(operation_type: str) -> dict:
             if 1 <= val <= 20:
                 max_attempts = val
             else:
-                from content_core.logging import logger
-
-                logger.warning(
-                    f"Invalid {env_prefix}_MAX_RETRIES: '{env_max_retries}'. "
-                    f"Must be between 1 and 20. Using config value: {max_attempts}"
+                _warn_invalid(
+                    f"{env_prefix}_MAX_RETRIES",
+                    env_max_retries,
+                    "Must be between 1 and 20",
+                    max_attempts,
                 )
         except ValueError:
-            from content_core.logging import logger
-
-            logger.warning(
-                f"Invalid {env_prefix}_MAX_RETRIES: '{env_max_retries}'. "
-                f"Must be a valid integer. Using config value: {max_attempts}"
+            _warn_invalid(
+                f"{env_prefix}_MAX_RETRIES",
+                env_max_retries,
+                "Must be a valid integer",
+                max_attempts,
             )
 
+    # Base delay
     env_base_delay = os.environ.get(f"{env_prefix}_BASE_DELAY")
     if env_base_delay:
         try:
             val = float(env_base_delay)
             if 0.1 <= val <= 60:
-                base_delay = float(val)
+                base_delay = val
             else:
-                from content_core.logging import logger
-
-                logger.warning(
-                    f"Invalid {env_prefix}_BASE_DELAY: '{env_base_delay}'. "
-                    f"Must be between 0.1 and 60. Using config value: {base_delay}"
+                _warn_invalid(
+                    f"{env_prefix}_BASE_DELAY",
+                    env_base_delay,
+                    "Must be between 0.1 and 60",
+                    base_delay,
                 )
         except ValueError:
-            from content_core.logging import logger
-
-            logger.warning(
-                f"Invalid {env_prefix}_BASE_DELAY: '{env_base_delay}'. "
-                f"Must be a valid number. Using config value: {base_delay}"
+            _warn_invalid(
+                f"{env_prefix}_BASE_DELAY",
+                env_base_delay,
+                "Must be a valid number",
+                base_delay,
             )
 
+    # Max delay
     env_max_delay = os.environ.get(f"{env_prefix}_MAX_DELAY")
     if env_max_delay:
         try:
             val = float(env_max_delay)
             if 1 <= val <= 300:
-                max_delay = float(val)
+                max_delay = val
             else:
-                from content_core.logging import logger
-
-                logger.warning(
-                    f"Invalid {env_prefix}_MAX_DELAY: '{env_max_delay}'. "
-                    f"Must be between 1 and 300. Using config value: {max_delay}"
+                _warn_invalid(
+                    f"{env_prefix}_MAX_DELAY",
+                    env_max_delay,
+                    "Must be between 1 and 300",
+                    max_delay,
                 )
         except ValueError:
-            from content_core.logging import logger
-
-            logger.warning(
-                f"Invalid {env_prefix}_MAX_DELAY: '{env_max_delay}'. "
-                f"Must be a valid number. Using config value: {max_delay}"
+            _warn_invalid(
+                f"{env_prefix}_MAX_DELAY",
+                env_max_delay,
+                "Must be a valid number",
+                max_delay,
             )
 
     return {
@@ -552,235 +492,19 @@ def get_retry_config(operation_type: str) -> dict:
     }
 
 
-# VLM Configuration Functions
-# ===========================
-
-
-def get_vlm_inference_mode() -> str:
-    """
-    Get VLM inference mode with environment variable override.
-
-    Configuration priority (highest to lowest):
-    1. Environment variable CCORE_VLM_INFERENCE_MODE
-    2. YAML config (extraction.docling.vlm.inference_mode)
-    3. Default: 'local'
-
-    Returns:
-        str: 'local' or 'remote'
-    """
-    env_mode = os.environ.get("CCORE_VLM_INFERENCE_MODE")
-    if env_mode:
-        if env_mode not in ALLOWED_VLM_INFERENCE_MODES:
-            from content_core.logging import logger
-
-            logger.warning(
-                f"Invalid CCORE_VLM_INFERENCE_MODE: '{env_mode}'. "
-                f"Allowed values: {', '.join(sorted(ALLOWED_VLM_INFERENCE_MODES))}. "
-                f"Using default from config."
-            )
-            return (
-                CONFIG.get("extraction", {})
-                .get("docling", {})
-                .get("vlm", {})
-                .get("inference_mode", "local")
-            )
-        return env_mode
-    return (
-        CONFIG.get("extraction", {})
-        .get("docling", {})
-        .get("vlm", {})
-        .get("inference_mode", "local")
-    )
-
-
-def get_vlm_backend() -> str:
-    """
-    Get VLM backend with environment variable override.
-
-    Configuration priority (highest to lowest):
-    1. Environment variable CCORE_VLM_BACKEND
-    2. YAML config (extraction.docling.vlm.local.backend)
-    3. Default: 'auto'
-
-    Returns:
-        str: 'auto', 'transformers', or 'mlx'
-    """
-    env_backend = os.environ.get("CCORE_VLM_BACKEND")
-    if env_backend:
-        if env_backend not in ALLOWED_VLM_BACKENDS:
-            from content_core.logging import logger
-
-            logger.warning(
-                f"Invalid CCORE_VLM_BACKEND: '{env_backend}'. "
-                f"Allowed values: {', '.join(sorted(ALLOWED_VLM_BACKENDS))}. "
-                f"Using default from config."
-            )
-            return (
-                CONFIG.get("extraction", {})
-                .get("docling", {})
-                .get("vlm", {})
-                .get("local", {})
-                .get("backend", "auto")
-            )
-        return env_backend
-    return (
-        CONFIG.get("extraction", {})
-        .get("docling", {})
-        .get("vlm", {})
-        .get("local", {})
-        .get("backend", "auto")
-    )
-
-
-def get_vlm_model() -> str:
-    """
-    Get VLM model with environment variable override.
-
-    Configuration priority (highest to lowest):
-    1. Environment variable CCORE_VLM_MODEL
-    2. YAML config (extraction.docling.vlm.local.model)
-    3. Default: 'granite-docling'
-
-    Returns:
-        str: 'granite-docling' or 'smol-docling'
-    """
-    env_model = os.environ.get("CCORE_VLM_MODEL")
-    if env_model:
-        if env_model not in ALLOWED_VLM_MODELS:
-            from content_core.logging import logger
-
-            logger.warning(
-                f"Invalid CCORE_VLM_MODEL: '{env_model}'. "
-                f"Allowed values: {', '.join(sorted(ALLOWED_VLM_MODELS))}. "
-                f"Using default from config."
-            )
-            return (
-                CONFIG.get("extraction", {})
-                .get("docling", {})
-                .get("vlm", {})
-                .get("local", {})
-                .get("model", "granite-docling")
-            )
-        return env_model
-    return (
-        CONFIG.get("extraction", {})
-        .get("docling", {})
-        .get("vlm", {})
-        .get("local", {})
-        .get("model", "granite-docling")
-    )
-
-
-def get_vlm_remote_url() -> str:
-    """
-    Get docling-serve URL with environment variable override.
-
-    Configuration priority (highest to lowest):
-    1. Environment variable CCORE_DOCLING_SERVE_URL
-    2. YAML config (extraction.docling.vlm.remote.url)
-    3. Default: 'http://localhost:5001'
-
-    Returns:
-        str: The docling-serve URL
-    """
-    env_url = os.environ.get("CCORE_DOCLING_SERVE_URL")
-    if env_url:
-        return env_url
-    return (
-        CONFIG.get("extraction", {})
-        .get("docling", {})
-        .get("vlm", {})
-        .get("remote", {})
-        .get("url", "http://localhost:5001")
-    )
-
-
-def get_vlm_remote_api_key() -> str | None:
-    """
-    Get docling-serve API key with environment variable override.
-
-    Configuration priority (highest to lowest):
-    1. Environment variable CCORE_DOCLING_SERVE_API_KEY
-    2. YAML config (extraction.docling.vlm.remote.api_key)
-    3. Default: None
-
-    Returns:
-        str | None: The API key or None if not configured
-    """
-    env_key = os.environ.get("CCORE_DOCLING_SERVE_API_KEY")
-    if env_key:
-        return env_key
-    return (
-        CONFIG.get("extraction", {})
-        .get("docling", {})
-        .get("vlm", {})
-        .get("remote", {})
-        .get("api_key")
-    )
-
-
-def get_vlm_remote_timeout() -> int:
-    """
-    Get docling-serve timeout with environment variable override.
-
-    Configuration priority (highest to lowest):
-    1. Environment variable CCORE_DOCLING_SERVE_TIMEOUT
-    2. YAML config (extraction.docling.vlm.remote.timeout)
-    3. Default: 120 seconds
-
-    Returns:
-        int: Timeout in seconds
-    """
-    env_timeout = os.environ.get("CCORE_DOCLING_SERVE_TIMEOUT")
-    if env_timeout:
-        try:
-            timeout = int(env_timeout)
-            if timeout < MIN_TIMEOUT_SECONDS or timeout > MAX_TIMEOUT_SECONDS:
-                from content_core.logging import logger
-
-                logger.warning(
-                    f"Invalid CCORE_DOCLING_SERVE_TIMEOUT: '{env_timeout}'. "
-                    f"Must be between {MIN_TIMEOUT_SECONDS} and {MAX_TIMEOUT_SECONDS} seconds. "
-                    f"Using default from config."
-                )
-                return (
-                    CONFIG.get("extraction", {})
-                    .get("docling", {})
-                    .get("vlm", {})
-                    .get("remote", {})
-                    .get("timeout", 120)
-                )
-            return timeout
-        except ValueError:
-            from content_core.logging import logger
-
-            logger.warning(
-                f"Invalid CCORE_DOCLING_SERVE_TIMEOUT: '{env_timeout}'. "
-                f"Must be a valid integer. Using default from config."
-            )
-            return (
-                CONFIG.get("extraction", {})
-                .get("docling", {})
-                .get("vlm", {})
-                .get("remote", {})
-                .get("timeout", 120)
-            )
-    return (
-        CONFIG.get("extraction", {})
-        .get("docling", {})
-        .get("vlm", {})
-        .get("remote", {})
-        .get("timeout", 120)
-    )
+# =============================================================================
+# Docling Configuration
+# =============================================================================
 
 
 def get_docling_options() -> dict:
-    """
-    Get docling processing options from config with environment variable overrides.
+    """Get docling processing options.
 
-    These options apply to both standard docling and VLM extraction.
+    Resolution order for each option:
+    1. Environment variable (CCORE_DOCLING_*)
+    2. Default value
 
-    Environment variable overrides (all optional):
+    Environment variable overrides:
     - CCORE_DOCLING_DO_OCR: Enable OCR (true/false)
     - CCORE_DOCLING_OCR_ENGINE: OCR engine (easyocr, tesseract, etc.)
     - CCORE_DOCLING_FORCE_FULL_PAGE_OCR: Force OCR on entire page (true/false)
@@ -793,75 +517,39 @@ def get_docling_options() -> dict:
     - CCORE_DOCLING_IMAGES_SCALE: Image scale factor (float)
     - CCORE_DOCLING_DO_PICTURE_CLASSIFICATION: Enable picture classification (true/false)
     - CCORE_DOCLING_DO_PICTURE_DESCRIPTION: Enable picture description (true/false)
-    - CCORE_DOCLING_DOCUMENT_TIMEOUT: Document processing timeout in seconds (int)
+    - CCORE_DOCLING_PICTURE_MODEL: Picture description model (granite, smolvlm)
+    - CCORE_DOCLING_PICTURE_PROMPT: Custom prompt for picture description
+    - CCORE_DOCLING_OUTPUT_FORMAT: Output format (markdown, html, json)
+    - CCORE_DOCLING_DOCUMENT_TIMEOUT: Document processing timeout in seconds
 
     Returns:
         dict: Options for docling processing
     """
-    # Default options (optimized for out-of-box experience)
-    defaults = {
-        "do_ocr": True,
-        "ocr_engine": "easyocr",
-        "force_full_page_ocr": False,
-        "table_mode": "accurate",
-        "do_table_structure": True,
-        "do_code_enrichment": False,
-        "do_formula_enrichment": True,  # Enabled for scientific papers
-        "generate_page_images": False,
-        "generate_picture_images": False,
-        "images_scale": 2.0,  # Higher resolution for better VLM processing
-        "do_picture_classification": False,
-        "do_picture_description": False,
-        # Picture description settings (used when do_picture_description=True)
-        # Note: Forces CPU device due to MPS compatibility issues with SmolVLM/Granite Vision
-        "picture_description_model": "granite",  # smolvlm (256M) | granite (2B, better quality)
-        "picture_description_prompt": (
-            "Describe this image in detail. Include the type of visualization, "
-            "axes labels, data trends, and any text visible in the image."
-        ),
-        "document_timeout": None,
-    }
+    # Start with defaults
+    options = DEFAULT_DOCLING_OPTIONS.copy()
 
-    # Get from YAML config (new location: extraction.docling.options)
-    yaml_options = (
-        CONFIG.get("extraction", {})
-        .get("docling", {})
-        .get("options", {})
-    )
+    # Apply programmatic overrides first
+    if "docling_output_format" in _OVERRIDES:
+        options["output_format"] = _OVERRIDES["docling_output_format"]
 
-    # Merge with defaults
-    options = {**defaults, **yaml_options}
-
-    # Environment variable overrides
-    def parse_bool(val: str) -> bool:
-        return val.lower() in ("true", "1", "yes", "on")
-
-    def parse_optional_int(val: str):
-        if val.lower() in ("null", "none", ""):
-            return None
-        return int(val)
-
-    def parse_optional_float(val: str):
-        if val.lower() in ("null", "none", ""):
-            return None
-        return float(val)
-
+    # Environment variable mappings
     env_mappings = {
-        "CCORE_DOCLING_DO_OCR": ("do_ocr", parse_bool),
+        "CCORE_DOCLING_DO_OCR": ("do_ocr", _parse_bool),
         "CCORE_DOCLING_OCR_ENGINE": ("ocr_engine", str),
-        "CCORE_DOCLING_FORCE_FULL_PAGE_OCR": ("force_full_page_ocr", parse_bool),
+        "CCORE_DOCLING_FORCE_FULL_PAGE_OCR": ("force_full_page_ocr", _parse_bool),
         "CCORE_DOCLING_TABLE_MODE": ("table_mode", str),
-        "CCORE_DOCLING_DO_TABLE_STRUCTURE": ("do_table_structure", parse_bool),
-        "CCORE_DOCLING_DO_CODE_ENRICHMENT": ("do_code_enrichment", parse_bool),
-        "CCORE_DOCLING_DO_FORMULA_ENRICHMENT": ("do_formula_enrichment", parse_bool),
-        "CCORE_DOCLING_GENERATE_PAGE_IMAGES": ("generate_page_images", parse_bool),
-        "CCORE_DOCLING_GENERATE_PICTURE_IMAGES": ("generate_picture_images", parse_bool),
-        "CCORE_DOCLING_IMAGES_SCALE": ("images_scale", parse_optional_float),
-        "CCORE_DOCLING_DO_PICTURE_CLASSIFICATION": ("do_picture_classification", parse_bool),
-        "CCORE_DOCLING_DO_PICTURE_DESCRIPTION": ("do_picture_description", parse_bool),
+        "CCORE_DOCLING_DO_TABLE_STRUCTURE": ("do_table_structure", _parse_bool),
+        "CCORE_DOCLING_DO_CODE_ENRICHMENT": ("do_code_enrichment", _parse_bool),
+        "CCORE_DOCLING_DO_FORMULA_ENRICHMENT": ("do_formula_enrichment", _parse_bool),
+        "CCORE_DOCLING_GENERATE_PAGE_IMAGES": ("generate_page_images", _parse_bool),
+        "CCORE_DOCLING_GENERATE_PICTURE_IMAGES": ("generate_picture_images", _parse_bool),
+        "CCORE_DOCLING_IMAGES_SCALE": ("images_scale", _parse_optional_float),
+        "CCORE_DOCLING_DO_PICTURE_CLASSIFICATION": ("do_picture_classification", _parse_bool),
+        "CCORE_DOCLING_DO_PICTURE_DESCRIPTION": ("do_picture_description", _parse_bool),
         "CCORE_DOCLING_PICTURE_MODEL": ("picture_description_model", str),
         "CCORE_DOCLING_PICTURE_PROMPT": ("picture_description_prompt", str),
-        "CCORE_DOCLING_DOCUMENT_TIMEOUT": ("document_timeout", parse_optional_int),
+        "CCORE_DOCLING_OUTPUT_FORMAT": ("output_format", str),
+        "CCORE_DOCLING_DOCUMENT_TIMEOUT": ("document_timeout", _parse_optional_int),
     }
 
     for env_var, (option_key, converter) in env_mappings.items():
@@ -877,6 +565,15 @@ def get_docling_options() -> dict:
     return options
 
 
+def set_docling_output_format(fmt: str):
+    """Override Docling output_format.
+
+    Args:
+        fmt: Output format ('markdown', 'html', or 'json')
+    """
+    _OVERRIDES["docling_output_format"] = fmt
+
+
 # Backward compatibility aliases
 def get_vlm_options() -> dict:
     """Alias for get_docling_options() for backward compatibility."""
@@ -888,15 +585,366 @@ def get_vlm_remote_options() -> dict:
     return get_docling_options()
 
 
-# Marker Configuration Functions
-# ==============================
+# =============================================================================
+# VLM Configuration
+# =============================================================================
+
+
+def get_vlm_inference_mode() -> str:
+    """Get VLM inference mode.
+
+    Resolution order:
+    1. Programmatic override via set_vlm_inference_mode()
+    2. CCORE_VLM_INFERENCE_MODE environment variable
+    3. Default: 'local'
+
+    Returns:
+        str: 'local' or 'remote'
+    """
+    default = DEFAULT_VLM_CONFIG["inference_mode"]
+
+    # 1. Programmatic override
+    if "vlm_inference_mode" in _OVERRIDES:
+        return _OVERRIDES["vlm_inference_mode"]
+
+    # 2. Environment variable
+    env_mode = os.environ.get("CCORE_VLM_INFERENCE_MODE")
+    if env_mode:
+        if env_mode not in ALLOWED_VLM_INFERENCE_MODES:
+            _warn_invalid(
+                "CCORE_VLM_INFERENCE_MODE",
+                env_mode,
+                f"Allowed: {', '.join(sorted(ALLOWED_VLM_INFERENCE_MODES))}",
+                default,
+            )
+            return default
+        return env_mode
+
+    # 3. Default
+    return default
+
+
+def set_vlm_inference_mode(mode: str):
+    """Override the VLM inference mode.
+
+    Args:
+        mode: 'local' for local inference, 'remote' for docling-serve
+
+    Raises:
+        ValueError: If mode is not 'local' or 'remote'
+    """
+    if mode not in ALLOWED_VLM_INFERENCE_MODES:
+        raise ValueError(
+            f"VLM inference mode must be one of {ALLOWED_VLM_INFERENCE_MODES}, got: {mode}"
+        )
+    _OVERRIDES["vlm_inference_mode"] = mode
+
+
+def get_vlm_backend() -> str:
+    """Get VLM backend.
+
+    Resolution order:
+    1. Programmatic override via set_vlm_backend()
+    2. CCORE_VLM_BACKEND environment variable
+    3. Default: 'auto'
+
+    Returns:
+        str: 'auto', 'transformers', or 'mlx'
+    """
+    default = DEFAULT_VLM_CONFIG["backend"]
+
+    # 1. Programmatic override
+    if "vlm_backend" in _OVERRIDES:
+        return _OVERRIDES["vlm_backend"]
+
+    # 2. Environment variable
+    env_backend = os.environ.get("CCORE_VLM_BACKEND")
+    if env_backend:
+        if env_backend not in ALLOWED_VLM_BACKENDS:
+            _warn_invalid(
+                "CCORE_VLM_BACKEND",
+                env_backend,
+                f"Allowed: {', '.join(sorted(ALLOWED_VLM_BACKENDS))}",
+                default,
+            )
+            return default
+        return env_backend
+
+    # 3. Default
+    return default
+
+
+def set_vlm_backend(backend: str):
+    """Override the VLM backend.
+
+    Args:
+        backend: 'auto', 'transformers', or 'mlx'
+
+    Raises:
+        ValueError: If backend is not valid
+    """
+    if backend not in ALLOWED_VLM_BACKENDS:
+        raise ValueError(
+            f"VLM backend must be one of {ALLOWED_VLM_BACKENDS}, got: {backend}"
+        )
+    _OVERRIDES["vlm_backend"] = backend
+
+
+def get_vlm_model() -> str:
+    """Get VLM model.
+
+    Resolution order:
+    1. Programmatic override via set_vlm_model()
+    2. CCORE_VLM_MODEL environment variable
+    3. Default: 'granite-docling'
+
+    Returns:
+        str: 'granite-docling' or 'smol-docling'
+    """
+    default = DEFAULT_VLM_CONFIG["model"]
+
+    # 1. Programmatic override
+    if "vlm_model" in _OVERRIDES:
+        return _OVERRIDES["vlm_model"]
+
+    # 2. Environment variable
+    env_model = os.environ.get("CCORE_VLM_MODEL")
+    if env_model:
+        if env_model not in ALLOWED_VLM_MODELS:
+            _warn_invalid(
+                "CCORE_VLM_MODEL",
+                env_model,
+                f"Allowed: {', '.join(sorted(ALLOWED_VLM_MODELS))}",
+                default,
+            )
+            return default
+        return env_model
+
+    # 3. Default
+    return default
+
+
+def set_vlm_model(model: str):
+    """Override the VLM model.
+
+    Args:
+        model: 'granite-docling' or 'smol-docling'
+
+    Raises:
+        ValueError: If model is not valid
+    """
+    if model not in ALLOWED_VLM_MODELS:
+        raise ValueError(
+            f"VLM model must be one of {ALLOWED_VLM_MODELS}, got: {model}"
+        )
+    _OVERRIDES["vlm_model"] = model
+
+
+def get_vlm_remote_url() -> str:
+    """Get docling-serve URL.
+
+    Resolution order:
+    1. Programmatic override via set_vlm_remote_url()
+    2. CCORE_DOCLING_SERVE_URL environment variable
+    3. Default: 'http://localhost:5001'
+
+    Returns:
+        str: The docling-serve URL
+    """
+    # 1. Programmatic override
+    if "vlm_remote_url" in _OVERRIDES:
+        return _OVERRIDES["vlm_remote_url"]
+
+    # 2. Environment variable
+    env_url = os.environ.get("CCORE_DOCLING_SERVE_URL")
+    if env_url:
+        return env_url
+
+    # 3. Default
+    return DEFAULT_VLM_CONFIG["remote_url"]
+
+
+def set_vlm_remote_url(url: str):
+    """Override the docling-serve URL.
+
+    Args:
+        url: The URL of the docling-serve endpoint
+    """
+    _OVERRIDES["vlm_remote_url"] = url
+
+
+def get_vlm_remote_api_key() -> Optional[str]:
+    """Get docling-serve API key.
+
+    Resolution order:
+    1. Programmatic override via set_vlm_remote_api_key()
+    2. CCORE_DOCLING_SERVE_API_KEY environment variable
+    3. Default: None
+
+    Returns:
+        str | None: The API key or None if not configured
+    """
+    # 1. Programmatic override
+    if "vlm_remote_api_key" in _OVERRIDES:
+        return _OVERRIDES["vlm_remote_api_key"]
+
+    # 2. Environment variable
+    env_key = os.environ.get("CCORE_DOCLING_SERVE_API_KEY")
+    if env_key:
+        return env_key
+
+    # 3. Default
+    return DEFAULT_VLM_CONFIG["remote_api_key"]
+
+
+def set_vlm_remote_api_key(api_key: Optional[str]):
+    """Override the docling-serve API key.
+
+    Args:
+        api_key: The API key for authentication, or None to disable
+    """
+    _OVERRIDES["vlm_remote_api_key"] = api_key
+
+
+def get_vlm_remote_timeout() -> int:
+    """Get docling-serve timeout.
+
+    Resolution order:
+    1. Programmatic override via set_vlm_remote_timeout()
+    2. CCORE_DOCLING_SERVE_TIMEOUT environment variable
+    3. Default: 120 seconds
+
+    Returns:
+        int: Timeout in seconds
+    """
+    default = DEFAULT_VLM_CONFIG["remote_timeout"]
+
+    # 1. Programmatic override
+    if "vlm_remote_timeout" in _OVERRIDES:
+        return _OVERRIDES["vlm_remote_timeout"]
+
+    # 2. Environment variable
+    env_timeout = os.environ.get("CCORE_DOCLING_SERVE_TIMEOUT")
+    if env_timeout:
+        try:
+            timeout = int(env_timeout)
+            if MIN_TIMEOUT_SECONDS <= timeout <= MAX_TIMEOUT_SECONDS:
+                return timeout
+            _warn_invalid(
+                "CCORE_DOCLING_SERVE_TIMEOUT",
+                env_timeout,
+                f"Must be between {MIN_TIMEOUT_SECONDS} and {MAX_TIMEOUT_SECONDS}",
+                default,
+            )
+        except ValueError:
+            _warn_invalid(
+                "CCORE_DOCLING_SERVE_TIMEOUT",
+                env_timeout,
+                "Must be a valid integer",
+                default,
+            )
+
+    # 3. Default
+    return default
+
+
+def set_vlm_remote_timeout(timeout: int):
+    """Override the docling-serve timeout.
+
+    Args:
+        timeout: Timeout in seconds (1-3600)
+
+    Raises:
+        ValueError: If timeout is out of range
+    """
+    if timeout < MIN_TIMEOUT_SECONDS or timeout > MAX_TIMEOUT_SECONDS:
+        raise ValueError(
+            f"VLM remote timeout must be between {MIN_TIMEOUT_SECONDS} and "
+            f"{MAX_TIMEOUT_SECONDS} seconds, got: {timeout}"
+        )
+    _OVERRIDES["vlm_remote_timeout"] = timeout
+
+
+# =============================================================================
+# PyMuPDF Configuration
+# =============================================================================
+
+
+def get_pymupdf_options() -> dict:
+    """Get PyMuPDF processing options.
+
+    Resolution order for each option:
+    1. Programmatic override
+    2. Environment variable
+    3. Default value
+
+    Environment variable overrides:
+    - CCORE_PYMUPDF_ENABLE_FORMULA_OCR: Enable OCR for formula-heavy pages (true/false)
+    - CCORE_PYMUPDF_FORMULA_THRESHOLD: Minimum formulas per page to trigger OCR (int)
+    - CCORE_PYMUPDF_OCR_FALLBACK: Fallback to standard extraction if OCR fails (true/false)
+
+    Returns:
+        dict: Options for PyMuPDF processing
+    """
+    # Start with defaults
+    options = DEFAULT_PYMUPDF_OPTIONS.copy()
+
+    # Apply programmatic overrides
+    if "pymupdf_enable_formula_ocr" in _OVERRIDES:
+        options["enable_formula_ocr"] = _OVERRIDES["pymupdf_enable_formula_ocr"]
+    if "pymupdf_formula_threshold" in _OVERRIDES:
+        options["formula_threshold"] = _OVERRIDES["pymupdf_formula_threshold"]
+    if "pymupdf_ocr_fallback" in _OVERRIDES:
+        options["ocr_fallback"] = _OVERRIDES["pymupdf_ocr_fallback"]
+
+    # Environment variable overrides
+    env_mappings = {
+        "CCORE_PYMUPDF_ENABLE_FORMULA_OCR": ("enable_formula_ocr", _parse_bool),
+        "CCORE_PYMUPDF_FORMULA_THRESHOLD": ("formula_threshold", int),
+        "CCORE_PYMUPDF_OCR_FALLBACK": ("ocr_fallback", _parse_bool),
+    }
+
+    for env_var, (option_key, converter) in env_mappings.items():
+        env_val = os.environ.get(env_var)
+        if env_val is not None:
+            try:
+                options[option_key] = converter(env_val)
+            except (ValueError, TypeError):
+                from content_core.logging import logger
+
+                logger.warning(f"Invalid {env_var}: '{env_val}'. Using default.")
+
+    return options
+
+
+def set_pymupdf_ocr_enabled(enabled: bool):
+    """Enable or disable PyMuPDF OCR for formula-heavy pages."""
+    _OVERRIDES["pymupdf_enable_formula_ocr"] = enabled
+
+
+def set_pymupdf_formula_threshold(threshold: int):
+    """Set the minimum number of formulas per page to trigger OCR."""
+    _OVERRIDES["pymupdf_formula_threshold"] = threshold
+
+
+def set_pymupdf_ocr_fallback(enabled: bool):
+    """Enable or disable fallback to standard extraction when OCR fails."""
+    _OVERRIDES["pymupdf_ocr_fallback"] = enabled
+
+
+# =============================================================================
+# Marker Configuration
+# =============================================================================
 
 
 def get_marker_options() -> dict:
-    """
-    Get Marker processing options from config with environment variable overrides.
+    """Get Marker processing options.
 
-    Environment variable overrides (all optional):
+    Resolution order for each option:
+    1. Environment variable
+    2. Default value
+
+    Environment variable overrides:
     - CCORE_MARKER_USE_LLM: Enable LLM for enhanced extraction (true/false)
     - CCORE_MARKER_FORCE_OCR: Force OCR on all pages (true/false)
     - CCORE_MARKER_PAGE_RANGE: Page range to extract e.g. "0-10" (null for all)
@@ -905,35 +953,14 @@ def get_marker_options() -> dict:
     Returns:
         dict: Options for Marker processing
     """
-    # Default options
-    defaults = {
-        "use_llm": False,
-        "force_ocr": False,
-        "page_range": None,
-        "output_format": "markdown",
-    }
-
-    # Get from YAML config (extraction.marker.options)
-    yaml_options = (
-        CONFIG.get("extraction", {}).get("marker", {}).get("options", {})
-    )
-
-    # Merge with defaults
-    options = {**defaults, **yaml_options}
+    # Start with defaults
+    options = DEFAULT_MARKER_OPTIONS.copy()
 
     # Environment variable overrides
-    def parse_bool(val: str) -> bool:
-        return val.lower() in ("true", "1", "yes", "on")
-
-    def parse_optional_str(val: str):
-        if val.lower() in ("null", "none", ""):
-            return None
-        return val
-
     env_mappings = {
-        "CCORE_MARKER_USE_LLM": ("use_llm", parse_bool),
-        "CCORE_MARKER_FORCE_OCR": ("force_ocr", parse_bool),
-        "CCORE_MARKER_PAGE_RANGE": ("page_range", parse_optional_str),
+        "CCORE_MARKER_USE_LLM": ("use_llm", _parse_bool),
+        "CCORE_MARKER_FORCE_OCR": ("force_ocr", _parse_bool),
+        "CCORE_MARKER_PAGE_RANGE": ("page_range", _parse_optional_str),
         "CCORE_MARKER_OUTPUT_FORMAT": ("output_format", str),
     }
 
@@ -950,117 +977,259 @@ def get_marker_options() -> dict:
     return options
 
 
-# VLM Programmatic Setters
-# ========================
+# =============================================================================
+# YouTube Configuration
+# =============================================================================
 
 
-def set_vlm_inference_mode(mode: str) -> None:
+def get_youtube_preferred_languages() -> list:
+    """Get YouTube preferred languages for transcript extraction.
+
+    Resolution order:
+    1. CCORE_YOUTUBE_LANGUAGES environment variable (comma-separated)
+    2. Default: ["en", "es", "pt"]
+
+    Returns:
+        list: List of language codes
     """
-    Override the VLM inference mode ('local' or 'remote').
+    # Environment variable
+    env_langs = os.environ.get("CCORE_YOUTUBE_LANGUAGES")
+    if env_langs:
+        return [lang.strip() for lang in env_langs.split(",") if lang.strip()]
+
+    # Default
+    return DEFAULT_YOUTUBE["preferred_languages"].copy()
+
+
+# =============================================================================
+# Model Configuration
+# =============================================================================
+
+
+def get_model_config(model_alias: str) -> dict:
+    """Get model configuration for Esperanto integration.
+
+    Resolution order:
+    1. Environment variables (CCORE_{MODEL}_PROVIDER, etc.)
+    2. Default values
 
     Args:
-        mode: 'local' for local inference, 'remote' for docling-serve
+        model_alias: One of 'speech_to_text', 'default_model', 'cleanup_model', 'summary_model'
+
+    Returns:
+        dict: Model configuration with provider, model_name, and config
 
     Raises:
-        ValueError: If mode is not 'local' or 'remote'
+        ValueError: If model_alias is unknown
     """
-    if mode not in ALLOWED_VLM_INFERENCE_MODES:
+    # Map aliases to defaults
+    defaults_map = {
+        "speech_to_text": DEFAULT_SPEECH_TO_TEXT,
+        "default_model": DEFAULT_LLM_MODEL,
+        "cleanup_model": DEFAULT_CLEANUP_MODEL,
+        "summary_model": DEFAULT_SUMMARY_MODEL,
+    }
+
+    if model_alias not in defaults_map:
         raise ValueError(
-            f"VLM inference mode must be one of {ALLOWED_VLM_INFERENCE_MODES}, got: {mode}"
+            f"Unknown model alias: {model_alias}. "
+            f"Allowed: {', '.join(sorted(defaults_map.keys()))}"
         )
-    extraction = CONFIG.setdefault("extraction", {})
-    docling_cfg = extraction.setdefault("docling", {})
-    vlm_cfg = docling_cfg.setdefault("vlm", {})
-    vlm_cfg["inference_mode"] = mode
+
+    # Start with defaults (deep copy for nested dicts)
+    import copy
+    config = copy.deepcopy(defaults_map[model_alias])
+
+    # Environment variable overrides
+    env_prefix = f"CCORE_{model_alias.upper()}"
+
+    # Provider
+    env_provider = os.environ.get(f"{env_prefix}_PROVIDER")
+    if env_provider:
+        config["provider"] = env_provider
+
+    # Model name
+    env_model = os.environ.get(f"{env_prefix}_MODEL")
+    if env_model:
+        config["model_name"] = env_model
+
+    # Timeout (for STT) or config.timeout (for LLM)
+    env_timeout = os.environ.get(f"{env_prefix}_TIMEOUT")
+    if env_timeout:
+        try:
+            timeout = int(env_timeout)
+            if model_alias == "speech_to_text":
+                config["timeout"] = timeout
+            else:
+                config.setdefault("config", {})["timeout"] = timeout
+        except ValueError:
+            pass
+
+    # Also check ESPERANTO_LLM_TIMEOUT / ESPERANTO_STT_TIMEOUT for backward compat
+    if model_alias == "speech_to_text":
+        esperanto_timeout = os.environ.get("ESPERANTO_STT_TIMEOUT")
+        if esperanto_timeout and "timeout" not in config:
+            try:
+                config["timeout"] = int(esperanto_timeout)
+            except ValueError:
+                pass
+    else:
+        esperanto_timeout = os.environ.get("ESPERANTO_LLM_TIMEOUT")
+        if esperanto_timeout:
+            try:
+                timeout = int(esperanto_timeout)
+                cfg = config.setdefault("config", {})
+                if "timeout" not in cfg:
+                    cfg["timeout"] = timeout
+            except ValueError:
+                pass
+
+    return config
 
 
-def set_vlm_backend(backend: str) -> None:
+# =============================================================================
+# Extraction Config (for EngineResolver)
+# =============================================================================
+
+
+def get_extraction_config():
+    """Get the extraction configuration for EngineResolver.
+
+    This function returns an ExtractionConfig instance that includes
+    fallback config and engine settings from ENV variables.
+
+    Returns:
+        ExtractionConfig: The extraction configuration.
     """
-    Override the VLM backend ('auto', 'transformers', or 'mlx').
+    from content_core.engine_config.env import get_fallback_config_from_env
+    from content_core.engine_config.schema import ExtractionConfig, FallbackConfig
 
-    Args:
-        backend: 'auto' for automatic detection, 'transformers' or 'mlx' for specific backend
+    global _extraction_config
+    if _extraction_config is not None:
+        return _extraction_config
 
-    Raises:
-        ValueError: If backend is not valid
+    # Build fallback config from ENV
+    fallback_env = get_fallback_config_from_env()
+    fallback_config = FallbackConfig(
+        enabled=fallback_env.get("enabled", DEFAULT_FALLBACK["enabled"]),
+        max_attempts=fallback_env.get("max_attempts", DEFAULT_FALLBACK["max_attempts"]),
+        on_error=fallback_env.get("on_error", DEFAULT_FALLBACK["on_error"]),
+        fatal_errors=DEFAULT_FALLBACK["fatal_errors"],
+    )
+
+    # Get timeout from ENV
+    timeout = DEFAULT_EXTRACTION["timeout"]
+    env_timeout = os.environ.get("CCORE_EXTRACTION_TIMEOUT")
+    if env_timeout:
+        try:
+            timeout = int(env_timeout)
+        except ValueError:
+            pass
+
+    # Build extraction config
+    # Note: engines dict is empty - engine resolution is done via ENV vars directly
+    _extraction_config = ExtractionConfig(
+        timeout=timeout,
+        engines={},  # No YAML engines - all via ENV
+        fallback=fallback_config,
+        engine_options={},  # Options come from get_*_options() functions
+        document_engine=get_document_engine(),
+        url_engine=get_url_engine(),
+    )
+
+    return _extraction_config
+
+
+def get_fallback_config():
+    """Get the fallback configuration for extraction.
+
+    This is a convenience wrapper around get_extraction_config().
+
+    Returns:
+        FallbackConfig: The fallback configuration.
     """
-    if backend not in ALLOWED_VLM_BACKENDS:
-        raise ValueError(
-            f"VLM backend must be one of {ALLOWED_VLM_BACKENDS}, got: {backend}"
+    return get_extraction_config().fallback
+
+
+# =============================================================================
+# Backward Compatibility - CONFIG dict
+# =============================================================================
+
+# For backward compatibility, provide a CONFIG dict that processors can use
+# This is populated lazily from ENV and defaults
+class _ConfigProxy:
+    """Proxy object that provides backward-compatible CONFIG dict access."""
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Get a config value with backward-compatible paths."""
+        if key == "youtube_transcripts":
+            return {"preferred_languages": get_youtube_preferred_languages()}
+        elif key == "extraction":
+            return {
+                "document_engine": get_document_engine(),
+                "url_engine": get_url_engine(),
+                "docling": {
+                    "output_format": get_docling_options()["output_format"],
+                    "options": get_docling_options(),
+                    "vlm": {
+                        "inference_mode": get_vlm_inference_mode(),
+                        "local": {
+                            "backend": get_vlm_backend(),
+                            "model": get_vlm_model(),
+                        },
+                        "remote": {
+                            "url": get_vlm_remote_url(),
+                            "api_key": get_vlm_remote_api_key(),
+                            "timeout": get_vlm_remote_timeout(),
+                        },
+                    },
+                },
+                "pymupdf": get_pymupdf_options(),
+                "marker": {"options": get_marker_options()},
+                "audio": {"concurrency": get_audio_concurrency()},
+                "firecrawl": {"api_url": get_firecrawl_api_url()},
+                "fallback": {
+                    "enabled": DEFAULT_FALLBACK["enabled"],
+                    "max_attempts": DEFAULT_FALLBACK["max_attempts"],
+                    "on_error": DEFAULT_FALLBACK["on_error"],
+                    "fatal_errors": DEFAULT_FALLBACK["fatal_errors"],
+                },
+            }
+        elif key == "speech_to_text":
+            return get_model_config("speech_to_text")
+        elif key == "default_model":
+            return get_model_config("default_model")
+        elif key == "cleanup_model":
+            return get_model_config("cleanup_model")
+        elif key == "summary_model":
+            return get_model_config("summary_model")
+        elif key == "retry":
+            return {op: get_retry_config(op) for op in ALLOWED_RETRY_OPERATIONS}
+        return default
+
+    def setdefault(self, key: str, default: Any = None) -> Any:
+        """Setdefault is a no-op for the proxy - use set_*() functions."""
+        return self.get(key, default)
+
+    def __getitem__(self, key: str) -> Any:
+        """Allow dict-style access."""
+        result = self.get(key)
+        if result is None:
+            raise KeyError(key)
+        return result
+
+    def __contains__(self, key: str) -> bool:
+        """Check if key exists."""
+        return key in (
+            "youtube_transcripts",
+            "extraction",
+            "speech_to_text",
+            "default_model",
+            "cleanup_model",
+            "summary_model",
+            "retry",
         )
-    extraction = CONFIG.setdefault("extraction", {})
-    docling_cfg = extraction.setdefault("docling", {})
-    vlm_cfg = docling_cfg.setdefault("vlm", {})
-    local_cfg = vlm_cfg.setdefault("local", {})
-    local_cfg["backend"] = backend
 
 
-def set_vlm_model(model: str) -> None:
-    """
-    Override the VLM model ('granite-docling' or 'smol-docling').
-
-    Args:
-        model: The model to use for VLM extraction
-
-    Raises:
-        ValueError: If model is not valid
-    """
-    if model not in ALLOWED_VLM_MODELS:
-        raise ValueError(
-            f"VLM model must be one of {ALLOWED_VLM_MODELS}, got: {model}"
-        )
-    extraction = CONFIG.setdefault("extraction", {})
-    docling_cfg = extraction.setdefault("docling", {})
-    vlm_cfg = docling_cfg.setdefault("vlm", {})
-    local_cfg = vlm_cfg.setdefault("local", {})
-    local_cfg["model"] = model
-
-
-def set_vlm_remote_url(url: str) -> None:
-    """
-    Override the docling-serve URL.
-
-    Args:
-        url: The URL of the docling-serve endpoint
-    """
-    extraction = CONFIG.setdefault("extraction", {})
-    docling_cfg = extraction.setdefault("docling", {})
-    vlm_cfg = docling_cfg.setdefault("vlm", {})
-    remote_cfg = vlm_cfg.setdefault("remote", {})
-    remote_cfg["url"] = url
-
-
-def set_vlm_remote_api_key(api_key: str | None) -> None:
-    """
-    Override the docling-serve API key.
-
-    Args:
-        api_key: The API key for authentication, or None to disable
-    """
-    extraction = CONFIG.setdefault("extraction", {})
-    docling_cfg = extraction.setdefault("docling", {})
-    vlm_cfg = docling_cfg.setdefault("vlm", {})
-    remote_cfg = vlm_cfg.setdefault("remote", {})
-    remote_cfg["api_key"] = api_key
-
-
-def set_vlm_remote_timeout(timeout: int) -> None:
-    """
-    Override the docling-serve timeout.
-
-    Args:
-        timeout: Timeout in seconds (1-3600)
-
-    Raises:
-        ValueError: If timeout is out of range
-    """
-    if timeout < MIN_TIMEOUT_SECONDS or timeout > MAX_TIMEOUT_SECONDS:
-        raise ValueError(
-            f"VLM remote timeout must be between {MIN_TIMEOUT_SECONDS} and "
-            f"{MAX_TIMEOUT_SECONDS} seconds, got: {timeout}"
-        )
-    extraction = CONFIG.setdefault("extraction", {})
-    docling_cfg = extraction.setdefault("docling", {})
-    vlm_cfg = docling_cfg.setdefault("vlm", {})
-    remote_cfg = vlm_cfg.setdefault("remote", {})
-    remote_cfg["timeout"] = timeout
+# Backward compatibility: CONFIG dict for processors
+CONFIG = _ConfigProxy()

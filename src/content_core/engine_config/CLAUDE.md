@@ -2,6 +2,8 @@
 
 Configuration management for engine selection and fallback behavior in content extraction.
 
+**v2.0 Breaking Change:** YAML configuration is no longer supported. All configuration is done via ENV variables.
+
 ## Files
 
 - **`__init__.py`**: Exports `EngineResolver`, `ExtractionConfig`, `FallbackConfig`, ENV parsing functions
@@ -14,17 +16,14 @@ Configuration management for engine selection and fallback behavior in content e
   - `CCORE_FALLBACK_*` (ENABLED, MAX_ATTEMPTS, ON_ERROR)
 - **`resolver.py`**: `EngineResolver` class that resolves engine chains
 
-## Engine Resolution Order
+## Engine Resolution Order (v2.0 - ENV only)
 
 1. **Explicit param**: `extract_content(..., engine="docling")`
 2. **ENV specific MIME**: `CCORE_ENGINE_APPLICATION_PDF`
-3. **YAML specific MIME**: `engines["application/pdf"]`
-4. **ENV wildcard MIME**: `CCORE_ENGINE_IMAGE`
-5. **YAML wildcard MIME**: `engines["image/*"]`
-6. **ENV category**: `CCORE_ENGINE_DOCUMENTS`
-7. **YAML category**: `engines["documents"]`
-8. **Legacy config**: `document_engine`/`url_engine`
-9. **Auto-detect**: Highest priority processor from registry
+3. **ENV wildcard MIME**: `CCORE_ENGINE_IMAGE`
+4. **ENV category**: `CCORE_ENGINE_DOCUMENTS`
+5. **Legacy config**: `document_engine`/`url_engine` (via `CCORE_DOCUMENT_ENGINE`/`CCORE_URL_ENGINE`)
+6. **Auto-detect**: Highest priority processor from registry
 
 ## Usage
 
@@ -37,38 +36,11 @@ resolver = EngineResolver(config)
 
 # Resolve engines for a MIME type
 engines = resolver.resolve("application/pdf")
-# Returns: ['docling-vlm', 'docling', 'pymupdf'] based on config
+# Returns: ['docling-vlm', 'docling', 'pymupdf'] based on ENV config
 
 # With explicit override
 engines = resolver.resolve("application/pdf", explicit="pymupdf")
 # Returns: ['pymupdf']
-```
-
-## YAML Configuration
-
-```yaml
-extraction:
-  timeout: 300
-
-  engines:
-    "application/pdf":
-      - docling-vlm
-      - docling
-    "image/*": docling
-    documents: docling
-    urls: jina
-
-  fallback:
-    enabled: true
-    max_attempts: 3
-    on_error: warn  # next | warn | fail
-    fatal_errors:
-      - FileNotFoundError
-      - PermissionError
-
-  engine_options:
-    docling:
-      do_ocr: true
 ```
 
 ## ENV Variables
@@ -82,6 +54,10 @@ CCORE_ENGINE_IMAGE=docling
 CCORE_ENGINE_DOCUMENTS=docling
 CCORE_ENGINE_URLS=jina,firecrawl
 
+# Legacy engine selection
+CCORE_DOCUMENT_ENGINE=docling  # For all document types
+CCORE_URL_ENGINE=jina          # For all URL types
+
 # Fallback config
 CCORE_FALLBACK_ENABLED=true
 CCORE_FALLBACK_MAX_ATTEMPTS=3
@@ -93,11 +69,14 @@ CCORE_FALLBACK_ON_ERROR=warn
 - **Called by**: `content/extraction/router.py` to resolve engines
 - **Uses**: `ProcessorRegistry` for auto-detection
 - **Imported from**: `content_core.config` (get_extraction_config)
+- **Options from**: `get_docling_options()`, `get_marker_options()`, `get_pymupdf_options()` in config.py
 
 ## Gotchas
 
+- YAML configuration is no longer supported (v2.0)
 - ENV variables use underscores instead of slashes/plus (e.g., `APPLICATION_PDF` not `application/pdf`)
 - Engine chains are comma-separated in ENV vars
 - `on_error="fail"` raises immediately without trying other engines
 - `fatal_errors` list uses exception class names as strings
-- Legacy config (`document_engine`/`url_engine`) is step 8, before auto-detect
+- Legacy config (`document_engine`/`url_engine`) is step 5, before auto-detect
+- Engine options come from helper functions in config.py, not from config dict

@@ -1,18 +1,40 @@
+"""Model factory for Esperanto integration.
+
+Uses configuration from config.py (ENV-based) to create LLM and STT models.
+"""
+
 from esperanto import AIFactory
 
-from .config import CONFIG
+from .config import get_model_config
 
 
 class ModelFactory:
+    """Factory for creating and caching Esperanto models.
+
+    Models are created lazily and cached for reuse. Configuration comes from
+    environment variables via get_model_config().
+    """
+
     _instances = {}
 
     @staticmethod
-    def get_model(model_alias):
+    def get_model(model_alias: str):
+        """Get a model instance by alias.
+
+        Args:
+            model_alias: One of 'speech_to_text', 'default_model', 'cleanup_model', 'summary_model'
+
+        Returns:
+            Esperanto model instance (SpeechToText or LanguageModel)
+
+        Raises:
+            ValueError: If model_alias is unknown
+        """
         if model_alias not in ModelFactory._instances:
-            config = CONFIG.get(model_alias, {})
+            config = get_model_config(model_alias)
             if not config:
                 raise ValueError(
-                    f"Configuração para o modelo {model_alias} não encontrada."
+                    f"Configuration for model {model_alias} not found."
                 )
 
             provider = config.get("provider")
@@ -37,5 +59,8 @@ class ModelFactory:
 
     @staticmethod
     def clear_cache():
-        """Clear all cached model instances."""
+        """Clear all cached model instances.
+
+        Call this when configuration changes (e.g., after reset_config()).
+        """
         ModelFactory._instances.clear()

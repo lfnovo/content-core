@@ -16,7 +16,8 @@ Library for extracting, cleaning, and summarizing content from URLs, files, and 
 ```
 src/content_core/
 ├── __init__.py          # CLI entry points (ccore, cclean, csum) and public API
-├── config.py            # Configuration loading, engine selection, retry/proxy settings
+├── defaults.py          # Default configuration values (no YAML)
+├── config.py            # ENV-only configuration, engine selection, retry/proxy settings
 ├── models.py            # ModelFactory for Esperanto LLM/STT model caching
 ├── templated_message.py # LLM prompt execution with Jinja templates
 ├── logging.py           # Loguru configuration
@@ -130,23 +131,20 @@ docs/
 **Key patterns**:
 - **Processor Registry**: Singleton that manages processor discovery by MIME type/extension/priority
 - **@processor decorator**: Registers processors with capabilities (MIME types, extensions, priority)
-- **EngineResolver**: Resolves engine chain based on config hierarchy (explicit > ENV > YAML > legacy > auto)
+- **EngineResolver**: Resolves engine chain based on config hierarchy (explicit > ENV > legacy > auto)
 - **FallbackExecutor**: Executes engine chain with fallback on failure, handles fatal errors
 - **Stateless processors**: Each processor class implements `extract(source, options)` -> `ProcessorResult`
 - LangGraph StateGraph still used for legacy API and composite workflows (video -> audio -> transcribe)
 - Retry decorators handle transient failures for network/API operations
-- Configuration loaded from YAML with env var overrides
+- Configuration via ENV variables only (YAML removed in v2.0)
 
-**Engine Resolution Order** (v2.0):
+**Engine Resolution Order** (v2.0 - ENV only):
 1. Explicit `engine` param in `extract_content()` call
 2. ENV var for specific MIME type (`CCORE_ENGINE_APPLICATION_PDF`)
-3. YAML config for specific MIME type (`engines["application/pdf"]`)
-4. ENV var for wildcard MIME type (`CCORE_ENGINE_IMAGE`)
-5. YAML config for wildcard MIME type (`engines["image/*"]`)
-6. ENV var for category (`CCORE_ENGINE_DOCUMENTS`)
-7. YAML config for category (`engines["documents"]`)
-8. Legacy config (`document_engine`/`url_engine` for backward compat)
-9. Auto-detect from ProcessorRegistry (highest priority available)
+3. ENV var for wildcard MIME type (`CCORE_ENGINE_IMAGE`)
+4. ENV var for category (`CCORE_ENGINE_DOCUMENTS`)
+5. Legacy config (`CCORE_DOCUMENT_ENGINE`/`CCORE_URL_ENGINE` for backward compat)
+6. Auto-detect from ProcessorRegistry (highest priority available)
 
 ## Integration
 

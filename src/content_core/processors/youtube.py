@@ -12,7 +12,7 @@ from content_core.processors.base import Processor, ProcessorResult, Source
 from content_core.processors.registry import processor
 from content_core.common.exceptions import NoTranscriptFound
 from content_core.common.retry import retry_youtube
-from content_core.config import CONFIG
+from content_core.config import get_youtube_preferred_languages
 from content_core.logging import logger
 
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -176,9 +176,7 @@ async def extract_youtube_transcript(state: ProcessSourceState):
 
     assert state.url, "No URL provided"
     logger.debug(f"Extracting transcript from URL: {state.url}")
-    languages = CONFIG.get("youtube_transcripts", {}).get(
-        "preferred_languages", ["en", "es", "pt"]
-    )
+    languages = get_youtube_preferred_languages()
 
     video_id = await _extract_youtube_id(state.url)
 
@@ -235,7 +233,7 @@ async def extract_youtube_transcript(state: ProcessSourceState):
 
 @processor(
     name="youtube",
-    mime_types=[],  # YouTube is detected by URL pattern, not MIME type
+    mime_types=["youtube"],  # Special pseudo-MIME type for YouTube URLs
     priority=60,
     requires=[],
     category="urls",
