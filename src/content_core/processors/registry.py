@@ -22,7 +22,7 @@ Usage:
     processors = registry.find_for_mime_type("application/pdf")
 """
 
-from typing import Callable, ClassVar, Dict, List, Optional, Type
+from typing import Callable, Dict, List, Optional, Type
 
 from content_core.logging import logger
 from content_core.processors.base import Processor, ProcessorCapabilities

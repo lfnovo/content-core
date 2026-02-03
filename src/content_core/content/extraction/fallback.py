@@ -129,7 +129,12 @@ class FallbackExecutor:
                     logger.warning(
                         f"Engine '{engine_name}' failed, trying next: {e}"
                     )
+                    logger.debug(f"Full exception from '{engine_name}':", exc_info=True)
                 # on_error == "next" - silent fallback
+                else:
+                    logger.debug(
+                        f"Engine '{engine_name}' failed silently: {e}", exc_info=True
+                    )
 
         # All engines failed
         error_summary = "; ".join(

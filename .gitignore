@@ -30,3 +30,5 @@ claude-logs
 specs/
 .claude/sessions
 tests/output/
+
+*.env

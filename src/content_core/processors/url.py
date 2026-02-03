@@ -272,7 +272,8 @@ async def extract_url_crawl4ai(url: str) -> dict | None:
     """
     try:
         return await _fetch_url_crawl4ai(url)
-    except Exception:
+    except Exception as e:
+        logger.error(f"Crawl4AI extraction failed for {url}: {e}")
         return None
 
 async def extract_url(state: ProcessSourceState):
@@ -459,9 +460,11 @@ class Crawl4AIProcessor(Processor):
         if not source.url:
             raise ValueError("Crawl4AI extraction requires a URL")
 
-        result = await extract_url_crawl4ai(source.url)
-        if result is None:
-            raise RuntimeError("Crawl4AI extraction failed")
+        try:
+            # Call internal function directly to get the actual error
+            result = await _fetch_url_crawl4ai(source.url)
+        except Exception as e:
+            raise RuntimeError(f"Crawl4AI extraction failed: {e}") from e
 
         return ProcessorResult(
             content=result.get("content", ""),

@@ -15,7 +15,6 @@ Usage:
 
 import io
 import sys
-from pathlib import Path
 
 from fpdf import FPDF
 from fpdf.enums import XPos, YPos

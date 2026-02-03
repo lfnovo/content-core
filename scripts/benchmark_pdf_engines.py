@@ -45,14 +45,13 @@ Picture Description (--describe-images):
 import argparse
 import asyncio
 import json
-import os
 import re
 import time
 import tracemalloc
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Dict, List, Optional
 
 # Default test files directory
 TEST_INPUT_DIR = Path(__file__).parent.parent / "tests" / "input_content"
@@ -561,7 +560,7 @@ def generate_markdown_report(
 
         quality_results = [r for r in results if r.quality_score is not None]
         for r in sorted(quality_results, key=lambda x: x.quality_score or 0, reverse=True):
-            status = "✅" if r.error is None else f"❌"
+            status = "✅" if r.error is None else "❌"
             report += (
                 f"| {r.engine} | **{r.quality_score:.0%}** | {r.quality_found}/{r.quality_total} | "
                 f"{r.time_seconds:.1f}s | {status} |\n"
