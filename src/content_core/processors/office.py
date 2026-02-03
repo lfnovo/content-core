@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 from functools import partial
 from typing import Any, Dict, Optional
 
@@ -16,6 +17,18 @@ SUPPORTED_OFFICE_TYPES = [
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ]
+
+
+def _serialize_value(value: Any) -> Any:
+    """Convert non-JSON-serializable values to serializable format."""
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return value
+
+
+def _serialize_metadata(metadata: Dict[str, Any]) -> Dict[str, Any]:
+    """Recursively serialize metadata dict to JSON-safe format."""
+    return {k: _serialize_value(v) for k, v in metadata.items() if v is not None}
 
 
 async def extract_docx_content_detailed(file_path):
@@ -390,11 +403,20 @@ class OfficeProcessor(Processor):
         # Call existing extraction function
         result = await extract_office_content(state)
 
+        # Serialize metadata to ensure JSON compatibility (datetime -> isoformat)
+        raw_metadata = result.get("metadata", {})
+        serialized_metadata = {}
+        for key, value in raw_metadata.items():
+            if isinstance(value, dict):
+                serialized_metadata[key] = _serialize_metadata(value)
+            else:
+                serialized_metadata[key] = _serialize_value(value)
+
         return ProcessorResult(
             content=result.get("content", ""),
             mime_type=source.mime_type,
             metadata={
                 "extraction_engine": "office",
-                **result.get("metadata", {}),
+                **serialized_metadata,
             },
         )
