@@ -62,10 +62,24 @@ except ImportError:
 
 
 # Model specs mapping - lazily evaluated to avoid import errors
+def _normalize_model_name(model_name: str) -> str:
+    """Normalize model name to canonical format."""
+    # Map short names to full names
+    name_map = {
+        "granite": "granite-docling",
+        "smolvlm": "smol-docling",
+        "smol": "smol-docling",
+    }
+    return name_map.get(model_name.lower(), model_name)
+
+
 def _get_model_spec(model_name: str, backend: str):
     """Get the model specification for the given model and backend."""
     try:
         from docling.datamodel import vlm_model_specs
+
+        # Normalize model name (handles short names like "granite" -> "granite-docling")
+        normalized_name = _normalize_model_name(model_name)
 
         # Map model names and backends to docling's naming convention
         # Docling uses MODELNAME_BACKEND format (e.g., GRANITEDOCLING_TRANSFORMERS)
@@ -79,7 +93,7 @@ def _get_model_spec(model_name: str, backend: str):
                 "mlx": vlm_model_specs.SMOLDOCLING_MLX,
             },
         }
-        return specs.get(model_name, {}).get(backend)
+        return specs.get(normalized_name, {}).get(backend)
     except (ImportError, AttributeError) as e:
         logger.warning(f"Could not get model spec for {model_name}/{backend}: {e}")
         return None
@@ -180,9 +194,10 @@ async def extract_with_vlm_local(state: ProcessSourceState) -> Dict[str, Any]:
         logger.warning("MLX backend requested but not available, falling back to transformers")
         backend = "transformers"
 
-    # Get model configuration
-    model_name = get_vlm_model()
-    model_spec = _get_model_spec(model_name, backend)
+    # Get model configuration (state override > config)
+    model_name_raw = state.vlm_model or get_vlm_model()
+    model_name = _normalize_model_name(model_name_raw)
+    model_spec = _get_model_spec(model_name_raw, backend)
 
     if model_spec is None:
         raise ValueError(
@@ -574,6 +589,8 @@ class DoclingVLMProcessor(Processor):
                 state.vlm_inference_mode = options["vlm_inference_mode"]
             if "vlm_backend" in options:
                 state.vlm_backend = options["vlm_backend"]
+            if "vlm_model" in options:
+                state.vlm_model = options["vlm_model"]
             if "vlm_remote_url" in options:
                 state.vlm_remote_url = options["vlm_remote_url"]
             if "metadata" in options:

@@ -43,6 +43,10 @@ class ProcessSourceState(BaseModel):
         default=None,
         description="Override local VLM backend: 'auto', 'transformers', or 'mlx'",
     )
+    vlm_model: Optional[str] = Field(
+        default=None,
+        description="Override VLM model: 'granite-docling' or 'smol-docling'",
+    )
     vlm_remote_url: Optional[str] = Field(
         default=None,
         description="Override docling-serve URL for remote VLM inference",
@@ -60,6 +64,7 @@ class ProcessSourceInput(BaseModel):
     audio_model: Optional[str] = None
     vlm_inference_mode: Optional[str] = None
     vlm_backend: Optional[str] = None
+    vlm_model: Optional[str] = None
     vlm_remote_url: Optional[str] = None
 
 
