@@ -1,0 +1,105 @@
+# Docker Compose for Content Core
+#
+# Usage:
+#   docker-compose --profile minimal up       # Start minimal service
+#   docker-compose --profile minimal up --build  # Rebuild and start minimal
+#   docker-compose --profile full up          # Start full service with all optional deps
+#   docker-compose --profile full up --build  # Rebuild and start full
+#   docker-compose down                       # Stop the service
+#
+# API Keys:
+#   Copy docker.env.example to docker.env and add your API keys
+#   for Firecrawl, OpenAI, and other services.
+
+services:
+  # Minimal variant - core dependencies only (docling)
+  content-core:
+    profiles:
+      - minimal
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        PRELOAD_DOCLING_MODELS: "true"
+        PRELOAD_WHISPER_MODELS: "false"
+        PRELOAD_VLM_MODELS: "false"
+    image: content-core:minimal
+    container_name: content-core
+    ports:
+      - "8002:8000"
+    env_file:
+      - path: docker.env
+        required: false
+    environment:
+      # API settings
+      - CCORE_API_HOST=0.0.0.0
+      - CCORE_API_PORT=8000
+      - CCORE_UI_ENABLED=true
+      # Engine defaults
+      - CCORE_ENGINE_DOCUMENTS=docling
+      - CCORE_ENGINE_URLS=jina
+      # Logging
+      - LOG_LEVEL=INFO
+    volumes:
+      # Mount for development (optional)
+      # - ../src:/app/src:ro
+      # Mount for model cache persistence
+      - model-cache:/home/appuser/.cache
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # Full variant - all optional dependencies (pymupdf, marker, crawl4ai)
+  content-core-full:
+    profiles:
+      - full
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        # Optional dependencies
+        INSTALL_PYMUPDF: "true"
+        INSTALL_MARKER: "true"
+        INSTALL_CRAWL4AI: "true"
+        # Model preloading
+        PRELOAD_DOCLING_MODELS: "true"
+        PRELOAD_WHISPER_MODELS: "false"
+        PRELOAD_VLM_MODELS: "false"
+        PRELOAD_MARKER_MODELS: "false"
+    image: content-core:full
+    container_name: content-core-full
+    ports:
+      - "8002:8000"
+    env_file:
+      - path: docker.env
+        required: false
+    environment:
+      # API settings
+      - CCORE_API_HOST=0.0.0.0
+      - CCORE_API_PORT=8000
+      - CCORE_UI_ENABLED=true
+      # Engine defaults
+      - CCORE_ENGINE_DOCUMENTS=docling
+      - CCORE_ENGINE_URLS=jina
+      # Logging
+      - LOG_LEVEL=INFO
+    volumes:
+      # Mount for development (optional)
+      # - ../src:/app/src:ro
+      # Mount for model cache persistence
+      - model-cache:/home/appuser/.cache
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  model-cache:
+    driver: local
