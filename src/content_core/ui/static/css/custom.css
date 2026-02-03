@@ -1,0 +1,245 @@
+/* Custom styles for Content Core UI */
+
+/* Header adjustments */
+header.container nav {
+    padding: 0.5rem 0;
+}
+
+header.container nav ul:last-child {
+    gap: 1rem;
+}
+
+/* Form styling */
+#extract-form fieldset {
+    margin-bottom: 1.5rem;
+}
+
+#extract-form fieldset legend {
+    font-weight: 600;
+}
+
+#extract-form .grid label {
+    cursor: pointer;
+}
+
+/* Source input sections */
+.source-input {
+    margin-bottom: 1.5rem;
+}
+
+/* Button with loading state */
+button[type="submit"] {
+    position: relative;
+}
+
+button[type="submit"] .htmx-indicator {
+    display: none;
+}
+
+button[type="submit"].htmx-request .button-text {
+    visibility: hidden;
+}
+
+button[type="submit"].htmx-request .htmx-indicator {
+    display: inline;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* Result card styling */
+.result-card {
+    margin-top: 2rem;
+}
+
+.result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.result-header h3 {
+    margin: 0;
+}
+
+.result-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.result-actions button {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+.result-meta {
+    margin-top: 0.5rem;
+    color: var(--pico-muted-color);
+}
+
+/* Warnings styling */
+.warnings {
+    margin-bottom: 1rem;
+}
+
+.warnings details {
+    background-color: var(--pico-mark-background-color);
+    padding: 0.5rem 1rem;
+    border-radius: var(--pico-border-radius);
+}
+
+.warnings ul {
+    margin: 0.5rem 0 0 1rem;
+}
+
+/* View tabs */
+.view-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--pico-muted-border-color);
+    padding-bottom: 0.5rem;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    color: var(--pico-muted-color);
+    border-radius: var(--pico-border-radius) var(--pico-border-radius) 0 0;
+}
+
+.tab-btn:hover {
+    background-color: var(--pico-secondary-background);
+}
+
+.tab-btn.active {
+    color: var(--pico-primary);
+    border-bottom: 2px solid var(--pico-primary);
+    margin-bottom: -1px;
+}
+
+/* Content views */
+.content-view {
+    max-height: 60vh;
+    overflow-y: auto;
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: var(--pico-border-radius);
+    padding: 1rem;
+}
+
+.rendered-markdown {
+    line-height: 1.6;
+}
+
+.rendered-markdown h1,
+.rendered-markdown h2,
+.rendered-markdown h3,
+.rendered-markdown h4,
+.rendered-markdown h5,
+.rendered-markdown h6 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.rendered-markdown h1:first-child,
+.rendered-markdown h2:first-child,
+.rendered-markdown h3:first-child {
+    margin-top: 0;
+}
+
+.rendered-markdown pre {
+    background-color: var(--pico-code-background-color);
+    padding: 1rem;
+    border-radius: var(--pico-border-radius);
+    overflow-x: auto;
+}
+
+.rendered-markdown code {
+    font-size: 0.875em;
+}
+
+.rendered-markdown table {
+    width: 100%;
+    margin: 1rem 0;
+}
+
+.rendered-markdown img {
+    max-width: 100%;
+    height: auto;
+}
+
+.raw-content {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+/* Metadata styling */
+.metadata {
+    font-size: 0.875rem;
+    background-color: var(--pico-code-background-color);
+    padding: 1rem;
+    border-radius: var(--pico-border-radius);
+    overflow-x: auto;
+    margin: 0;
+}
+
+/* Error card styling */
+.error-card {
+    border-left: 4px solid var(--pico-del-color);
+    margin-top: 2rem;
+}
+
+.error-card header h3 {
+    color: var(--pico-del-color);
+    margin: 0;
+}
+
+/* Footer styling */
+footer.container {
+    margin-top: 3rem;
+    padding: 1rem 0;
+    text-align: center;
+    border-top: 1px solid var(--pico-muted-border-color);
+}
+
+/* Theme toggle button */
+#theme-toggle {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Advanced options */
+details summary {
+    cursor: pointer;
+}
+
+details[open] > summary {
+    margin-bottom: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .result-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .result-actions {
+        width: 100%;
+    }
+
+    .result-actions button {
+        flex: 1;
+    }
+
+    .view-tabs {
+        flex-wrap: wrap;
+    }
+}

@@ -1,0 +1,12 @@
+<article class="error-card">
+    <header>
+        <h3>Error</h3>
+    </header>
+    <p><strong>{{ error }}</strong></p>
+    {% if detail %}
+    <p>{{ detail }}</p>
+    {% endif %}
+    <footer>
+        <small>Please check your input and try again.</small>
+    </footer>
+</article>

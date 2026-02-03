@@ -1,0 +1,114 @@
+<article class="result-card">
+    <header>
+        <div class="result-header">
+            <h3>Extraction Result</h3>
+            <div class="result-actions">
+                <button class="outline secondary" onclick="copyContent()">Copy</button>
+                <button class="outline secondary" onclick="downloadContent()">Download</button>
+            </div>
+        </div>
+        <div class="result-meta">
+            <small>
+                <strong>Engine:</strong> {{ engine_used or "unknown" }} |
+                <strong>Source:</strong> {{ source_type or "unknown" }}
+                {% if mime_type %} | <strong>Type:</strong> {{ mime_type }}{% endif %}
+            </small>
+        </div>
+    </header>
+
+    {% if warnings %}
+    <div class="warnings">
+        <details>
+            <summary>Warnings ({{ warnings|length }})</summary>
+            <ul>
+                {% for warning in warnings %}
+                <li>{{ warning }}</li>
+                {% endfor %}
+            </ul>
+        </details>
+    </div>
+    {% endif %}
+
+    <!-- Tabs for raw/rendered view -->
+    <div class="view-tabs">
+        <button class="tab-btn active" onclick="showView('rendered')">Rendered</button>
+        <button class="tab-btn" onclick="showView('raw')">Raw</button>
+    </div>
+
+    <!-- Rendered markdown view -->
+    <div id="rendered-view" class="content-view">
+        <div id="rendered-content" class="rendered-markdown"></div>
+    </div>
+
+    <!-- Raw text view -->
+    <div id="raw-view" class="content-view" style="display: none;">
+        <pre id="raw-content" class="raw-content">{{ content }}</pre>
+    </div>
+
+    {% if metadata %}
+    <footer>
+        <details>
+            <summary>Metadata</summary>
+            <pre class="metadata">{{ metadata | tojson(indent=2) }}</pre>
+        </details>
+    </footer>
+    {% endif %}
+</article>
+
+<script>
+// Store content for copy/download
+window.extractedContent = {{ content | tojson }};
+
+// Render markdown
+document.addEventListener('DOMContentLoaded', function() {
+    renderMarkdown();
+});
+
+// Also render immediately in case DOMContentLoaded already fired
+renderMarkdown();
+
+function renderMarkdown() {
+    const renderedEl = document.getElementById('rendered-content');
+    if (renderedEl && window.extractedContent) {
+        renderedEl.innerHTML = marked.parse(window.extractedContent);
+    }
+}
+
+function showView(view) {
+    document.querySelectorAll('.content-view').forEach(el => {
+        el.style.display = 'none';
+    });
+    document.querySelectorAll('.tab-btn').forEach(el => {
+        el.classList.remove('active');
+    });
+
+    document.getElementById(view + '-view').style.display = 'block';
+    event.target.classList.add('active');
+}
+
+function copyContent() {
+    navigator.clipboard.writeText(window.extractedContent).then(() => {
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => {
+            btn.textContent = originalText;
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+        alert('Failed to copy content');
+    });
+}
+
+function downloadContent() {
+    const blob = new Blob([window.extractedContent], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'extracted-content.md';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+</script>

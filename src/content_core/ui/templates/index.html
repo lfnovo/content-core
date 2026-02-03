@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+
+{% block title %}Content Core - Extract Content{% endblock %}
+
+{% block content %}
+<article>
+    <header>
+        <h1>Extract Content</h1>
+        <p>Extract text from URLs, files, or raw content using various extraction engines.</p>
+    </header>
+
+    <form id="extract-form"
+          hx-post="/ui/extract"
+          hx-target="#result-container"
+          hx-indicator="#loading"
+          enctype="multipart/form-data">
+
+        <!-- Source Type Selection -->
+        <fieldset>
+            <legend>Source Type</legend>
+            <div class="grid">
+                <label>
+                    <input type="radio" name="source_type" value="url" checked onchange="handleSourceTypeChange(this.value)">
+                    URL
+                </label>
+                <label>
+                    <input type="radio" name="source_type" value="file" onchange="handleSourceTypeChange(this.value)">
+                    File Upload
+                </label>
+                <label>
+                    <input type="radio" name="source_type" value="text" onchange="handleSourceTypeChange(this.value)">
+                    Text
+                </label>
+            </div>
+        </fieldset>
+
+        <!-- URL Input -->
+        <div id="url-input" class="source-input">
+            <label for="url">
+                URL
+                <input type="url" id="url" name="url" placeholder="https://example.com/document.pdf" oninput="updateEngineOptions()">
+            </label>
+        </div>
+
+        <!-- File Input -->
+        <div id="file-input" class="source-input" style="display: none;">
+            <label for="file">
+                File
+                <input type="file" id="file" name="file" onchange="updateEngineOptionsFromFile(this)">
+            </label>
+            <small>Supported: PDF, DOCX, PPTX, XLSX, images, audio, video, and more</small>
+        </div>
+
+        <!-- Text Input -->
+        <div id="text-input" class="source-input" style="display: none;">
+            <label for="text_content">
+                Text Content
+                <textarea id="text_content" name="text_content" rows="6" placeholder="Paste your text content here..."></textarea>
+            </label>
+        </div>
+
+        <!-- Engine Selection (shown after source is selected) -->
+        <div id="engine-section">
+            <label for="engine">
+                Extraction Engine
+                <select id="engine" name="engine" onchange="updateProcessorOptions()">
+                    <option value="">Auto (recommended)</option>
+                </select>
+            </label>
+            <small id="engine-hint">Select a source to see compatible engines</small>
+        </div>
+
+        <!-- Processor-Specific Options (shown based on selected engine) -->
+        <div id="processor-options" style="display: none;">
+            <!-- Docling Options -->
+            <fieldset id="docling-options" class="engine-options" style="display: none;">
+                <legend>Docling Options</legend>
+                <label>
+                    <input type="checkbox" name="options.do_picture_description">
+                    Enable picture description (VLM)
+                </label>
+                <label>
+                    <input type="checkbox" name="options.enable_table_detection" checked>
+                    Enable table detection
+                </label>
+            </fieldset>
+
+            <!-- Docling VLM Options -->
+            <fieldset id="docling-vlm-options" class="engine-options" style="display: none;">
+                <legend>Docling VLM Options</legend>
+                <label for="vlm-model">
+                    VLM Model
+                    <select name="options.vlm_model" id="vlm-model">
+                        <option value="granite">Granite 3.2 2B (better quality)</option>
+                        <option value="smolvlm">SmolVLM 256M (faster)</option>
+                    </select>
+                </label>
+            </fieldset>
+
+            <!-- Marker Options -->
+            <fieldset id="marker-options" class="engine-options" style="display: none;">
+                <legend>Marker Options</legend>
+                <label>
+                    <input type="checkbox" name="options.force_ocr">
+                    Force OCR on all pages
+                </label>
+                <label>
+                    <input type="checkbox" name="options.use_llm">
+                    Use LLM for enhanced extraction
+                </label>
+                <label for="page-range">
+                    Page range (e.g., "0-10")
+                    <input type="text" name="options.page_range" id="page-range" placeholder="All pages">
+                </label>
+            </fieldset>
+
+            <!-- PyMuPDF Options -->
+            <fieldset id="pymupdf-options" class="engine-options" style="display: none;">
+                <legend>PyMuPDF Options</legend>
+                <label>
+                    <input type="checkbox" name="options.enable_formula_ocr">
+                    Enable OCR for formulas
+                </label>
+            </fieldset>
+
+            <!-- PyMuPDF4LLM Options -->
+            <fieldset id="pymupdf4llm-options" class="engine-options" style="display: none;">
+                <legend>PyMuPDF4LLM Options</legend>
+                <label>
+                    <input type="checkbox" name="options.enable_ocr">
+                    Enable OCR fallback
+                </label>
+            </fieldset>
+
+            <!-- Audio/Whisper Options -->
+            <fieldset id="whisper-options" class="engine-options" style="display: none;">
+                <legend>Audio Transcription Options</legend>
+                <label for="audio-language">
+                    Language
+                    <select name="options.language" id="audio-language">
+                        <option value="">Auto-detect</option>
+                        <option value="en">English</option>
+                        <option value="es">Spanish</option>
+                        <option value="pt">Portuguese</option>
+                        <option value="fr">French</option>
+                        <option value="de">German</option>
+                        <option value="it">Italian</option>
+                        <option value="ja">Japanese</option>
+                        <option value="ko">Korean</option>
+                        <option value="zh">Chinese</option>
+                    </select>
+                </label>
+            </fieldset>
+
+            <!-- Firecrawl Options -->
+            <fieldset id="firecrawl-options" class="engine-options" style="display: none;">
+                <legend>Firecrawl Options</legend>
+                <label>
+                    <input type="checkbox" name="options.include_raw_html">
+                    Include raw HTML in output
+                </label>
+            </fieldset>
+        </div>
+
+        <!-- Advanced Options -->
+        <details>
+            <summary>Advanced Options</summary>
+            <label for="timeout">
+                Timeout (seconds)
+                <input type="number" id="timeout" name="timeout" value="300" min="1" max="3600">
+            </label>
+        </details>
+
+        <!-- Submit Button -->
+        <button type="submit">
+            <span class="button-text">Extract Content</span>
+            <span id="loading" class="htmx-indicator" aria-busy="true">Extracting...</span>
+        </button>
+    </form>
+</article>
+
+<!-- Results Container -->
+<div id="result-container"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// All available engines from server
+const allEngines = {{ engines | tojson }};
+
+// File extension to MIME type mapping for common types
+const extensionToMime = {
+    '.pdf': 'application/pdf',
+    '.epub': 'application/epub+zip',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.doc': 'application/msword',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.txt': 'text/plain',
+    '.md': 'text/markdown',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.m4a': 'audio/mp4',
+    '.mp4': 'video/mp4',
+    '.mov': 'video/quicktime',
+    '.avi': 'video/x-msvideo',
+    '.webm': 'video/webm',
+};
+
+// Category mapping based on source type
+const sourceTypeToCategories = {
+    'url': ['urls'],
+    'file': ['documents', 'audio', 'video'],
+    'text': ['documents'],
+};
+
+function handleSourceTypeChange(sourceType) {
+    // Hide all source inputs
+    document.querySelectorAll('.source-input').forEach(el => {
+        el.style.display = 'none';
+    });
+
+    // Show the selected input
+    const inputId = sourceType + '-input';
+    const inputEl = document.getElementById(inputId);
+    if (inputEl) {
+        inputEl.style.display = 'block';
+    }
+
+    // Clear other inputs
+    if (sourceType !== 'url') {
+        document.getElementById('url').value = '';
+    }
+    if (sourceType !== 'file') {
+        document.getElementById('file').value = '';
+    }
+    if (sourceType !== 'text') {
+        document.getElementById('text_content').value = '';
+    }
+
+    // Update engine options
+    updateEngineOptions();
+}
+
+function updateEngineOptions() {
+    const sourceType = document.querySelector('input[name="source_type"]:checked')?.value || 'url';
+    const urlInput = document.getElementById('url').value.trim();
+    const fileInput = document.getElementById('file');
+
+    let filteredEngines = [];
+    let hint = '';
+
+    if (sourceType === 'url') {
+        // Check for special URL patterns
+        if (urlInput.includes('youtube.com') || urlInput.includes('youtu.be')) {
+            // YouTube URL - show only YouTube processor
+            filteredEngines = allEngines.filter(e => e.name === 'youtube');
+            hint = 'YouTube video detected - using YouTube transcript extractor';
+        } else if (urlInput) {
+            // Regular URL - show URL engines
+            filteredEngines = allEngines.filter(e => e.category === 'urls' && e.name !== 'youtube');
+            hint = 'URL engines for web content extraction';
+        } else {
+            // No URL entered yet
+            filteredEngines = allEngines.filter(e => e.category === 'urls');
+            hint = 'Enter a URL to see compatible engines';
+        }
+    } else if (sourceType === 'file') {
+        if (fileInput.files && fileInput.files.length > 0) {
+            const filename = fileInput.files[0].name;
+            filteredEngines = getEnginesForFile(filename);
+            hint = `Engines compatible with ${filename}`;
+        } else {
+            // No file selected - show all document/audio/video engines
+            filteredEngines = allEngines.filter(e =>
+                ['documents', 'audio', 'video'].includes(e.category)
+            );
+            hint = 'Select a file to see compatible engines';
+        }
+    } else if (sourceType === 'text') {
+        // Text input - show text processor
+        filteredEngines = allEngines.filter(e => e.name === 'text');
+        hint = 'Text processor for plain text content';
+    }
+
+    // Update dropdown
+    const select = document.getElementById('engine');
+    select.innerHTML = '<option value="">Auto (recommended)</option>';
+
+    // Sort: available engines first (by priority desc), then unavailable (by priority desc)
+    filteredEngines
+        .sort((a, b) => {
+            // Available engines come first
+            if (a.available !== b.available) {
+                return a.available ? -1 : 1;
+            }
+            // Then sort by priority (descending)
+            return b.priority - a.priority;
+        })
+        .forEach(engine => {
+            const option = document.createElement('option');
+            option.value = engine.name;
+
+            if (!engine.available) {
+                option.disabled = true;
+                option.textContent = `${engine.name} - ${engine.reason || 'not installed'}`;
+                option.style.color = '#999';
+            } else {
+                option.textContent = `${engine.name} (priority: ${engine.priority})`;
+            }
+            select.appendChild(option);
+        });
+
+    // Update hint
+    document.getElementById('engine-hint').textContent = hint;
+
+    // Update processor-specific options visibility
+    updateProcessorOptions();
+}
+
+function updateEngineOptionsFromFile(input) {
+    updateEngineOptions();
+}
+
+function getEnginesForFile(filename) {
+    const ext = '.' + filename.split('.').pop().toLowerCase();
+    const mimeType = extensionToMime[ext];
+
+    if (!mimeType) {
+        // Unknown extension - show all document engines
+        return allEngines.filter(e => e.category === 'documents');
+    }
+
+    // Filter engines that support this MIME type
+    return allEngines.filter(engine => {
+        // Check exact MIME type match
+        if (engine.mime_types.includes(mimeType)) {
+            return true;
+        }
+        // Check wildcard MIME type match (e.g., "image/*")
+        const [mimeCategory] = mimeType.split('/');
+        if (engine.mime_types.some(m => m === `${mimeCategory}/*`)) {
+            return true;
+        }
+        // Check extension match
+        if (engine.extensions && engine.extensions.includes(ext)) {
+            return true;
+        }
+        return false;
+    });
+}
+
+// Show/hide processor-specific options based on selected engine
+function updateProcessorOptions() {
+    const selectedEngine = document.getElementById('engine').value;
+    const optionsContainer = document.getElementById('processor-options');
+
+    // Hide all engine-specific options
+    document.querySelectorAll('.engine-options').forEach(el => {
+        el.style.display = 'none';
+    });
+
+    // Show options for selected engine
+    if (selectedEngine) {
+        const optionsDiv = document.getElementById(`${selectedEngine}-options`);
+        if (optionsDiv) {
+            optionsContainer.style.display = 'block';
+            optionsDiv.style.display = 'block';
+        } else {
+            optionsContainer.style.display = 'none';
+        }
+    } else {
+        optionsContainer.style.display = 'none';
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    handleSourceTypeChange('url');
+});
+</script>
+{% endblock %}
