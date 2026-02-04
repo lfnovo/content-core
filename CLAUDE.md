@@ -113,7 +113,7 @@ docs/
    ```python
    result = await extract_content(url="https://example.com/doc.pdf")
    result = await extract_content(file_path="/path/to/file.pdf", engine="docling")
-   result = await extract_content(file_path="/path/to/file.pdf", engine=["docling", "pymupdf"])
+   result = await extract_content(file_path="/path/to/file.pdf", engine=["docling", "marker"])
    # Returns ExtractionResult
    ```
 
@@ -145,6 +145,12 @@ docs/
 4. ENV var for category (`CCORE_ENGINE_DOCUMENTS`)
 5. Legacy config (`CCORE_DOCUMENT_ENGINE`/`CCORE_URL_ENGINE` for backward compat)
 6. Auto-detect from ProcessorRegistry (highest priority available)
+
+**Valid Engine Values**:
+- `CCORE_DOCUMENT_ENGINE`: `auto`, `docling`, `docling-vlm`, `marker`, `simple`
+- `CCORE_URL_ENGINE`: `auto`, `crawl4ai`, `firecrawl`, `jina`, `simple`
+
+Note: `pymupdf`, `pymupdf4llm`, `office`, and `bs4` are NOT valid engine values. These are internal processors used automatically based on file type and availability.
 
 ## Integration
 

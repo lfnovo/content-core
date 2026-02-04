@@ -255,7 +255,8 @@ async def extract_with_docling(state: ProcessSourceState) -> ProcessSourceState:
     if fmt == "html":
         output = doc.export_to_html()
     elif fmt == "json":
-        output = doc.export_to_json()
+        import json
+        output = json.dumps(doc.export_to_dict(), indent=2)
     else:
         output = doc.export_to_markdown()
 

@@ -123,9 +123,12 @@ async def file_type_edge(data: ProcessSourceState) -> str:
         if DOCLING_AVAILABLE and identified_type in DOCLING_SUPPORTED:
             logger.info("pymupdf4llm not available, falling back to docling for PDF extraction")
             return "extract_docling"
+        elif PYMUPDF_AVAILABLE and identified_type in SUPPORTED_FITZ_TYPES:
+            logger.info("Falling back to pymupdf for extraction")
+            return "extract_pdf"
         else:
             raise ImportError(
-                "No PDF extraction engine available. "
+                "No extraction engine available for this file type. "
                 "Install with: pip install content-core[pymupdf] or pip install content-core[docling]"
             )
     elif identified_type in SUPPORTED_OFFICE_TYPES:

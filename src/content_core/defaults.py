@@ -123,7 +123,7 @@ DEFAULT_MARKER_OPTIONS: Dict[str, Any] = {
 
 DEFAULT_SPEECH_TO_TEXT: Dict[str, Any] = {
     "provider": "openai",
-    "model_name": "gpt-4o-transcribe-diarize",
+    "model_name": "whisper-1",
     "timeout": 3600,  # 1 hour for long audio files
 }
 
