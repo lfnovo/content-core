@@ -89,16 +89,25 @@ pip install content-core
 # With enhanced document processing (adds Docling)
 pip install content-core[docling]
 
+
 # With local browser-based URL extraction (adds Crawl4AI)
 # Note: Requires Playwright browsers (~300MB). Run:
 pip install content-core[crawl4ai]
 python -m playwright install --with-deps
+
+# OR use Crawl4AI Docker (no local installation needed)
+# Start Crawl4AI Docker container and set API URL
+docker run -d -p 11235:11235 --name crawl4ai --shm-size=3g unclecode/crawl4ai:latest
+export CRAWL4AI_API_URL=http://localhost:11235  # Linux/Mac
+# or in PowerShell: $env:CRAWL4AI_API_URL="http://localhost:11235"
 
 # Full installation (with all optional features)
 pip install content-core[docling,crawl4ai]
 ```
 
 > **Note:** The core installation uses pure Python implementations and doesn't require system libraries like libmagic, ensuring consistent, hassle-free installation across Windows, macOS, and Linux. Optional features like Crawl4AI (browser automation) may require additional system dependencies.
+
+> **Crawl4AI Docker Mode:** Instead of installing Crawl4AI locally, you can use the dockerized version by setting the `CRAWL4AI_API_URL` environment variable to point to your Docker instance. This eliminates the need for local Playwright installation (~300MB) and is ideal for production deployments.
 
 Alternatively, if you’re developing locally:
 

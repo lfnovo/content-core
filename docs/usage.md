@@ -177,49 +177,91 @@ To use a self-hosted Firecrawl instance:
 
 #### Crawl4AI Engine
 
-Content Core supports Crawl4AI as an optional URL extraction engine for privacy-first, local web scraping without requiring external API keys.
+Content Core supports Crawl4AI as an optional URL extraction engine for privacy-first web scraping. Crawl4AI offers **two deployment modes**:
+1. **Local mode**: Browser automation running on your machine (requires Playwright installation)
+2. **Docker mode**: Remote API using a dockerized Crawl4AI server (no local installation needed)
 
 ##### Installation
 
-To enable Crawl4AI, install with the optional dependency:
+**Option 1: Local Browser Automation**
+
+Install Crawl4AI with Playwright for local browser-based scraping:
 
 ```bash
 pip install content-core[crawl4ai]
 
-# Install Playwright browsers (required for Crawl4AI)
+# Install Playwright browsers (required, ~300MB)
 python -m playwright install --with-deps
 ```
+
+**Option 2: Docker API (Recommended for Production)**
+
+Use the dockerized Crawl4AI server without local installation:
+
+```bash
+# Start Crawl4AI Docker container
+docker run -d -p 11235:11235 --name crawl4ai --shm-size=3g unclecode/crawl4ai:latest
+
+# Configure Content Core to use Docker API
+export CRAWL4AI_API_URL=http://localhost:11235  # Linux/Mac
+# or in PowerShell: $env:CRAWL4AI_API_URL="http://localhost:11235"
+```
+
+> **Note**: The `--shm-size` flag sets shared memory for browser rendering. 1-3GB is recommended for complex web pages.
 
 ##### When to Use Crawl4AI
 
 Use the Crawl4AI engine when you need:
-- **Privacy-first scraping**: All processing happens locally without sending data to external APIs
+- **Privacy-first scraping**: All processing happens locally or on your own server (no external APIs)
 - **No API key required**: Unlike Firecrawl and Jina, Crawl4AI doesn't require API credentials
-- **JavaScript-heavy sites**: Crawl4AI uses Playwright for full browser rendering
+- **JavaScript-heavy sites**: Crawl4AI uses full browser rendering (Chromium via Playwright)
 - **Local development**: Ideal for development and testing without API costs
-- **Cost optimization**: No per-request API charges
+- **Production deployments**: Docker mode provides isolated, scalable scraping infrastructure
 
 ##### Configuration
 
-**In YAML config:**
+**Choosing a Mode:**
+
+- **Local Mode** (default): When `CRAWL4AI_API_URL` is not set, uses local `AsyncWebCrawler`
+- **Docker Mode**: When `CRAWL4AI_API_URL` is set, uses remote Docker API endpoint
+
+**Environment Variable (Docker Mode):**
+```bash
+# Set Docker API URL
+export CRAWL4AI_API_URL=http://localhost:11235  # Linux/Mac
+# or
+$env:CRAWL4AI_API_URL="http://localhost:11235"  # Windows PowerShell
+```
+
+**In YAML Config:**
 ```yaml
 extraction:
-  url_engine: crawl4ai  # auto (default), simple, firecrawl, jina, or crawl4ai
+  url_engine: crawl4ai  # Explicitly use Crawl4AI (optional if using 'auto')
+  crawl4ai:
+    api_url: http://localhost:11235  # Docker mode
+    # or
+    api_url: null  # Local mode (default)
 ```
 
 **Programmatically in Python:**
 ```python
-from content_core.config import set_url_engine
+from content_core.config import set_url_engine, set_crawl4ai_api_url
 
 # Set URL engine to Crawl4AI
 set_url_engine("crawl4ai")
+
+# Docker mode: Set API URL
+set_crawl4ai_api_url("http://localhost:11235")
+
+# Local mode: Use None or omit
+set_crawl4ai_api_url(None)
 ```
 
-**Per-execution override:**
+**Per-Execution Override:**
 ```python
 from content_core.content.extraction import extract_content
 
-# Override URL engine for this specific URL
+# Use Crawl4AI for this specific URL (auto-detects mode)
 result = await extract_content({
     "url": "https://example.com",
     "url_engine": "crawl4ai"
@@ -239,6 +281,105 @@ input = ProcessSourceInput(
 result = await extract_content(input)
 print(result.content)
 ```
+
+##### Deployment Scenarios
+
+**Local Development (Local Mode)**
+```bash
+# Install Crawl4AI locally
+pip install content-core[crawl4ai]
+python -m playwright install --with-deps
+
+# No configuration needed - works out of the box
+```
+
+```python
+import content_core as cc
+
+# Automatically uses local browser automation
+result = await cc.extract({
+    "url": "https://example.com",
+    "url_engine": "crawl4ai"
+})
+```
+
+**Production Deployment (Docker Mode)**
+```bash
+# Start Crawl4AI Docker container on server
+docker run -d -p 11235:11235 \
+  --name crawl4ai \
+  --shm-size=3g \
+  --restart unless-stopped \
+  unclecode/crawl4ai:latest
+
+# Set environment variable
+export CRAWL4AI_API_URL=http://localhost:11235
+```
+
+```python
+import content_core as cc
+
+# Automatically uses Docker API when CRAWL4AI_API_URL is set
+result = await cc.extract({
+    "url": "https://example.com",
+    "url_engine": "crawl4ai"
+})
+```
+
+**Remote Crawl4AI Server**
+```bash
+# Point to a remote Crawl4AI instance
+export CRAWL4AI_API_URL=http://crawl4ai.yourcompany.com:11235
+```
+
+```python
+from content_core.config import set_crawl4ai_api_url
+
+# Configure remote server
+set_crawl4ai_api_url("http://crawl4ai.yourcompany.com:11235")
+```
+
+##### Mode Detection and Fallback
+
+Content Core automatically detects which mode to use based on configuration priority:
+
+1. **Environment Variable** `CRAWL4AI_API_URL` (highest priority)
+2. **YAML Config** `extraction.crawl4ai.api_url`
+3. **Default** `None` (local browser automation mode)
+
+If Docker mode fails (e.g., API server unreachable), the error is logged and the fallback chain continues to BeautifulSoup.
+
+##### Performance Comparison
+
+| Mode | Pros | Cons |
+|------|------|------|
+| **Local** | - No network latency<br>- Full control<br>- Works offline | - Requires ~300MB Playwright installation<br>- Uses local CPU/memory<br>- Slower startup |
+| **Docker** | - No local installation<br>- Isolated environment<br>- Scalable (multiple instances)<br>- Consistent rendering | - Requires Docker<br>- Network latency<br>- Requires running container |
+
+##### Troubleshooting
+
+**Local Mode Issues:**
+```
+ImportError: Crawl4AI is not installed
+```
+**Solution**: Install with `pip install content-core[crawl4ai]` and run `python -m playwright install --with-deps`
+
+**Docker Mode Issues:**
+```
+Failed to connect to Crawl4AI Docker API at http://localhost:11235
+```
+**Solution**: 
+1. Verify container is running: `docker ps | grep crawl4ai`
+2. Check container logs: `docker logs crawl4ai`
+3. Ensure port 11235 is not blocked by firewall
+4. Verify `CRAWL4AI_API_URL` environment variable is set correctly
+
+**Browser Crashes:**
+```
+Browser closed unexpectedly
+```
+**Solution**: Increase `--shm-size` when starting Docker container (e.g., `--shm-size=3g`)
+
 
 #### Per-Execution Overrides
 You can override the extraction engines and Docling output format on a per-call basis by including `document_engine`, `url_engine` and `output_format` in your input:
