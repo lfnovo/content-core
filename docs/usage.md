@@ -347,7 +347,7 @@ Content Core automatically detects which mode to use based on configuration prio
 2. **YAML Config** `extraction.crawl4ai.api_url`
 3. **Default** `None` (local browser automation mode)
 
-If Docker mode fails (e.g., API server unreachable), the error is logged and the fallback chain continues to BeautifulSoup.
+If Docker mode fails (e.g., API server unreachable), `crawl4ai` extraction returns `None`. In `auto` mode, the fallback chain then continues to BeautifulSoup.
 
 ##### Performance Comparison
 
