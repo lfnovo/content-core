@@ -41,6 +41,10 @@ extraction:
   firecrawl:
     api_url: null  # Custom API URL for self-hosted Firecrawl (e.g., "http://localhost:3002")
                    # Environment variable FIRECRAWL_API_BASE_URL takes precedence
+  crawl4ai:
+    api_url: null  # Custom API URL for dockerized Crawl4AI (e.g., "http://localhost:11235")
+                   # When null, uses local browser automation via AsyncWebCrawler
+                   # Environment variable CRAWL4AI_API_URL takes precedence
   docling:
     output_format: markdown  # markdown | html | json
   pymupdf:

@@ -290,6 +290,9 @@ def set_audio_concurrency(concurrency: int):
 # Default Firecrawl API URL
 DEFAULT_FIRECRAWL_API_URL = "https://api.firecrawl.dev"
 
+# Default Crawl4AI API URL (None = use local browser automation)
+DEFAULT_CRAWL4AI_API_URL = None
+
 
 def get_firecrawl_api_url() -> str:
     """
@@ -341,6 +344,67 @@ def set_firecrawl_api_url(api_url: str) -> None:
     extraction = CONFIG.setdefault("extraction", {})
     firecrawl_cfg = extraction.setdefault("firecrawl", {})
     firecrawl_cfg["api_url"] = api_url
+
+
+def get_crawl4ai_api_url() -> str | None:
+    """
+    Get the Crawl4AI API URL with environment variable override.
+
+    Configuration priority (highest to lowest):
+    1. Environment variable CRAWL4AI_API_URL
+    2. YAML config (extraction.crawl4ai.api_url)
+    3. Default: None (use local browser automation)
+
+    Returns:
+        str | None: The Crawl4AI API URL to use, or None for local mode
+
+    Examples:
+        >>> import os
+        >>> os.environ["CRAWL4AI_API_URL"] = "http://localhost:11235"
+        >>> get_crawl4ai_api_url()
+        'http://localhost:11235'
+
+        >>> # When no API URL is configured, use local mode
+        >>> get_crawl4ai_api_url()
+        None
+    """
+    # 1. Environment variable (highest priority)
+    env_url = os.environ.get("CRAWL4AI_API_URL")
+    if env_url:
+        return env_url
+
+    # 2. YAML config
+    yaml_url = CONFIG.get("extraction", {}).get("crawl4ai", {}).get("api_url")
+    if yaml_url:
+        return yaml_url
+
+    # 3. Default (None = local browser automation)
+    return DEFAULT_CRAWL4AI_API_URL
+
+
+def set_crawl4ai_api_url(api_url: str | None) -> None:
+    """
+    Override the Crawl4AI API URL programmatically.
+
+    This sets the URL in the config, which takes precedence over the default
+    but can still be overridden by the CRAWL4AI_API_URL environment variable.
+
+    Args:
+        api_url: The Crawl4AI API URL (e.g., 'http://localhost:11235') or None for local mode
+
+    Examples:
+        >>> set_crawl4ai_api_url("http://localhost:11235")
+        >>> get_crawl4ai_api_url()  # Returns 'http://localhost:11235' (unless env var is set)
+        'http://localhost:11235'
+
+        >>> # Set to None to use local browser automation
+        >>> set_crawl4ai_api_url(None)
+        >>> get_crawl4ai_api_url()
+        None
+    """
+    extraction = CONFIG.setdefault("extraction", {})
+    crawl4ai_cfg = extraction.setdefault("crawl4ai", {})
+    crawl4ai_cfg["api_url"] = api_url
 
 
 def get_retry_config(operation_type: str) -> dict:

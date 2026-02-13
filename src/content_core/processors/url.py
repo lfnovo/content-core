@@ -8,6 +8,7 @@ from content_core.common import ProcessSourceState
 from content_core.common.retry import retry_url_api, retry_url_network
 from content_core.config import (
     DEFAULT_FIRECRAWL_API_URL,
+    get_crawl4ai_api_url,
     get_firecrawl_api_url,
     get_url_engine,
 )
@@ -101,9 +102,7 @@ async def extract_url_bs4(url: str) -> dict:
                 or soup.find("h1")
                 or soup.find("meta", property="og:title")
             )
-            title = (
-                title_tag.get_text(strip=True) if title_tag else "No title found"
-            )
+            title = title_tag.get_text(strip=True) if title_tag else "No title found"
             # Extract content from common content tags
             content_tags = soup.select(
                 'article, .content, .post, main, [role="main"], div[class*="content"], div[class*="article"]'
@@ -134,9 +133,7 @@ async def extract_url_bs4(url: str) -> dict:
 async def _fetch_url_jina(url: str, headers: dict) -> str:
     """Internal function to fetch URL content via Jina - wrapped with retry logic."""
     async with aiohttp.ClientSession(trust_env=True) as session:
-        async with session.get(
-            f"https://r.jina.ai/{url}", headers=headers
-        ) as response:
+        async with session.get(f"https://r.jina.ai/{url}", headers=headers) as response:
             # Raise ClientResponseError so retry logic can inspect status code
             # (5xx and 429 will be retried, 4xx will not)
             response.raise_for_status()
@@ -214,53 +211,100 @@ async def extract_url_firecrawl(url: str) -> dict | None:
         logger.error(f"Firecrawl extraction failed for {url} after retries: {e}")
         return None
 
+
 @retry_url_api()
 async def _fetch_url_crawl4ai(url: str) -> dict:
-    """Internal function to fetch URL content via Crawl4AI - wrapped with retry logic."""
-    try:
-        from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, ProxyConfig
-    except ImportError:
-        raise ImportError(
-            "Crawl4AI is not installed. Install it with: pip install content-core[crawl4ai]"
-        )
+    """Internal function to fetch URL content via Crawl4AI - wrapped with retry logic.
 
-    # Crawl4AI doesn't read env vars automatically, so we bridge HTTP_PROXY to ProxyConfig
-    proxy_url = os.environ.get("HTTP_PROXY") or os.environ.get("HTTPS_PROXY")
+    Supports two modes:
+    1. Docker API mode: When CRAWL4AI_API_URL is configured, uses remote Docker endpoint
+    2. Local mode: When no API URL is configured, uses local AsyncWebCrawler (browser automation)
+    """
+    # Check if Docker API URL is configured
+    api_url = get_crawl4ai_api_url()
 
-    # Configure proxy if available
-    run_config = None
-    if proxy_url:
+    if api_url:
+        # Docker API mode: Use remote Crawl4AI server
+        logger.debug(f"Using Crawl4AI Docker API at: {api_url}")
+
+        async with aiohttp.ClientSession(trust_env=True) as session:
+            async with session.post(
+                f"{api_url}/crawl",
+                json={"urls": [url], "priority": 10},
+                timeout=aiohttp.ClientTimeout(total=60),
+            ) as response:
+                response.raise_for_status()
+                data = await response.json()
+
+                # Extract results from Docker API response
+                # Docker API returns: {"results": [{"raw_markdown": "...", "metadata": {...}}]}
+                if "results" in data and len(data["results"]) > 0:
+                    result = data["results"][0]
+                    title = result.get("metadata", {}).get("title", "")
+
+                    # Docker API structure: markdown is a dict containing raw_markdown
+                    markdown_data = result.get("markdown", {})
+                    if isinstance(markdown_data, dict):
+                        content = markdown_data.get("raw_markdown", "")
+                    else:
+                        # Fallback: markdown might be a string
+                        content = str(markdown_data) if markdown_data else ""
+
+                    return {
+                        "title": title or "No title found",
+                        "content": content,
+                    }
+                else:
+                    raise ValueError("No results returned from Crawl4AI Docker API")
+    else:
+        # Local browser automation mode (existing behavior)
+        logger.debug("Using Crawl4AI local browser automation")
+
         try:
-            run_config = CrawlerRunConfig(
-                proxy_config=ProxyConfig.from_string(proxy_url)
+            from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, ProxyConfig
+        except ImportError:
+            raise ImportError(
+                "Crawl4AI is not installed. Install it with: pip install content-core[crawl4ai]"
             )
-            logger.debug(f"Crawl4AI using proxy from environment")
-        except Exception as e:
-            logger.warning(f"Failed to configure proxy for Crawl4AI: {e}")
 
-    async with AsyncWebCrawler() as crawler:
-        if run_config:
-            result = await crawler.arun(url=url, config=run_config)
-        else:
-            result = await crawler.arun(url=url)
+        # Crawl4AI doesn't read env vars automatically, so we bridge HTTP_PROXY to ProxyConfig
+        proxy_url = os.environ.get("HTTP_PROXY") or os.environ.get("HTTPS_PROXY")
 
-        # Extract title from metadata if available
-        title = ""
-        if hasattr(result, "metadata") and result.metadata:
-            title = result.metadata.get("title", "")
+        # Configure proxy if available
+        run_config = None
+        if proxy_url:
+            try:
+                run_config = CrawlerRunConfig(
+                    proxy_config=ProxyConfig.from_string(proxy_url)
+                )
+                logger.debug(f"Crawl4AI using proxy from environment")
+            except Exception as e:
+                logger.warning(f"Failed to configure proxy for Crawl4AI: {e}")
 
-        # Get markdown content
-        content = result.markdown if hasattr(result, "markdown") else ""
+        async with AsyncWebCrawler() as crawler:
+            if run_config:
+                result = await crawler.arun(url=url, config=run_config)
+            else:
+                result = await crawler.arun(url=url)
 
-        return {
-            "title": title or "No title found",
-            "content": content,
-        }
+            # Extract title from metadata if available
+            title = ""
+            if hasattr(result, "metadata") and result.metadata:
+                title = result.metadata.get("title", "")
+
+            # Get markdown content
+            content = result.markdown if hasattr(result, "markdown") else ""
+
+            return {
+                "title": title or "No title found",
+                "content": content,
+            }
 
 
 async def extract_url_crawl4ai(url: str) -> dict | None:
     """
-    Get the content of a URL using Crawl4AI (local browser automation).
+    Get the content of a URL using Crawl4AI.
+    Supports both Docker API mode (when CRAWL4AI_API_URL is configured) and local browser automation.
     Returns {"title": ..., "content": ...} or None on failure.
     Includes retry logic for transient failures.
 
@@ -271,6 +315,7 @@ async def extract_url_crawl4ai(url: str) -> dict | None:
         return await _fetch_url_crawl4ai(url)
     except Exception:
         return None
+
 
 async def extract_url(state: ProcessSourceState):
     """
@@ -319,4 +364,3 @@ async def extract_url(state: ProcessSourceState):
         logger.error(f"URL extraction failed for URL: {url}")
         logger.exception(e)
         return None
-
