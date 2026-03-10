@@ -32,7 +32,10 @@ from content_core.processors.office import (
 from content_core.processors.pdf import SUPPORTED_FITZ_TYPES, extract_pdf
 from content_core.processors.text import extract_txt, process_text_content
 from content_core.processors.url import extract_url, url_provider
+from content_core.processors.image import extract_image
+from content_core.processors.pdf_vision import extract_pdf_with_vision
 from content_core.processors.video import extract_best_audio_from_video
+from content_core.processors.video_vision import extract_video_with_vision
 from content_core.processors.youtube import extract_youtube_transcript
 
 
@@ -66,6 +69,11 @@ async def file_type(state: ProcessSourceState) -> Dict[str, Any]:
     return return_dict
 
 
+def _has_vision_config(data: ProcessSourceState) -> bool:
+    """Check if vision model configuration is available."""
+    return bool(data.vision_provider and data.vision_model)
+
+
 async def file_type_edge(data: ProcessSourceState) -> str:
     assert data.identified_type, "Type not identified"
     identified_type = data.identified_type
@@ -74,13 +82,19 @@ async def file_type_edge(data: ProcessSourceState) -> str:
     if identified_type == "text/plain":
         return "extract_txt"
     elif identified_type in SUPPORTED_FITZ_TYPES:
+        if _has_vision_config(data):
+            return "extract_pdf_with_vision"
         return "extract_pdf"
     elif identified_type in SUPPORTED_OFFICE_TYPES:
         return "extract_office_content"
     elif identified_type.startswith("video"):
+        if _has_vision_config(data):
+            return "extract_video_with_vision"
         return "extract_best_audio_from_video"
     elif identified_type.startswith("audio"):
         return "extract_audio_data"
+    elif identified_type.startswith("image"):
+        return "extract_image"
     else:
         raise UnsupportedTypeException(f"Unsupported file type: {data.identified_type}")
 
@@ -199,6 +213,9 @@ workflow.add_node("extract_url", extract_url)
 workflow.add_node("extract_office_content", extract_office_content)
 workflow.add_node("extract_best_audio_from_video", extract_best_audio_from_video)
 workflow.add_node("extract_audio_data", extract_audio_data)
+workflow.add_node("extract_image", extract_image)
+workflow.add_node("extract_video_with_vision", extract_video_with_vision)
+workflow.add_node("extract_pdf_with_vision", extract_pdf_with_vision)
 workflow.add_node("extract_youtube_transcript", extract_youtube_transcript)
 workflow.add_node("delete_file", delete_file)
 workflow.add_node("download_remote_file", download_remote_file)
@@ -246,8 +263,11 @@ workflow.add_edge("extract_youtube_transcript", END)
 workflow.add_edge("process_text_content", END)
 
 workflow.add_edge("extract_pdf", "delete_file")
+workflow.add_edge("extract_pdf_with_vision", "delete_file")
 workflow.add_edge("extract_office_content", "delete_file")
 workflow.add_edge("extract_best_audio_from_video", "extract_audio_data")
+workflow.add_edge("extract_video_with_vision", "delete_file")
+workflow.add_edge("extract_image", "delete_file")
 workflow.add_edge("extract_audio_data", "delete_file")
 workflow.add_edge("delete_file", END)
 workflow.add_edge("download_remote_file", "file_type")

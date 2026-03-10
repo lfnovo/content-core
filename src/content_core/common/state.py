@@ -35,6 +35,22 @@ class ProcessSourceState(BaseModel):
         default=None,
         description="Override speech-to-text model name (e.g., 'whisper-1', 'chirp')",
     )
+    vision_provider: Optional[str] = Field(
+        default=None,
+        description="Vision model provider (e.g., 'openai', 'anthropic')",
+    )
+    vision_model: Optional[str] = Field(
+        default=None,
+        description="Vision model name (e.g., 'gpt-4o', 'claude-sonnet-4-5-20250929')",
+    )
+    audio_config: Optional[dict] = Field(
+        default=None,
+        description="Config for audio model (api_key, base_url, etc.)",
+    )
+    vision_config: Optional[dict] = Field(
+        default=None,
+        description="Config for vision model (api_key, base_url, etc.)",
+    )
 
 
 class ProcessSourceInput(BaseModel):
@@ -46,6 +62,10 @@ class ProcessSourceInput(BaseModel):
     output_format: Optional[str] = None
     audio_provider: Optional[str] = None
     audio_model: Optional[str] = None
+    vision_provider: Optional[str] = None
+    vision_model: Optional[str] = None
+    audio_config: Optional[dict] = None
+    vision_config: Optional[dict] = None
 
 
 class ProcessSourceOutput(BaseModel):

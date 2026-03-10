@@ -211,6 +211,12 @@ async def extract_audio_data(data: ProcessSourceState):
                     # Get timeout from config (same as default model) or use fallback
                     timeout = CONFIG.get('speech_to_text', {}).get('timeout', 3600)
                     stt_config = {'timeout': timeout} if timeout else {}
+                    if data.audio_config:
+                        stt_config.update(data.audio_config)
+                    # Map endpoint_stt to base_url for STT-specific endpoint override
+                    if 'endpoint_stt' in stt_config and 'base_url' not in stt_config:
+                        stt_config['base_url'] = stt_config.pop('endpoint_stt')
+                    logger.debug(f"STT config keys: {list(stt_config.keys())}")
                     # Proxy is configured via HTTP_PROXY/HTTPS_PROXY env vars (handled by Esperanto)
                     speech_to_text_model = AIFactory.create_speech_to_text(
                         data.audio_provider, data.audio_model, stt_config

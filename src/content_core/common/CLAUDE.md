@@ -27,6 +27,7 @@ Shared infrastructure for content-core: exceptions, retry logic, state managemen
 - Retry decorators must wrap internal functions (prefixed with `_`), not the public API functions
 - `NON_RETRYABLE_EXCEPTIONS` in retry.py determines which errors skip retry - add new permanent failure types there
 - `ProcessSourceState` has more fields than `ProcessSourceInput` - it accumulates data during workflow execution
+- `vision_provider` and `vision_model` fields on both `ProcessSourceInput` and `ProcessSourceState` enable vision-based extraction when set — the extraction graph routes to vision processors (`extract_image`, `extract_video_with_vision`, `extract_pdf_with_vision`) when these fields are populated
 - `process_input_content()` uses validators library for URL detection, regex for file paths
 
 ## When Adding Code
