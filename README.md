@@ -76,6 +76,10 @@ summary = await cc.summarize_content(result, context="explain to a child")
 *   **🔄 Asynchronous:** Built with `asyncio` for efficient processing
 *   **🐍 Pure Python Implementation:** No system dependencies required - simplified installation across all platforms
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/lfnovo-content-core).
+
 ## Getting Started
 
 ### Installation
