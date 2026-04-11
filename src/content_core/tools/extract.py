@@ -4,7 +4,7 @@ from typing import Dict
 from langchain_core.tools import tool
 
 from content_core.extraction import extract_content
-from content_core.models_v2 import ExtractionInput
+from content_core.common.state import ExtractionInput
 
 
 @tool

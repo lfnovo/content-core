@@ -34,7 +34,7 @@ def extract(source, fmt, engine):
     """Extract content from a URL, file path, or text."""
     from content_core.config import ContentCoreConfig
     from content_core.extraction import extract_content
-    from content_core.models_v2 import ExtractionInput
+    from content_core.common.state import ExtractionInput
 
     config = ContentCoreConfig(url_engine=engine) if engine else None
     inp = _build_input(source)
@@ -89,7 +89,7 @@ def _build_input(source):
 
     import validators
 
-    from content_core.models_v2 import ExtractionInput
+    from content_core.common.state import ExtractionInput
 
     if validators.url(source):
         return ExtractionInput(url=source)
@@ -105,7 +105,7 @@ async def _maybe_extract(content: str) -> str:
     import validators
 
     from content_core.extraction import extract_content
-    from content_core.models_v2 import ExtractionInput
+    from content_core.common.state import ExtractionInput
 
     if validators.url(content):
         result = await extract_content(ExtractionInput(url=content))

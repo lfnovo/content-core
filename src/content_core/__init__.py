@@ -7,7 +7,7 @@ from content_core.config import ContentCoreConfig
 from content_core.content.summary import summarize
 from content_core.extraction import extract_content
 from content_core.logging import configure_logging
-from content_core.models_v2 import ExtractionInput, ExtractionOutput
+from content_core.common.state import ExtractionInput, ExtractionOutput
 
 # Convenience alias
 extract = extract_content

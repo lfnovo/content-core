@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from content_core.config import ContentCoreConfig
-from content_core.models_v2 import ExtractionOutput
+from content_core.common.state import ExtractionOutput
 from content_core.processors.url import extract_from_url
 
 

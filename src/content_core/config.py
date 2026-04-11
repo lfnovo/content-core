@@ -68,30 +68,12 @@ def reset_default_config() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Backward compatibility stubs — old processors still import these during
-# the transition period. TODO: Remove when old processor functions are deleted.
+# Helpers used by sub-modules (e.g. processors/url/firecrawl.py)
 # ---------------------------------------------------------------------------
-
-CONFIG: dict = {}  # Empty dict — old code that reads from this gets defaults
 
 DEFAULT_FIRECRAWL_API_URL = "https://api.firecrawl.dev"
 
 
-def get_document_engine() -> str:
-    """Backward compat stub — returns document_engine from default config."""
-    return get_default_config().document_engine
-
-
-def get_url_engine() -> str:
-    """Backward compat stub — returns url_engine from default config."""
-    return get_default_config().url_engine
-
-
-def get_audio_concurrency() -> int:
-    """Backward compat stub — returns audio_concurrency from default config."""
-    return get_default_config().audio_concurrency
-
-
 def get_firecrawl_api_url() -> str:
-    """Backward compat stub — returns firecrawl_api_url from default config."""
+    """Return firecrawl_api_url from default config."""
     return get_default_config().firecrawl_api_url

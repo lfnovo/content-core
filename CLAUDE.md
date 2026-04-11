@@ -28,7 +28,6 @@ src/content_core/
 ├── config.py                # ContentCoreConfig (pydantic-settings, env prefix CCORE_)
 ├── extraction.py            # Main orchestrator — routes input to processors
 ├── models.py                # ModelFactory for Esperanto LLM/STT models
-├── models_v2.py             # ExtractionInput, ExtractionOutput data models
 ├── cli.py                   # Click CLI: extract, summarize, mcp subcommands
 ├── logging.py               # Loguru configuration
 ├── templated_message.py     # LLM prompt execution with Jinja templates
@@ -36,7 +35,7 @@ src/content_core/
 ├── common/
 │   ├── exceptions.py        # Exception hierarchy (ContentCoreError base)
 │   ├── retry.py             # Self-contained retry decorators with tenacity
-│   ├── state.py             # Data models + backward compat aliases
+│   ├── state.py             # ExtractionInput, ExtractionOutput data models
 │   └── types.py             # Type aliases (DocumentEngine, UrlEngine)
 │
 ├── content/
@@ -103,7 +102,34 @@ Key settings: `url_engine`, `document_engine`, `audio_provider`, `audio_model`, 
 
 - **Formatting**: PEP 8, enforced by ruff
 - **Error handling**: Use custom exceptions from `common/exceptions.py`
-- **Tests**: Unit tests for logic, integration tests for file extraction, e2e for network ops
+- **Tests**: Three tiers — see below
+
+## Test Structure
+
+```
+tests/
+├── unit/              # Fast, mocked, no I/O or network (~200 tests, <5s)
+│   ├── test_routing.py, test_config_v2.py, test_retry.py        # Core logic
+│   ├── test_text_processing.py, test_youtube_parsing.py          # Processor unit tests
+│   ├── test_pdf_extraction.py, test_office_extraction.py         # Processor unit tests
+│   ├── test_docling_extraction.py, test_media_pipeline.py        # Processor unit tests
+│   ├── test_url_engine_select.py                                 # Engine selection
+│   └── test_mcp_v2.py, test_models_v2.py, test_file_detector*.py
+│
+├── integration/       # Local files, no network (~20 tests, <25s)
+│   ├── test_extraction.py   # Real file extraction (PDF, DOCX, PPTX, XLSX, etc.)
+│   └── test_cli_v2.py       # CLI subcommands with click CliRunner
+│
+└── e2e/               # Network + API keys — pre-release only
+    ├── test_url_engines.py   # Firecrawl, Jina, Crawl4AI, BS4
+    ├── test_youtube.py       # Real YouTube transcript
+    ├── test_remote.py        # Remote PDF download
+    └── test_media.py         # Audio/video transcription (STT API)
+```
+
+- `make test` — unit + integration (fast, deterministic, AI agent feedback)
+- `make test-e2e` — e2e only (pre-release gate, requires API keys)
+- `make test-all` — everything
 
 ## Release Process
 

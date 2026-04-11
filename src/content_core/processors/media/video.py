@@ -4,10 +4,9 @@ import os
 import subprocess
 from functools import partial
 
-from content_core.common import ProcessSourceState
 from content_core.config import ContentCoreConfig
 from content_core.logging import logger
-from content_core.models_v2 import ExtractionOutput
+from content_core.common.state import ExtractionOutput
 
 
 async def extract_audio_from_video(input_file, output_file, stream_index):
@@ -120,60 +119,6 @@ async def select_best_audio_stream(streams):
     return await asyncio.get_event_loop().run_in_executor(
         None, partial(_select, streams)
     )
-
-
-async def extract_best_audio_from_video(data: ProcessSourceState):
-    """
-    Main function to extract the best audio stream from a video file asynchronously.
-
-    Returns a dict with file_path and identified_type on success,
-    or a dict with error information on failure.
-    """
-    input_file = data.file_path
-    assert input_file is not None, "Input file path must be provided"
-
-    def _check_file(path):
-        return os.path.exists(path)
-
-    file_exists = await asyncio.get_event_loop().run_in_executor(
-        None, partial(_check_file, input_file)
-    )
-
-    if not file_exists:
-        logger.critical(f"Input file not found: {input_file}")
-        return {"content": "", "error": f"Input file not found: {input_file}"}
-
-    base_name = os.path.splitext(input_file)[0]
-    output_file = f"{base_name}_audio.mp3"
-
-    # Get all audio streams
-    streams = await get_audio_streams(input_file)
-    if not streams:
-        logger.debug("No audio streams found in the file")
-        return {
-            "content": "",
-            "error": "No audio streams found in file. Is ffprobe installed?",
-        }
-
-    # Select best stream
-    best_stream = await select_best_audio_stream(streams)
-    if not best_stream:
-        logger.error("Could not determine best audio stream")
-        return {"content": "", "error": "Could not determine best audio stream"}
-
-    # Extract the selected stream
-    stream_index = streams.index(best_stream)
-    success = await extract_audio_from_video(input_file, output_file, stream_index)
-
-    if not success:
-        return {"content": "", "error": "Failed to extract audio from video"}
-
-    logger.debug(f"Successfully extracted audio to: {output_file}")
-    logger.debug(f"- Channels: {best_stream.get('channels', 'unknown')}")
-    logger.debug(f"- Sample rate: {best_stream.get('sample_rate', 'unknown')} Hz")
-    logger.debug(f"- Bit rate: {best_stream.get('bit_rate', 'unknown')} bits/s")
-
-    return {"file_path": output_file, "identified_type": "audio/mp3"}
 
 
 async def extract_video(file_path: str, config: ContentCoreConfig) -> ExtractionOutput:

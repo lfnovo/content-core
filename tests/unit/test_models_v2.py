@@ -1,10 +1,10 @@
-"""Tests for content_core.models_v2 and content_core.processors.protocol."""
+"""Tests for content_core.common.state and content_core.processors.protocol."""
 from __future__ import annotations
 
 import pytest
 
 from content_core.config import ContentCoreConfig
-from content_core.models_v2 import ExtractionInput, ExtractionOutput
+from content_core.common.state import ExtractionInput, ExtractionOutput
 from content_core.processors.protocol import Processor
 
 

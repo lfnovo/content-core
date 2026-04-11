@@ -8,7 +8,7 @@ import pytest
 from content_core.common.exceptions import InvalidInputError, UnsupportedTypeException
 from content_core.config import ContentCoreConfig
 from content_core.extraction import extract_content
-from content_core.models_v2 import ExtractionInput, ExtractionOutput
+from content_core.common.state import ExtractionInput, ExtractionOutput
 
 
 def _make_output(**kwargs) -> ExtractionOutput:

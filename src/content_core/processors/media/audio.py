@@ -7,12 +7,10 @@ from functools import partial
 
 from moviepy import AudioFileClip
 
-from content_core.common import ProcessSourceState
 from content_core.common.retry import retry_audio_transcription
-from content_core.config import get_audio_concurrency
 from content_core.config import ContentCoreConfig
 from content_core.logging import logger
-from content_core.models_v2 import ExtractionOutput
+from content_core.common.state import ExtractionOutput
 
 
 async def split_audio(input_file, segment_length_minutes=15, output_prefix=None):
@@ -130,145 +128,6 @@ async def transcribe_audio_segment(audio_file, model, semaphore):
     """
     async with semaphore:
         return await _transcribe_segment(audio_file, model)
-
-
-async def extract_audio_data(data: ProcessSourceState):
-    """
-    Extract and transcribe audio from a file with automatic segmentation and parallel processing.
-
-    This function handles the complete audio processing pipeline:
-    1. Splits long audio files (>10 minutes) into segments
-    2. Transcribes segments in parallel using configurable concurrency
-    3. Joins transcriptions in correct order
-
-    For files longer than 10 minutes, segments are processed concurrently with a
-    configurable concurrency limit to balance performance and API rate limits.
-
-    Args:
-        data (ProcessSourceState): State object containing file_path to audio/video file
-
-    Returns:
-        dict: Dictionary containing:
-            - metadata: Information about processed segments count
-            - content: Complete transcribed text
-
-    Configuration:
-        Concurrency is controlled via:
-        - Environment variable: CCORE_AUDIO_CONCURRENCY (1-10, default: 3)
-        - YAML config: extraction.audio.concurrency
-
-    Raises:
-        Exception: If audio extraction or transcription fails
-    """
-    input_audio_path = data.file_path
-    audio = None
-
-    try:
-        # Use TemporaryDirectory context manager for automatic cleanup
-        with tempfile.TemporaryDirectory() as temp_dir:
-            output_prefix = os.path.splitext(os.path.basename(input_audio_path))[0]
-            output_dir = temp_dir
-
-            # Split audio into segments if longer than 10 minutes
-            audio = AudioFileClip(input_audio_path)
-            duration_s = audio.duration
-            segment_length_s = 10 * 60  # 10 minutes in seconds
-            output_files = []
-
-            if duration_s > segment_length_s:
-                logger.info(
-                    f"Audio is longer than 10 minutes ({duration_s}s), splitting into {math.ceil(duration_s / segment_length_s)} segments"
-                )
-                for i in range(math.ceil(duration_s / segment_length_s)):
-                    start_time = i * segment_length_s
-                    end_time = min((i + 1) * segment_length_s, audio.duration)
-
-                    # Extract segment
-                    output_filename = f"{output_prefix}_{str(i + 1).zfill(3)}.mp3"
-                    output_path = os.path.join(output_dir, output_filename)
-
-                    extract_audio(input_audio_path, output_path, start_time, end_time)
-
-                    output_files.append(output_path)
-            else:
-                output_files = [input_audio_path]
-
-            # Close audio clip after determining segments
-            if audio:
-                audio.close()
-                audio = None
-
-            # Transcribe audio files in parallel with concurrency limit
-            from content_core.config import CONFIG
-            from content_core.models import ModelFactory
-            from esperanto import AIFactory
-
-            # Determine which model to use based on state parameters
-            if data.audio_provider and data.audio_model:
-                # Custom model provided - create new instance
-                try:
-                    logger.info(
-                        f"Using custom audio model: {data.audio_provider}/{data.audio_model}"
-                    )
-                    # Get timeout from config (same as default model) or use fallback
-                    timeout = CONFIG.get('speech_to_text', {}).get('timeout', 3600)
-                    stt_config = {'timeout': timeout} if timeout else {}
-                    # Proxy is configured via HTTP_PROXY/HTTPS_PROXY env vars (handled by Esperanto)
-                    speech_to_text_model = AIFactory.create_speech_to_text(
-                        data.audio_provider, data.audio_model, stt_config
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"Failed to create custom audio model '{data.audio_provider}/{data.audio_model}': {e}. "
-                        f"Check that the provider and model are supported by Esperanto. "
-                        f"Falling back to default model."
-                    )
-                    speech_to_text_model = ModelFactory.get_model("speech_to_text")
-            elif data.audio_provider or data.audio_model:
-                # Only one parameter provided - log warning and use default
-                missing = "audio_model" if data.audio_provider else "audio_provider"
-                provided = "audio_provider" if data.audio_provider else "audio_model"
-                logger.warning(
-                    f"{provided} provided without {missing}. "
-                    f"Both audio_provider and audio_model must be specified together. "
-                    f"Falling back to default model."
-                )
-                speech_to_text_model = ModelFactory.get_model("speech_to_text")
-            else:
-                # No custom parameters - use default (backward compatible)
-                speech_to_text_model = ModelFactory.get_model("speech_to_text")
-
-            concurrency = get_audio_concurrency()
-            semaphore = asyncio.Semaphore(concurrency)
-
-            logger.debug(
-                f"Transcribing {len(output_files)} audio segments with concurrency limit of {concurrency}"
-            )
-
-            # Create tasks for parallel transcription
-            transcription_tasks = [
-                transcribe_audio_segment(audio_file, speech_to_text_model, semaphore)
-                for audio_file in output_files
-            ]
-
-            # Execute all transcriptions concurrently (limited by semaphore)
-            transcriptions = await asyncio.gather(*transcription_tasks)
-
-            return {
-                "metadata": {"segments_count": len(output_files)},
-                "content": " ".join(transcriptions),
-            }
-    except Exception as e:
-        logger.error(f"Error processing audio: {str(e)}")
-        logger.error(traceback.format_exc())
-        raise
-    finally:
-        # Ensure audio clip is closed even if an error occurs
-        if audio:
-            try:
-                audio.close()
-            except Exception:
-                pass
 
 
 async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> ExtractionOutput:

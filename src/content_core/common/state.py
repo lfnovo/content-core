@@ -1,57 +1,34 @@
+"""Content Core v2 data models."""
+
+from __future__ import annotations
+
 from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from content_core.common.types import DocumentEngine, UrlEngine
-from content_core.models_v2 import ExtractionInput, ExtractionOutput
+
+class ExtractionInput(BaseModel):
+    """Public input for content extraction.
+
+    Exactly one of content, file_path, or url should be set.
+    """
+
+    content: Optional[str] = None
+    file_path: Optional[str] = None
+    url: Optional[str] = None
 
 
-# Backward compat — old processors still reference this during transition
-# TODO: Remove when old processor functions are deleted
-class ProcessSourceState(BaseModel):
-    file_path: Optional[str] = ""
-    url: Optional[str] = ""
-    delete_source: bool = False
-    title: Optional[str] = ""
-    source_type: Optional[str] = ""
-    identified_type: Optional[str] = ""
-    identified_provider: Optional[str] = ""
-    metadata: Optional[dict] = Field(default_factory=lambda: {})
-    content: Optional[str] = ""
-    document_engine: Optional[DocumentEngine] = Field(default=None)
-    url_engine: Optional[UrlEngine] = Field(default=None)
-    output_format: Optional[str] = Field(default=None)
-    audio_provider: Optional[str] = Field(default=None)
-    audio_model: Optional[str] = Field(default=None)
+class ExtractionOutput(BaseModel):
+    """Public output from content extraction."""
+
+    content: str = ""
+    title: str = ""
+    source_type: str = ""  # "url", "file", "text"
+    identified_type: str = ""  # MIME type or "youtube", "article"
+    metadata: dict = Field(default_factory=dict)
 
 
-class ProcessSourceInput(BaseModel):
-    content: Optional[str] = ""
-    file_path: Optional[str] = ""
-    url: Optional[str] = ""
-    document_engine: Optional[str] = None
-    url_engine: Optional[str] = None
-    output_format: Optional[str] = None
-    audio_provider: Optional[str] = None
-    audio_model: Optional[str] = None
-
-
-class ProcessSourceOutput(BaseModel):
-    title: Optional[str] = ""
-    file_path: Optional[str] = ""
-    url: Optional[str] = ""
-    source_type: Optional[str] = ""
-    identified_type: Optional[str] = ""
-    identified_provider: Optional[str] = ""
-    metadata: Optional[dict] = Field(default_factory=lambda: {})
-    content: Optional[str] = ""
-
-
-# Re-export v2 models
 __all__ = [
-    "ProcessSourceState",
-    "ProcessSourceInput",
-    "ProcessSourceOutput",
     "ExtractionInput",
     "ExtractionOutput",
 ]

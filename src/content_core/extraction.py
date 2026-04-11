@@ -12,7 +12,7 @@ from content_core.common.exceptions import InvalidInputError, UnsupportedTypeExc
 from content_core.common.retry import retry_download
 from content_core.config import ContentCoreConfig, get_default_config
 from content_core.logging import logger
-from content_core.models_v2 import ExtractionInput, ExtractionOutput
+from content_core.common.state import ExtractionInput, ExtractionOutput
 
 # Import processor v2 functions
 from content_core.processors.media.audio import transcribe_audio

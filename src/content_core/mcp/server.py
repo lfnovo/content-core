@@ -29,7 +29,7 @@ async def extract_content(
     """
     from content_core.config import ContentCoreConfig
     from content_core.extraction import extract_content as _extract
-    from content_core.models_v2 import ExtractionInput
+    from content_core.common.state import ExtractionInput
 
     if not url and not file_path:
         return "Error: Provide either 'url' or 'file_path'"

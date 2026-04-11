@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from content_core.config import ContentCoreConfig
-from content_core.models_v2 import ExtractionOutput
+from content_core.common.state import ExtractionOutput
 
 
 @runtime_checkable

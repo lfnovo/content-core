@@ -17,7 +17,7 @@ class TestExtractContent:
         with patch(
             "content_core.extraction.extract_content", new_callable=AsyncMock
         ) as mock:
-            from content_core.models_v2 import ExtractionOutput
+            from content_core.common.state import ExtractionOutput
 
             mock.return_value = ExtractionOutput(content="extracted text")
             result = await extract_content_fn(url="https://example.com")
@@ -28,7 +28,7 @@ class TestExtractContent:
         with patch(
             "content_core.extraction.extract_content", new_callable=AsyncMock
         ) as mock:
-            from content_core.models_v2 import ExtractionOutput
+            from content_core.common.state import ExtractionOutput
 
             mock.return_value = ExtractionOutput(content="file content")
             result = await extract_content_fn(file_path="/tmp/test.pdf")
@@ -53,7 +53,7 @@ class TestExtractContent:
         ) as mock_extract, patch(
             "content_core.config.ContentCoreConfig"
         ) as mock_config:
-            from content_core.models_v2 import ExtractionOutput
+            from content_core.common.state import ExtractionOutput
 
             mock_extract.return_value = ExtractionOutput(content="text")
             await extract_content_fn(url="https://example.com", engine="firecrawl")

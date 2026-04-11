@@ -6,12 +6,11 @@ from bs4 import BeautifulSoup
 from youtube_transcript_api import YouTubeTranscriptApi  # type: ignore
 from youtube_transcript_api.formatters import TextFormatter  # type: ignore
 
-from content_core.common import ProcessSourceState
 from content_core.common.exceptions import NoTranscriptFound
 from content_core.common.retry import retry_youtube
-from content_core.config import CONFIG, ContentCoreConfig
+from content_core.config import ContentCoreConfig
 from content_core.logging import logger
-from content_core.models_v2 import ExtractionOutput
+from content_core.common.state import ExtractionOutput
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
@@ -161,69 +160,6 @@ def extract_transcript_pytubefix(url, languages=["en", "es", "pt"]):
     except Exception as e:
         logger.error(f"Failed to extract transcript via pytubefix after retries: {e}")
         return None, None
-
-
-async def extract_youtube_transcript(state: ProcessSourceState):
-    """
-    Extract transcript from a YouTube video.
-
-    Proxy is configured via standard HTTP_PROXY/HTTPS_PROXY environment variables.
-
-    Uses youtube-transcript-api as primary engine with pytubefix as fallback.
-    """
-
-    assert state.url, "No URL provided"
-    logger.debug(f"Extracting transcript from URL: {state.url}")
-    languages = CONFIG.get("youtube_transcripts", {}).get(
-        "preferred_languages", ["en", "es", "pt"]
-    )
-
-    video_id = await _extract_youtube_id(state.url)
-
-    try:
-        title = await get_video_title(video_id)
-    except Exception as e:
-        logger.critical(f"Failed to get video title for video_id: {video_id}")
-        logger.exception(e)
-        title = ""
-
-    formatted_content = ""
-    transcript_raw = None
-
-    # Primary: youtube-transcript-api
-    transcript = await get_best_transcript(video_id, languages)
-    if transcript:
-        logger.debug(f"Found transcript via youtube-transcript-api")
-        formatter = TextFormatter()
-
-        try:
-            formatted_content = formatter.format_transcript(transcript)
-        except Exception as e:
-            logger.error(f"Failed to format transcript for video_id: {video_id}")
-            logger.exception(e)
-
-        try:
-            # Extract raw data from FetchedTranscript snippets
-            transcript_raw = [
-                {"text": s.text, "start": s.start, "duration": s.duration}
-                for s in transcript.snippets
-            ]
-        except Exception as e:
-            logger.error(f"Failed to get raw transcript for video_id: {video_id}")
-            logger.exception(e)
-
-    # Fallback: pytubefix
-    if not formatted_content:
-        logger.debug("Falling back to pytubefix for transcript extraction")
-        formatted_content, transcript_raw = extract_transcript_pytubefix(
-            state.url, languages
-        )
-
-    return {
-        "content": formatted_content,
-        "title": title,
-        "metadata": {"video_id": video_id, "transcript": transcript_raw},
-    }
 
 
 async def extract_youtube(url: str, config: ContentCoreConfig) -> ExtractionOutput:

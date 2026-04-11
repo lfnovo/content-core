@@ -1,7 +1,6 @@
-from content_core.common import ProcessSourceState
 from content_core.config import ContentCoreConfig
 from content_core.logging import logger
-from content_core.models_v2 import ExtractionOutput
+from content_core.common.state import ExtractionOutput
 
 # Import from sub-modules
 from content_core.processors.document.docx import (
@@ -22,40 +21,6 @@ SUPPORTED_OFFICE_TYPES = [
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ]
-
-
-async def extract_office_content(state: ProcessSourceState):
-    """Universal function to extract content from Office files"""
-    assert state.file_path, "No file path provided"
-    assert state.identified_type in SUPPORTED_OFFICE_TYPES, "Unsupported File Type"
-    file_path = state.file_path
-    doc_type = state.identified_type
-
-    if (
-        doc_type
-        == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    ):
-        logger.debug("Extracting content from DOCX file")
-        content = await extract_docx_content_detailed(file_path)
-        info = await get_docx_info(file_path)
-    elif (
-        doc_type
-        == "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-    ):
-        logger.debug("Extracting content from PPTX file")
-        content = await extract_pptx_content(file_path)
-        info = await get_pptx_info(file_path)
-    elif (
-        doc_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    ):
-        logger.debug("Extracting content from XLSX file")
-        content = await extract_xlsx_content(file_path)
-        info = await get_xlsx_info(file_path)
-    else:
-        raise Exception(f"Unsupported file format: {doc_type}")
-
-    del info["content"]
-    return {"content": content, "metadata": info}
 
 
 async def extract_office(
@@ -106,6 +71,5 @@ __all__ = [
     "get_pptx_info",
     "extract_xlsx_content",
     "get_xlsx_info",
-    "extract_office_content",
     "extract_office",
 ]
