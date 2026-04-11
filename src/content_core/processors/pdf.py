@@ -5,8 +5,9 @@ import unicodedata
 import fitz  # type: ignore
 
 from content_core.common import ProcessSourceState
-from content_core.config import CONFIG
+from content_core.config import CONFIG, ContentCoreConfig
 from content_core.logging import logger
+from content_core.models_v2 import ExtractionOutput
 
 def count_formula_placeholders(text):
     """
@@ -290,3 +291,106 @@ async def extract_pdf(state: ProcessSourceState):
             raise Exception(f"An error occurred: {e}")
 
     return return_dict
+
+
+async def _extract_text_from_pdf_v2(
+    pdf_path: str,
+    enable_ocr: bool = False,
+    formula_threshold: int = DEFAULT_FORMULA_THRESHOLD,
+    ocr_fallback: bool = DEFAULT_OCR_FALLBACK,
+) -> str:
+    """Extract text from PDF with explicit OCR parameters (no global CONFIG dependency)."""
+
+    def _extract():
+        doc = fitz.open(pdf_path)
+        try:
+            full_text = []
+            logger.debug(f"Found {len(doc)} pages in PDF")
+
+            extraction_flags = (
+                fitz.TEXT_PRESERVE_LIGATURES
+                | fitz.TEXT_PRESERVE_WHITESPACE
+                | fitz.TEXT_PRESERVE_IMAGES
+            )
+
+            for page_num, page in enumerate(doc):
+                standard_text = page.get_text(flags=extraction_flags)
+
+                formula_count = count_formula_placeholders(standard_text)
+                use_ocr = (
+                    enable_ocr
+                    and formula_count >= formula_threshold
+                    and formula_count > 0
+                )
+
+                if use_ocr:
+                    logger.debug(
+                        f"Page {page_num + 1} has {formula_count} formulas, attempting OCR"
+                    )
+                    ocr_text = extract_page_with_ocr(page, page_num + 1)
+
+                    if ocr_text and ocr_fallback:
+                        page_text = ocr_text
+                        logger.debug(f"Using OCR text for page {page_num + 1}")
+                    else:
+                        page_text = standard_text
+                        if not ocr_text:
+                            logger.debug(
+                                f"OCR failed for page {page_num + 1}, using standard extraction"
+                            )
+                else:
+                    page_text = standard_text
+
+                try:
+                    tables = page.find_tables()
+                    if tables:
+                        logger.debug(
+                            f"Found {len(tables)} table(s) on page {page_num + 1}"
+                        )
+                        for table_num, table in enumerate(tables):
+                            table_data = table.extract()
+                            if table_data and len(table_data) > 0 and any(
+                                any(str(cell).strip() for cell in row if cell)
+                                for row in table_data
+                                if row
+                            ):
+                                page_text += (
+                                    f"\n\n[Table {table_num + 1} from page {page_num + 1}]\n"
+                                )
+                                markdown_table = convert_table_to_markdown(table_data)
+                                page_text += markdown_table + "\n"
+                except Exception as e:
+                    logger.debug(f"Table extraction failed on page {page_num + 1}: {e}")
+
+                full_text.append(page_text)
+
+            combined_text = "".join(full_text)
+            return clean_pdf_text(combined_text)
+        finally:
+            doc.close()
+
+    return await asyncio.get_event_loop().run_in_executor(None, _extract)
+
+
+async def extract_pdf_file(file_path: str, config: ContentCoreConfig) -> ExtractionOutput:
+    """Extract content from a PDF or EPUB file."""
+    try:
+        text = await _extract_text_from_pdf_v2(
+            file_path,
+            enable_ocr=config.pymupdf_enable_formula_ocr,
+            formula_threshold=config.pymupdf_formula_threshold,
+            ocr_fallback=config.pymupdf_ocr_fallback,
+        )
+        # Detect the MIME type based on file extension
+        identified_type = "application/pdf"
+        if file_path.lower().endswith(".epub"):
+            identified_type = "application/epub+zip"
+        return ExtractionOutput(
+            content=text,
+            source_type="file",
+            identified_type=identified_type,
+        )
+    except FileNotFoundError:
+        raise FileNotFoundError(f"File not found at {file_path}")
+    except Exception as e:
+        raise Exception(f"An error occurred: {e}")

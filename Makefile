@@ -1,4 +1,4 @@
-.PHONY: tag test build-docs ruff mcp-server
+.PHONY: tag test test-e2e test-all build-docs ruff mcp-server
 
 tag:
 	@version=$$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/'); \
@@ -7,8 +7,14 @@ tag:
 	git push origin "v$$version"
 
 test:
-	uv run pytest -v
-    
+	uv run pytest tests/unit tests/integration -v
+
+test-e2e:
+	uv run pytest tests/e2e -v -m e2e
+
+test-all:
+	uv run pytest -v -m ""
+
 build-docs:
 	repomix . --include "**/*.py,**/*.yaml" --compress --style xml -o ai_docs/core.txt
 

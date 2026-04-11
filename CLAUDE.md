@@ -1,97 +1,109 @@
 # Content Core
 
-Library for extracting, cleaning, and summarizing content from URLs, files, and text.
+Library for extracting and summarizing content from URLs, files, and text.
 
 ## Commands
 
 - **Install dependencies**: `uv sync --group dev`
-- **Run tests**: `make test` or `uv run pytest -v`
+- **Run tests**: `make test` (unit + integration) or `uv run pytest -v`
 - **Run single test**: `uv run pytest -k "test_name"`
+- **Run e2e tests**: `make test-e2e` (requires network + API keys)
+- **Run all tests**: `make test-all`
 - **Linting**: `make ruff` (runs `ruff check . --fix`)
 - **Build package**: `uv build`
-- **Build docs**: `make build-docs`
+
+## CLI
+
+```bash
+content-core extract <source> [--format text|json] [--engine ENGINE]
+content-core summarize [content] [--context CONTEXT]
+content-core mcp
+```
 
 ## Codebase Structure
 
 ```
 src/content_core/
-├── __init__.py          # CLI entry points (ccore, cclean, csum) and public API
-├── config.py            # Configuration loading, engine selection, retry/proxy settings
-├── models.py            # ModelFactory for Esperanto LLM/STT model caching
-├── templated_message.py # LLM prompt execution with Jinja templates
-├── logging.py           # Loguru configuration
+├── __init__.py              # Public API: extract_content, summarize, ContentCoreConfig
+├── config.py                # ContentCoreConfig (pydantic-settings, env prefix CCORE_)
+├── extraction.py            # Main orchestrator — routes input to processors
+├── models.py                # ModelFactory for Esperanto LLM/STT models
+├── models_v2.py             # ExtractionInput, ExtractionOutput data models
+├── cli.py                   # Click CLI: extract, summarize, mcp subcommands
+├── logging.py               # Loguru configuration
+├── templated_message.py     # LLM prompt execution with Jinja templates
 │
-├── common/              # Shared infrastructure (see common/CLAUDE.md)
-│   ├── exceptions.py    # Exception hierarchy
-│   ├── retry.py         # Retry decorators for transient failures
-│   ├── state.py         # Pydantic state models for LangGraph
-│   ├── types.py         # Type aliases (DocumentEngine, UrlEngine)
-│   └── utils.py         # Input content processing
+├── common/
+│   ├── exceptions.py        # Exception hierarchy (ContentCoreError base)
+│   ├── retry.py             # Self-contained retry decorators with tenacity
+│   ├── state.py             # Data models + backward compat aliases
+│   └── types.py             # Type aliases (DocumentEngine, UrlEngine)
 │
-├── processors/          # Format-specific extractors (see processors/CLAUDE.md)
-│   ├── pdf.py           # PDF/EPUB via PyMuPDF
-│   ├── url.py           # URL extraction (jina/firecrawl/crawl4ai/bs4)
-│   ├── audio.py         # Audio transcription via Esperanto STT
-│   ├── video.py         # Video-to-audio via moviepy
-│   ├── youtube.py       # YouTube transcript extraction
-│   ├── office.py        # Office docs (docx/pptx/xlsx)
-│   ├── text.py          # Plain text files
-│   └── docling.py       # Optional Docling integration
+├── content/
+│   ├── summary/core.py      # Content summarization via LLM
+│   └── identification/      # File type detection (pure Python)
 │
-├── content/             # High-level workflows
-│   ├── extraction/      # LangGraph extraction workflow
-│   │   └── graph.py     # Main extraction state graph
-│   ├── identification/  # File type detection
-│   │   └── file_detector.py
-│   ├── cleanup/         # Content cleaning via LLM
-│   └── summary/         # Content summarization via LLM
+├── processors/
+│   ├── protocol.py          # Processor Protocol definition
+│   ├── youtube.py           # YouTube transcript extraction
+│   ├── text.py              # Plain text + HTML-to-markdown
+│   ├── pdf.py               # PDF/EPUB via PyMuPDF
+│   ├── url/                 # URL extraction engines
+│   │   ├── __init__.py      # Engine router + fallback chain
+│   │   ├── bs4.py           # BeautifulSoup + readability
+│   │   ├── jina.py          # Jina Reader API
+│   │   ├── firecrawl.py     # Firecrawl SDK
+│   │   └── crawl4ai.py      # Crawl4AI browser automation
+│   ├── document/            # Document extraction
+│   │   ├── __init__.py      # Document type router
+│   │   ├── docx.py          # python-docx
+│   │   ├── pptx.py          # python-pptx
+│   │   ├── xlsx.py          # openpyxl
+│   │   ├── pdf.py           # (imported from parent)
+│   │   └── docling.py       # Optional Docling integration
+│   └── media/               # Audio/video processing
+│       ├── __init__.py      # Video→audio pipeline
+│       ├── audio.py         # Transcription via Esperanto STT
+│       └── video.py         # Video-to-audio extraction
 │
-├── tools/               # LangChain tool wrappers (see tools/CLAUDE.md)
-│   ├── extract.py       # extract_content_tool
-│   ├── cleanup.py       # cleanup_content_tool
-│   └── summarize.py     # summarize_content_tool
+├── mcp/
+│   └── server.py            # MCP server: extract_content, summarize_content
 │
-└── mcp/                 # MCP server for AI assistant integration
-    └── server.py        # FastMCP server implementation
+└── tools/                   # Optional LangChain tool wrappers (requires langchain-core)
+    ├── extract.py
+    └── summarize.py
 ```
 
 ## Architecture
 
-**Data flow**: Input -> LangGraph workflow -> Processor -> Output
+**Data flow**: Input -> `extraction.py` orchestrator -> Processor -> `ExtractionOutput`
 
-1. `ProcessSourceInput` received via API or CLI
-2. `content/extraction/graph.py` routes to appropriate processor based on source type
-3. Processor extracts content and returns state updates
-4. `ProcessSourceOutput` returned to caller
+1. `ExtractionInput` received (content, URL, or file path)
+2. `extraction.py` identifies source type and routes to the appropriate processor
+3. Processor extracts content and returns `ExtractionOutput`
 
 **Key patterns**:
-- LangGraph StateGraph orchestrates extraction workflow
-- Processors are stateless functions that take `ProcessSourceState` and return dict updates
+- Plain async Python orchestration (no LangGraph)
+- Configuration via `ContentCoreConfig` (pydantic-settings, env vars with CCORE_ prefix)
+- Processors are async functions taking simple params + config, returning ExtractionOutput
 - Retry decorators handle transient failures for network/API operations
-- Configuration loaded from YAML with env var overrides
 
-## Integration
+## Configuration
 
-- **Esperanto**: LLM and STT model abstraction via `ModelFactory`
-- **LangGraph**: Workflow orchestration in `content/extraction/graph.py`
-- **LangChain**: Tool wrappers in `tools/` for agent integration
-- **ai-prompter**: Template rendering in `templated_message.py`
+Via constructor or environment variables (CCORE_ prefix):
 
-## Gotchas
+```python
+from content_core import ContentCoreConfig
+config = ContentCoreConfig(url_engine="firecrawl", audio_concurrency=5)
+```
 
-- Import aliases: `content_core.extraction` = `content_core.content.extraction`
-- `docling` is optional: check `DOCLING_AVAILABLE` before using
-- Proxy must be passed through state or config, not set globally on requests
-- All async operations should use retry decorators for resilience
-- `ModelFactory` caches models but invalidates on proxy change
+Key settings: `url_engine`, `document_engine`, `audio_provider`, `audio_model`, `firecrawl_api_url`, `youtube_languages`, `llm_provider`, `llm_model`
 
 ## Code Style
 
-- **Formatting**: Follow PEP 8
-- **Imports**: Organize by standard library, third-party, local
+- **Formatting**: PEP 8, enforced by ruff
 - **Error handling**: Use custom exceptions from `common/exceptions.py`
-- **Documentation**: Update docs when changing functionality
-- **Tests**: Write unit tests for new code; integration tests for workflows
+- **Tests**: Unit tests for logic, integration tests for file extraction, e2e for network ops
 
 ## Release Process
 

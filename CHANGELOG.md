@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-04-11
+
+### Added
+- `ContentCoreConfig` based on pydantic-settings with `CCORE_` environment variable prefix for all configuration
+- Unified CLI command `content-core` with subcommands: `extract`, `summarize`, `mcp`
+- `summarize_content` MCP tool for text summarization directly in Claude Desktop
+- New configuration fields: `CCORE_LLM_PROVIDER`, `CCORE_LLM_MODEL`, `CCORE_STT_PROVIDER`, `CCORE_STT_MODEL`, `CCORE_STT_TIMEOUT`, `CCORE_YOUTUBE_LANGUAGES`
+
+### Changed
+- Replaced LangGraph orchestration with plain async Python orchestrator in `extraction.py`
+- Restructured processors into `url/` (bs4, jina, firecrawl, crawl4ai), `document/` (docx, pptx, xlsx, docling), and `media/` (audio, video)
+- MCP server now returns plain text instead of structured JSON
+- MCP server invoked via `content-core mcp` instead of `content-core-mcp`
+- Public API simplified to `content_core.extract_content()`, `content_core.summarize()`, `content_core.ContentCoreConfig`
+- Configuration uses pydantic-settings instead of YAML files and `CONFIG` dict
+- `langchain-core` moved to optional dependency (`pip install content-core[langchain]`)
+
+### Removed
+- LangGraph dependency and state graph workflow
+- YAML configuration files (`cc_config.yaml`, `models_config.yaml`)
+- `CONFIG` dict and `set_*()` configuration functions
+- Cleanup/clean functionality (`clean()`, `cleanup_content()`, `cclean` CLI command)
+- Old CLI entry points: `ccore`, `cclean`, `csum`
+- Raycast extension
+- macOS Services integration
+
+### Fixed
+- Office documents (DOCX, PPTX, XLSX) no longer extracted twice in certain conditions
+- Docling processor returns correct type consistently
+
 ## [1.14.1] - 2026-01-29
 
 ### Fixed
@@ -51,7 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **LangGraph v1 Migration** - Updated to LangGraph v1.0+ (from v0.3.x)
   - Minimum requirement now `langgraph>=1.0.0`
-  - Updated StateGraph API: `input` → `input_schema`, `output` → `output_schema`
+  - Updated StateGraph API: `input` -> `input_schema`, `output` -> `output_schema`
   - No breaking changes for users - same API surface maintained
 
 ## [1.11.0] - 2026-01-25

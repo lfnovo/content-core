@@ -1,39 +1,50 @@
+from typing import Optional
+
 from esperanto import AIFactory
 
-from .config import CONFIG
+from content_core.config import ContentCoreConfig, get_default_config
 
 
 class ModelFactory:
     _instances = {}
 
     @staticmethod
-    def get_model(model_alias):
+    def get_model(model_alias: str, config: Optional[ContentCoreConfig] = None):
+        """Get or create a cached model instance.
+
+        Args:
+            model_alias: One of 'speech_to_text', 'summary_model', 'default_model'
+            config: Optional ContentCoreConfig. If provided, bypasses cache and
+                    uses config values. If None, uses default config.
+        """
+        if config is not None:
+            # Build from explicit config — not cached (config may vary per call)
+            return ModelFactory._build_from_config(model_alias, config)
+
         if model_alias not in ModelFactory._instances:
-            config = CONFIG.get(model_alias, {})
-            if not config:
-                raise ValueError(
-                    f"Configuração para o modelo {model_alias} não encontrada."
-                )
-
-            provider = config.get("provider")
-            model_name = config.get("model_name")
-            model_config = config.get("config", {}).copy()
-
-            # Proxy is configured via HTTP_PROXY/HTTPS_PROXY env vars (handled by Esperanto)
-
-            if model_alias == "speech_to_text":
-                # For STT models, pass timeout in config dict
-                timeout = config.get("timeout")
-                stt_config = {"timeout": timeout} if timeout else {}
-                ModelFactory._instances[model_alias] = AIFactory.create_speech_to_text(
-                    provider, model_name, stt_config
-                )
-            else:
-                ModelFactory._instances[model_alias] = AIFactory.create_language(
-                    provider, model_name, config=model_config
-                )
+            cfg = get_default_config()
+            ModelFactory._instances[model_alias] = ModelFactory._build_from_config(
+                model_alias, cfg
+            )
 
         return ModelFactory._instances[model_alias]
+
+    @staticmethod
+    def _build_from_config(model_alias: str, cfg: ContentCoreConfig):
+        """Build a model instance from a ContentCoreConfig."""
+        if model_alias == "speech_to_text":
+            stt_config = {"timeout": cfg.stt_timeout} if cfg.stt_timeout else {}
+            return AIFactory.create_speech_to_text(
+                cfg.stt_provider, cfg.stt_model, stt_config
+            )
+        elif model_alias == "summary_model":
+            provider = cfg.llm_provider
+            model_name = cfg.summary_model or cfg.llm_model
+            return AIFactory.create_language(provider, model_name, config={})
+        elif model_alias == "default_model":
+            return AIFactory.create_language(cfg.llm_provider, cfg.llm_model, config={})
+        else:
+            raise ValueError(f"Unknown model alias: {model_alias}")
 
     @staticmethod
     def clear_cache():

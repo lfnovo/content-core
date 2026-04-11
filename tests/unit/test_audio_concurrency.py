@@ -3,9 +3,10 @@ import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 
-from content_core.config import get_audio_concurrency
-from content_core.processors.audio import transcribe_audio_segment
+from content_core.config import ContentCoreConfig
+from content_core.processors.media.audio import transcribe_audio_segment
 
 
 class TestAudioConcurrencyConfig:
@@ -13,53 +14,39 @@ class TestAudioConcurrencyConfig:
 
     def test_default_concurrency(self):
         """Test that default concurrency is 3 when no override is set"""
-        with patch.dict(os.environ, {}, clear=True):
-            # Remove CCORE_AUDIO_CONCURRENCY if it exists
-            os.environ.pop("CCORE_AUDIO_CONCURRENCY", None)
-            concurrency = get_audio_concurrency()
-            assert concurrency == 3
+        cfg = ContentCoreConfig()
+        assert cfg.audio_concurrency == 3
 
-    def test_environment_variable_override(self):
+    def test_environment_variable_override(self, monkeypatch):
         """Test that CCORE_AUDIO_CONCURRENCY environment variable overrides default"""
-        with patch.dict(os.environ, {"CCORE_AUDIO_CONCURRENCY": "5"}):
-            concurrency = get_audio_concurrency()
-            assert concurrency == 5
-
-    def test_invalid_concurrency_non_integer(self):
-        """Test that non-integer values fall back to default with warning"""
-        with patch.dict(os.environ, {"CCORE_AUDIO_CONCURRENCY": "invalid"}):
-            concurrency = get_audio_concurrency()
-            assert concurrency == 3  # Falls back to default
+        monkeypatch.setenv("CCORE_AUDIO_CONCURRENCY", "5")
+        cfg = ContentCoreConfig()
+        assert cfg.audio_concurrency == 5
 
     def test_invalid_concurrency_zero(self):
-        """Test that zero concurrency falls back to default with warning"""
-        with patch.dict(os.environ, {"CCORE_AUDIO_CONCURRENCY": "0"}):
-            concurrency = get_audio_concurrency()
-            assert concurrency == 3  # Falls back to default
+        """Test that zero concurrency raises validation error"""
+        with pytest.raises(ValidationError):
+            ContentCoreConfig(audio_concurrency=0)
 
     def test_invalid_concurrency_negative(self):
-        """Test that negative concurrency falls back to default with warning"""
-        with patch.dict(os.environ, {"CCORE_AUDIO_CONCURRENCY": "-1"}):
-            concurrency = get_audio_concurrency()
-            assert concurrency == 3  # Falls back to default
+        """Test that negative concurrency raises validation error"""
+        with pytest.raises(ValidationError):
+            ContentCoreConfig(audio_concurrency=-1)
 
     def test_invalid_concurrency_too_high(self):
-        """Test that concurrency > 10 falls back to default with warning"""
-        with patch.dict(os.environ, {"CCORE_AUDIO_CONCURRENCY": "15"}):
-            concurrency = get_audio_concurrency()
-            assert concurrency == 3  # Falls back to default
+        """Test that concurrency > 10 raises validation error"""
+        with pytest.raises(ValidationError):
+            ContentCoreConfig(audio_concurrency=15)
 
     def test_valid_concurrency_boundary_low(self):
         """Test that concurrency of 1 is accepted"""
-        with patch.dict(os.environ, {"CCORE_AUDIO_CONCURRENCY": "1"}):
-            concurrency = get_audio_concurrency()
-            assert concurrency == 1
+        cfg = ContentCoreConfig(audio_concurrency=1)
+        assert cfg.audio_concurrency == 1
 
     def test_valid_concurrency_boundary_high(self):
         """Test that concurrency of 10 is accepted"""
-        with patch.dict(os.environ, {"CCORE_AUDIO_CONCURRENCY": "10"}):
-            concurrency = get_audio_concurrency()
-            assert concurrency == 10
+        cfg = ContentCoreConfig(audio_concurrency=10)
+        assert cfg.audio_concurrency == 10
 
 
 class TestParallelTranscription:
@@ -171,7 +158,6 @@ class TestParallelTranscription:
         assert len(results) == 3
 
         # Verify they were called serially (times should be spaced apart)
-        # With concurrency of 1 and 0.05s sleep, calls should be ~0.05s apart
         if len(call_times) >= 2:
             time_diff = call_times[1] - call_times[0]
             assert time_diff >= 0.04  # Allow some tolerance for timing
@@ -179,10 +165,8 @@ class TestParallelTranscription:
     @pytest.mark.asyncio
     async def test_empty_audio_file_list(self):
         """Test handling of empty audio file list"""
-        # Empty list of tasks
         tasks = []
         results = await asyncio.gather(*tasks)
-
         assert results == []
 
 
@@ -191,12 +175,7 @@ class TestErrorHandling:
 
     @pytest.mark.asyncio
     async def test_single_failure_doesnt_stop_others(self):
-        """Test that one failed transcription doesn't prevent others from completing.
-
-        Note: With retry logic enabled, the failing segment will be retried
-        (default: 3 attempts) IF the exception is transient (network error, timeout).
-        Total calls = 2 successful + 3 retries = 5.
-        """
+        """Test that one failed transcription doesn't prevent others from completing."""
         call_count = 0
         fail_count = 0
 
@@ -205,7 +184,6 @@ class TestErrorHandling:
             call_count += 1
             if "fail" in audio_file:
                 fail_count += 1
-                # Use a transient error message so it triggers retry
                 raise TimeoutError("Transcription service timeout")
             await asyncio.sleep(0.01)
             return MagicMock(text=f"transcript_{audio_file}")
@@ -221,18 +199,11 @@ class TestErrorHandling:
             for audio_file in audio_files
         ]
 
-        # gather with return_exceptions=True to handle the failure
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Verify successful segments called once, failed segment retried
-        # Default retry config is 3 attempts for audio, so:
-        # - 2 successful calls (audio_1.mp3, audio_3.mp3)
-        # - 3 retry attempts for audio_fail.mp3
-        # Total = 5 calls
         assert call_count == 5
-        assert fail_count == 3  # Retried 3 times
+        assert fail_count == 3
 
-        # Verify we got results for successful ones and exception for failed one
-        assert isinstance(results[0], str)  # Success
-        assert isinstance(results[1], Exception)  # Failed after retries
-        assert isinstance(results[2], str)  # Success
+        assert isinstance(results[0], str)
+        assert isinstance(results[1], Exception)
+        assert isinstance(results[2], str)

@@ -1,6 +1,6 @@
 [project]
 name = "content-core"
-version = "1.14.1"
+version = "2.0.0"
 description = "Extract what matters from any media source. Available as Python Library, macOS Service, CLI and MCP Server"
 readme = "README.md"
 homepage = "https://github.com/lfnovo/content-core"
@@ -22,8 +22,6 @@ dependencies = [
     "python-dotenv>=1.1.0",
     "python-pptx>=1.0.2",
     "youtube-transcript-api>=1.0.3",
-    "langgraph>=1.0.0",
-    "dicttoxml>=1.7.16",
     "validators>=0.34.0",
     "ai-prompter>=0.2.3",
     "moviepy>=2.1.2",
@@ -35,16 +33,17 @@ dependencies = [
     "fastmcp>=2.10.0",
     "tenacity>=8.0.0",
     "markdownify>=0.12.1",
+    "pydantic-settings>=2.0",
+    "click>=8.0",
 ]
 
 [project.optional-dependencies]
 docling = ["docling>=2.34.0"]
 crawl4ai = ["crawl4ai>=0.7.0"]
+langchain = ["langchain-core>=0.1.0"]
 
 [project.scripts]
-ccore = "content_core:ccore"
-cclean = "content_core:cclean"
-csum = "content_core:csum"
+content-core = "content_core.cli:cli"
 content-core-mcp = "content_core.mcp.server:main"
 
 [tool.hatch.metadata]
@@ -74,3 +73,7 @@ pythonpath = ["src"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 asyncio_default_test_loop_scope = "function"
+markers = [
+    "e2e: end-to-end tests requiring network and API keys",
+]
+addopts = "-m 'not e2e'"
