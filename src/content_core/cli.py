@@ -16,7 +16,7 @@ def cli(debug):
 
 
 @cli.command()
-@click.argument("source")
+@click.argument("source", required=False)
 @click.option(
     "-f",
     "--format",
@@ -34,8 +34,20 @@ def cli(debug):
 @click.option("--pictures", is_flag=True, default=False, help="Enable image description + chart extraction (Docling only)")
 @click.option("--no-ocr", "no_ocr", is_flag=True, default=False, help="Disable OCR (Docling only)")
 def extract(source, fmt, engine, formulas, pictures, no_ocr):
-    """Extract content from a URL, file path, or text."""
+    """Extract content from a URL, file path, or text.
+
+    SOURCE can be a URL, file path, or text. If omitted, reads from stdin.
+    """
     from content_core.extraction import extract_content
+
+    if source is None:
+        if sys.stdin.isatty():
+            click.echo("Error: No source provided. Provide a source or pipe input.", err=True)
+            sys.exit(1)
+        source = sys.stdin.read().strip()
+        if not source:
+            click.echo("Error: Empty input.", err=True)
+            sys.exit(1)
 
     inp = _build_input(source)
     config = _build_config(inp, engine, formulas=formulas, pictures=pictures, no_ocr=no_ocr)
@@ -181,11 +193,24 @@ def _build_config(inp, engine, formulas=False, pictures=False, no_ocr=False):
 
     from content_core.config import ContentCoreConfig
 
+    VALID_URL_ENGINES = {"auto", "simple", "firecrawl", "jina", "crawl4ai"}
+    VALID_DOC_ENGINES = {"auto", "simple", "docling"}
+
     kwargs = {**docling_overrides}
     if engine:
         if inp.file_path:
+            if engine not in VALID_DOC_ENGINES:
+                raise click.BadParameter(
+                    f"Invalid document engine '{engine}'. Choose from: {', '.join(sorted(VALID_DOC_ENGINES))}",
+                    param_hint="'--engine'",
+                )
             kwargs["document_engine"] = engine
         else:
+            if engine not in VALID_URL_ENGINES:
+                raise click.BadParameter(
+                    f"Invalid URL engine '{engine}'. Choose from: {', '.join(sorted(VALID_URL_ENGINES))}",
+                    param_hint="'--engine'",
+                )
             kwargs["url_engine"] = engine
 
     return ContentCoreConfig(**kwargs) if kwargs else None

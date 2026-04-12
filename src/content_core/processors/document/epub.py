@@ -25,6 +25,6 @@ async def extract_epub_file(file_path: str, config: ContentCoreConfig) -> Extrac
             identified_type="application/epub+zip",
         )
     except FileNotFoundError:
-        raise FileNotFoundError(f"File not found at {file_path}")
+        raise
     except Exception as e:
-        raise Exception(f"An error occurred: {e}")
+        raise RuntimeError(f"EPUB extraction failed for {file_path}") from e
