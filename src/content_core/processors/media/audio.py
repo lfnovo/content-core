@@ -1,11 +1,11 @@
 import asyncio
+import json
 import math
 import os
+import subprocess
 import tempfile
 import traceback
 from functools import partial
-
-from moviepy import AudioFileClip
 
 from content_core.common.retry import retry_audio_transcription
 from content_core.config import ContentCoreConfig
@@ -13,54 +13,88 @@ from content_core.logging import logger
 from content_core.common.state import ExtractionOutput
 
 
+async def get_audio_duration(input_file: str) -> float:
+    """Get audio duration in seconds using ffprobe."""
+
+    def _probe(path):
+        cmd = [
+            "ffprobe",
+            "-v", "quiet",
+            "-print_format", "json",
+            "-show_entries", "format=duration",
+            input_file,
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(f"ffprobe failed: {result.stderr}")
+        data = json.loads(result.stdout)
+        return float(data["format"]["duration"])
+
+    return await asyncio.get_event_loop().run_in_executor(None, partial(_probe, input_file))
+
+
+def split_audio_segment(
+    input_file: str, output_file: str, start_time: float, end_time: float
+) -> None:
+    """Extract an audio segment using ffmpeg with stream copy (no re-encoding)."""
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i", input_file,
+        "-ss", str(start_time),
+        "-to", str(end_time),
+        "-codec", "copy",
+        "-map_chapters", "-1",
+        output_file,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"ffmpeg split failed: {result.stderr}")
+
+
 async def split_audio(input_file, segment_length_minutes=15, output_prefix=None):
-    """
-    Split an audio file into segments asynchronously.
-    """
+    """Split an audio file into segments asynchronously."""
 
     def _split(input_file, segment_length_minutes, output_prefix):
-        # Convert input file to absolute path
         input_file_abs = os.path.abspath(input_file)
         output_dir = os.path.dirname(input_file_abs)
         os.makedirs(output_dir, exist_ok=True)
 
-        # Set up output prefix
         if output_prefix is None:
             output_prefix = os.path.splitext(os.path.basename(input_file_abs))[0]
 
-        # Load the audio file
-        audio = AudioFileClip(input_file_abs)
+        # Get duration via ffprobe
+        cmd = [
+            "ffprobe",
+            "-v", "quiet",
+            "-print_format", "json",
+            "-show_entries", "format=duration",
+            input_file_abs,
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(f"ffprobe failed: {result.stderr}")
+        duration = float(json.loads(result.stdout)["format"]["duration"])
 
-        # Calculate segment length in seconds
         segment_length_s = segment_length_minutes * 60
-
-        # Calculate number of segments
-        total_segments = math.ceil(audio.duration / segment_length_s)
+        total_segments = math.ceil(duration / segment_length_s)
         logger.debug(f"Splitting file: {input_file_abs} into {total_segments} segments")
 
         output_files = []
-
-        # Split the audio into segments
         for i in range(total_segments):
             start_time = i * segment_length_s
-            end_time = min((i + 1) * segment_length_s, audio.duration)
-
-            # Extract segment
+            end_time = min((i + 1) * segment_length_s, duration)
             output_filename = f"{output_prefix}_{str(i + 1).zfill(3)}.mp3"
             output_path = os.path.join(output_dir, output_filename)
 
-            # Export segment
-            extract_audio(input_file_abs, output_path, start_time, end_time)
-
+            split_audio_segment(input_file_abs, output_path, start_time, end_time)
             output_files.append(output_path)
-
             logger.debug(
                 f"Exported segment {i + 1}/{total_segments}: {output_filename}"
             )
 
         return output_files
 
-    # Run CPU-bound audio processing in thread pool
     return await asyncio.get_event_loop().run_in_executor(
         None, partial(_split, input_file, segment_length_minutes, output_prefix)
     )
@@ -69,34 +103,22 @@ async def split_audio(input_file, segment_length_minutes=15, output_prefix=None)
 def extract_audio(
     input_file: str, output_file: str, start_time: float = None, end_time: float = None
 ) -> None:
+    """Extract audio from a file, optionally trimming to a time range.
+
+    Uses ffmpeg with stream copy for fast, lossless extraction.
     """
-    Extract audio from a video or audio file and save it as an MP3 file.
-    If start_time and end_time are provided, only that segment of audio is extracted.
+    cmd = ["ffmpeg", "-y", "-i", input_file]
 
-    Args:
-        input_file (str): Path to the input video or audio file.
-        output_file (str): Path where the output MP3 file will be saved.
-        start_time (float, optional): Start time of the audio segment in seconds. Defaults to None.
-        end_time (float, optional): End time of the audio segment in seconds. Defaults to None.
-    """
-    try:
-        # Load the file as an AudioFileClip
-        audio_clip = AudioFileClip(input_file)
+    if start_time is not None:
+        cmd.extend(["-ss", str(start_time)])
+    if end_time is not None:
+        cmd.extend(["-to", str(end_time)])
 
-        # If start_time and/or end_time are provided, trim the audio using subclipped
-        if start_time is not None and end_time is not None:
-            audio_clip = audio_clip.subclipped(start_time, end_time)
-        elif start_time is not None:
-            audio_clip = audio_clip.subclipped(start_time)
-        elif end_time is not None:
-            audio_clip = audio_clip.subclipped(0, end_time)
+    cmd.extend(["-codec", "copy", "-map_chapters", "-1", output_file])
 
-        # Export the audio as MP3
-        audio_clip.write_audiofile(output_file, codec="mp3")
-        audio_clip.close()
-    except Exception as e:
-        logger.error(f"Error extracting audio: {str(e)}")
-        raise
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"ffmpeg extract failed: {result.stderr}")
 
 
 @retry_audio_transcription()
@@ -106,26 +128,7 @@ async def _transcribe_segment(audio_file, model):
 
 
 async def transcribe_audio_segment(audio_file, model, semaphore):
-    """
-    Transcribe a single audio segment asynchronously with concurrency control and retry logic.
-
-    This function uses a semaphore to limit the number of concurrent transcriptions,
-    preventing API rate limits while allowing parallel processing for improved performance.
-    Includes retry logic for transient API failures.
-
-    Args:
-        audio_file (str): Path to the audio file segment to transcribe
-        model: Speech-to-text model instance with atranscribe() method
-        semaphore (asyncio.Semaphore): Semaphore to control concurrency
-
-    Returns:
-        str: Transcribed text from the audio segment
-
-    Note:
-        Multiple instances of this function can run concurrently, but the semaphore
-        ensures that no more than N transcriptions happen simultaneously, where N
-        is configured via get_audio_concurrency() (default: 3, range: 1-10).
-    """
+    """Transcribe a single audio segment with concurrency control and retry logic."""
     async with semaphore:
         return await _transcribe_segment(audio_file, model)
 
@@ -134,37 +137,29 @@ async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> Extract
     """Transcribe an audio file using STT."""
     from esperanto import AIFactory
 
-    input_audio_path = file_path
-    audio = None
-
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
-            output_prefix = os.path.splitext(os.path.basename(input_audio_path))[0]
+            output_prefix = os.path.splitext(os.path.basename(file_path))[0]
 
-            # Split audio into segments if longer than 10 minutes
-            audio = AudioFileClip(input_audio_path)
-            duration_s = audio.duration
+            # Get duration via ffprobe
+            duration_s = await get_audio_duration(file_path)
             segment_length_s = 10 * 60
             output_files = []
 
             if duration_s > segment_length_s:
                 logger.info(
-                    f"Audio is longer than 10 minutes ({duration_s}s), splitting into "
+                    f"Audio is longer than 10 minutes ({duration_s:.0f}s), splitting into "
                     f"{math.ceil(duration_s / segment_length_s)} segments"
                 )
                 for i in range(math.ceil(duration_s / segment_length_s)):
                     start_time = i * segment_length_s
-                    end_time = min((i + 1) * segment_length_s, audio.duration)
+                    end_time = min((i + 1) * segment_length_s, duration_s)
                     output_filename = f"{output_prefix}_{str(i + 1).zfill(3)}.mp3"
                     output_path = os.path.join(temp_dir, output_filename)
-                    extract_audio(input_audio_path, output_path, start_time, end_time)
+                    extract_audio(file_path, output_path, start_time, end_time)
                     output_files.append(output_path)
             else:
-                output_files = [input_audio_path]
-
-            if audio:
-                audio.close()
-                audio = None
+                output_files = [file_path]
 
             # Determine STT model from config
             if config.audio_provider and config.audio_model:
@@ -216,9 +211,3 @@ async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> Extract
         logger.error(f"Error processing audio: {str(e)}")
         logger.error(traceback.format_exc())
         raise
-    finally:
-        if audio:
-            try:
-                audio.close()
-            except Exception:
-                pass

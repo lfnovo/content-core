@@ -14,6 +14,14 @@ from content_core.processors.media.video import (
 )
 
 
+def _ffprobe_duration_result(duration: float):
+    """Helper: build a mock subprocess result for ffprobe duration query."""
+    mock = MagicMock()
+    mock.returncode = 0
+    mock.stdout = json.dumps({"format": {"duration": str(duration)}})
+    return mock
+
+
 class TestTranscribeAudio:
     @pytest.fixture
     def config(self):
@@ -30,17 +38,12 @@ class TestTranscribeAudio:
         mock_result.text = "Transcribed text"
         mock_stt_model.atranscribe = AsyncMock(return_value=mock_result)
 
-        mock_audio_clip = MagicMock()
-        mock_audio_clip.duration = 60  # 1 minute, no splitting needed
-        mock_audio_clip.close = MagicMock()
-
         with (
+            patch("esperanto.AIFactory") as mock_factory,
             patch(
-                "esperanto.AIFactory"
-            ) as mock_factory,
-            patch(
-                "content_core.processors.media.audio.AudioFileClip",
-                return_value=mock_audio_clip,
+                "content_core.processors.media.audio.get_audio_duration",
+                new_callable=AsyncMock,
+                return_value=60.0,
             ),
         ):
             mock_factory.create_speech_to_text.return_value = mock_stt_model
@@ -68,17 +71,12 @@ class TestTranscribeAudio:
         mock_result.text = "Custom transcription"
         mock_stt_model.atranscribe = AsyncMock(return_value=mock_result)
 
-        mock_audio_clip = MagicMock()
-        mock_audio_clip.duration = 60
-        mock_audio_clip.close = MagicMock()
-
         with (
+            patch("esperanto.AIFactory") as mock_factory,
             patch(
-                "esperanto.AIFactory"
-            ) as mock_factory,
-            patch(
-                "content_core.processors.media.audio.AudioFileClip",
-                return_value=mock_audio_clip,
+                "content_core.processors.media.audio.get_audio_duration",
+                new_callable=AsyncMock,
+                return_value=60.0,
             ),
         ):
             mock_factory.create_speech_to_text.return_value = mock_stt_model
@@ -105,17 +103,12 @@ class TestTranscribeAudio:
         mock_result.text = "Result"
         mock_stt_model.atranscribe = AsyncMock(return_value=mock_result)
 
-        mock_audio_clip = MagicMock()
-        mock_audio_clip.duration = 60
-        mock_audio_clip.close = MagicMock()
-
         with (
+            patch("esperanto.AIFactory") as mock_factory,
             patch(
-                "esperanto.AIFactory"
-            ) as mock_factory,
-            patch(
-                "content_core.processors.media.audio.AudioFileClip",
-                return_value=mock_audio_clip,
+                "content_core.processors.media.audio.get_audio_duration",
+                new_callable=AsyncMock,
+                return_value=60.0,
             ),
         ):
             mock_factory.create_speech_to_text.return_value = mock_stt_model
@@ -126,6 +119,93 @@ class TestTranscribeAudio:
             mock_factory.create_speech_to_text.assert_called_once_with(
                 "deepgram", "nova-2", {"timeout": 1800}
             )
+
+    async def test_transcribe_splits_long_audio(self):
+        config = ContentCoreConfig(
+            stt_provider="openai",
+            stt_model="whisper-1",
+            audio_provider="openai",
+            audio_model=None,
+        )
+
+        mock_stt_model = MagicMock()
+        mock_result = MagicMock()
+        mock_result.text = "segment"
+        mock_stt_model.atranscribe = AsyncMock(return_value=mock_result)
+
+        with (
+            patch("esperanto.AIFactory") as mock_factory,
+            patch(
+                "content_core.processors.media.audio.get_audio_duration",
+                new_callable=AsyncMock,
+                return_value=1500.0,  # 25 minutes → 3 segments
+            ),
+            patch(
+                "content_core.processors.media.audio.extract_audio"
+            ) as mock_extract,
+        ):
+            mock_factory.create_speech_to_text.return_value = mock_stt_model
+
+            from content_core.processors.media.audio import transcribe_audio
+
+            result = await transcribe_audio("/fake/long_audio.mp3", config)
+            assert result.content == "segment segment segment"
+            assert result.metadata["segments_count"] == 3
+            assert mock_extract.call_count == 3
+
+
+class TestGetAudioDuration:
+    async def test_returns_duration_from_ffprobe(self):
+        with patch(
+            "content_core.processors.media.audio.asyncio.get_event_loop"
+        ) as mock_loop:
+            mock_loop.return_value.run_in_executor = AsyncMock(return_value=123.45)
+
+            from content_core.processors.media.audio import get_audio_duration
+
+            result = await get_audio_duration("/fake/audio.mp3")
+            assert result == 123.45
+
+
+class TestExtractAudio:
+    def test_calls_ffmpeg_with_time_range(self):
+        with patch(
+            "content_core.processors.media.audio.subprocess.run"
+        ) as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+
+            from content_core.processors.media.audio import extract_audio
+
+            extract_audio("/in.mp3", "/out.mp3", start_time=10.0, end_time=60.0)
+            cmd = mock_run.call_args[0][0]
+            assert "-ss" in cmd
+            assert "-to" in cmd
+            assert "-codec" in cmd
+            assert "-map_chapters" in cmd
+
+    def test_calls_ffmpeg_without_time_range(self):
+        with patch(
+            "content_core.processors.media.audio.subprocess.run"
+        ) as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+
+            from content_core.processors.media.audio import extract_audio
+
+            extract_audio("/in.mp3", "/out.mp3")
+            cmd = mock_run.call_args[0][0]
+            assert "-ss" not in cmd
+            assert "-to" not in cmd
+
+    def test_raises_on_ffmpeg_failure(self):
+        with patch(
+            "content_core.processors.media.audio.subprocess.run"
+        ) as mock_run:
+            mock_run.return_value = MagicMock(returncode=1, stderr="error msg")
+
+            from content_core.processors.media.audio import extract_audio
+
+            with pytest.raises(RuntimeError, match="ffmpeg extract failed"):
+                extract_audio("/in.mp3", "/out.mp3")
 
 
 class TestExtractVideo:
@@ -198,7 +278,6 @@ class TestSelectBestAudioStream:
             {"bit_rate": "128000", "channels": 2, "sample_rate": "44100"},
         ]
         result = await select_best_audio_stream(streams)
-        # Second stream has highest bit_rate + channels + sample_rate
         assert result["bit_rate"] == "320000"
 
     async def test_empty_list_returns_none(self):

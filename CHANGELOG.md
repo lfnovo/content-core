@@ -43,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bumped Docling optional dependency to >=2.86.0
 - Replaced PyMuPDF (AGPL3) with pdfplumber (MIT) for PDF extraction
 - EPUB extraction now uses fast-ebook (MIT) instead of PyMuPDF — separate `processors/document/epub.py` processor
+- Replaced moviepy with direct ffmpeg/ffprobe calls for audio processing — faster (stream copy, no re-encoding), fixes chapter metadata parsing bug (#33)
 - Replaced LangGraph orchestration with plain async Python orchestrator in `extraction.py`
 - Restructured processors into `url/` (bs4, jina, firecrawl, crawl4ai), `document/` (docx, pptx, xlsx, docling), and `media/` (audio, video)
 - MCP server now returns plain text instead of structured JSON
@@ -61,10 +62,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - macOS Services integration
 - `ExtractionInput` as required parameter (model still available for internal use)
 - PyMuPDF dependency (AGPL3 license)
+- moviepy dependency (replaced with direct ffmpeg/ffprobe calls)
 - `pymupdf_enable_formula_ocr`, `pymupdf_formula_threshold`, `pymupdf_ocr_fallback` config fields and `CCORE_PYMUPDF_*` environment variables
 - Built-in OCR support for formula-heavy PDFs (was disabled by default)
 
 ### Fixed
+- Audio processing crashes on MP3 files with chapter metadata (#33) — replaced moviepy with direct ffmpeg calls
 - MCP `engine` parameter now correctly routes to `document_engine` for file inputs
 - Office documents (DOCX, PPTX, XLSX) no longer extracted twice in certain conditions
 - Docling processor returns correct type consistently

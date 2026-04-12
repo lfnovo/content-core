@@ -25,7 +25,6 @@ dependencies = [
     "youtube-transcript-api>=1.0.3",
     "validators>=0.34.0",
     "ai-prompter>=0.2.3",
-    "moviepy>=2.1.2",
     "readability-lxml>=0.8.4.1",
     "firecrawl-py>=2.7.0",
     "pillow>=10.4.0",

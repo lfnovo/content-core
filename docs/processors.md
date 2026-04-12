@@ -111,6 +111,7 @@ Located in `src/content_core/processors/media/`.
 - File: `media/audio.py`
 - Transcribes audio files using speech-to-text (default: OpenAI Whisper)
 - Supported formats: MP3, WAV, M4A, FLAC, OGG
+- Uses ffmpeg/ffprobe for duration detection and segment splitting (stream copy, no re-encoding)
 - Features:
   - Files longer than 10 minutes are automatically split into segments
   - Segments are transcribed in parallel with configurable concurrency (1-10, default 3)
@@ -122,7 +123,7 @@ Located in `src/content_core/processors/media/`.
 - File: `media/video.py`
 - Extracts audio from video files, then transcribes using the audio processor
 - Supported formats: MP4, AVI, MOV, MKV
-- Uses moviepy for audio extraction
+- Uses ffmpeg/ffprobe for audio stream selection and extraction
 
 ## YouTube Processor
 
