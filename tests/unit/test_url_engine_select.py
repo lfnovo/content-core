@@ -24,7 +24,7 @@ async def test_auto_with_firecrawl_key_uses_firecrawl():
         return_value={"title": "T", "content": "C"},
     ) as mock_fc:
         result = await extract_from_url("https://example.com", cfg)
-        mock_fc.assert_awaited_once_with("https://example.com")
+        mock_fc.assert_awaited_once_with("https://example.com", cfg)
         assert isinstance(result, ExtractionOutput)
         assert result.content == "C"
         assert result.title == "T"
@@ -74,7 +74,7 @@ async def test_firecrawl_engine():
         return_value={"title": "FC", "content": "FC Content"},
     ) as mock_fc:
         result = await extract_from_url("https://example.com", cfg)
-        mock_fc.assert_awaited_once_with("https://example.com")
+        mock_fc.assert_awaited_once_with("https://example.com", cfg)
         assert result.content == "FC Content"
 
 
@@ -108,3 +108,35 @@ async def test_jina_engine():
         result = await extract_from_url("https://example.com", cfg)
         mock_jina.assert_awaited_once_with("https://example.com")
         assert result.content == "Jina Content"
+
+
+# ---------------------------------------------------------------------------
+# 6. firecrawl passes config (proxy + wait_for) through
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_firecrawl_receives_config_with_proxy_and_wait():
+    cfg = ContentCoreConfig(
+        url_engine="firecrawl",
+        firecrawl_proxy="stealth",
+        firecrawl_wait_for=5000,
+    )
+    with patch(
+        "content_core.processors.url.extract_url_firecrawl",
+        new_callable=AsyncMock,
+        return_value={"title": "T", "content": "C"},
+    ) as mock_fc:
+        await extract_from_url("https://example.com", cfg)
+        # Config is passed through so firecrawl can read proxy/wait_for
+        passed_config = mock_fc.call_args[0][1]
+        assert passed_config.firecrawl_proxy == "stealth"
+        assert passed_config.firecrawl_wait_for == 5000
+
+
+# ---------------------------------------------------------------------------
+# 7. firecrawl default config has proxy=auto and wait_for=3000
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_firecrawl_default_proxy_and_wait():
+    cfg = ContentCoreConfig(url_engine="firecrawl")
+    assert cfg.firecrawl_proxy == "auto"
+    assert cfg.firecrawl_wait_for == 3000

@@ -163,6 +163,8 @@ content-core config delete llm_provider
 | `docling_vision` | Enable image description + chart data extraction | `false` |
 | `document_engine` | Document extraction engine (`auto`, `simple`, `docling`) | `auto` |
 | `firecrawl_api_url` | Firecrawl API URL | `https://api.firecrawl.dev` |
+| `firecrawl_proxy` | Firecrawl proxy mode (`auto`, `basic`, `stealth`) | `auto` |
+| `firecrawl_wait_for` | Wait time in ms before extraction | `3000` |
 | `llm_model` | LLM model for summarization | `gpt-4o-mini` |
 | `llm_provider` | LLM provider | `openai` |
 | `stt_model` | Speech-to-text model | `whisper-1` |

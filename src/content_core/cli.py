@@ -81,6 +81,8 @@ def config():
       docling_output_format  Docling output format (default: markdown)
       document_engine      Document extraction engine (auto, simple, docling)
       firecrawl_api_url    Firecrawl API URL
+      firecrawl_proxy      Firecrawl proxy mode: auto, basic, stealth (default: auto)
+      firecrawl_wait_for   Firecrawl wait time in ms before extraction (default: 3000)
       llm_model            LLM model for summarization (default: gpt-4o-mini)
       llm_provider         LLM provider (default: openai)
       stt_model            Speech-to-text model (default: whisper-1)

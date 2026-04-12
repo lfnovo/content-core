@@ -217,6 +217,8 @@ Content Core uses `ContentCoreConfig` powered by pydantic-settings. Settings are
 | `CCORE_DOCUMENT_ENGINE` | Document extraction engine (`auto`, `simple`, `docling`) | `auto` |
 | `CCORE_AUDIO_CONCURRENCY` | Concurrent audio transcriptions (1-10) | `3` |
 | `FIRECRAWL_API_URL` | Custom Firecrawl API URL for self-hosted instances | - |
+| `CCORE_FIRECRAWL_PROXY` | Firecrawl proxy mode (`auto`, `basic`, `stealth`) | `auto` |
+| `CCORE_FIRECRAWL_WAIT_FOR` | Wait time in ms before extraction | `3000` |
 | `CCORE_LLM_PROVIDER` | LLM provider for summarization | - |
 | `CCORE_LLM_MODEL` | LLM model for summarization | - |
 | `CCORE_STT_PROVIDER` | Speech-to-text provider | - |

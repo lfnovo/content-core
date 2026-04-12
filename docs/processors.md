@@ -45,6 +45,8 @@ The `url_engine` setting controls which processor handles web URLs. When set to 
 - Uses the Firecrawl API for high-quality web extraction
 - Requires `FIRECRAWL_API_KEY`
 - Supports self-hosted instances via `FIRECRAWL_API_URL`
+- Configurable proxy (`CCORE_FIRECRAWL_PROXY`, default: `auto`) — retries with stealth proxies on anti-bot blocks
+- Configurable wait time (`CCORE_FIRECRAWL_WAIT_FOR`, default: `3000`ms) — waits for dynamic content before extraction
 
 ### Crawl4AI (`crawl4ai`)
 

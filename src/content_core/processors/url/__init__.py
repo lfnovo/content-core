@@ -54,14 +54,14 @@ async def detect_remote_mime(url: str) -> str:
     return "article"
 
 
-async def _extract_url_with_engine(url: str, engine: str, firecrawl_api_url: str) -> dict:
+async def _extract_url_with_engine(url: str, engine: str, config: ContentCoreConfig) -> dict:
     """Run the URL extraction with a specific engine and fallback chain."""
     if engine == "auto":
         if os.environ.get("FIRECRAWL_API_KEY"):
             logger.debug(
                 "Engine 'auto' selected: using Firecrawl (FIRECRAWL_API_KEY detected)"
             )
-            return await extract_url_firecrawl(url)
+            return await extract_url_firecrawl(url, config)
         else:
             try:
                 logger.debug("Trying to use Jina to extract URL")
@@ -79,7 +79,7 @@ async def _extract_url_with_engine(url: str, engine: str, firecrawl_api_url: str
     elif engine == "simple":
         return await extract_url_bs4(url)
     elif engine == "firecrawl":
-        return await extract_url_firecrawl(url)
+        return await extract_url_firecrawl(url, config)
     elif engine == "jina":
         return await extract_url_jina(url)
     elif engine == "crawl4ai":
@@ -92,7 +92,7 @@ async def extract_from_url(url: str, config: ContentCoreConfig) -> ExtractionOut
     """Extract content from a URL using configured engine with fallback chain."""
     try:
         result = await _extract_url_with_engine(
-            url, config.url_engine, config.firecrawl_api_url
+            url, config.url_engine, config
         )
         if result is None:
             return ExtractionOutput(

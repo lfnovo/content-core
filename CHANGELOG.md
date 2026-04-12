@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unified CLI command `content-core` with subcommands: `extract`, `summarize`, `mcp`
 - `summarize_content` MCP tool for text summarization directly in Claude Desktop
 - New configuration fields: `CCORE_LLM_PROVIDER`, `CCORE_LLM_MODEL`, `CCORE_STT_PROVIDER`, `CCORE_STT_MODEL`, `CCORE_STT_TIMEOUT`, `CCORE_YOUTUBE_LANGUAGES`
+- Firecrawl `proxy` and `wait_for` options (#34) — defaults to `auto` proxy and 3000ms wait for better out-of-the-box extraction
 - CLI `--engine` flag routes automatically to `url_engine` or `document_engine` based on input type
 - Persistent config file at `~/.content-core/config.toml` with CLI management (`config list`, `config set`, `config delete`)
 - Configuration priority: constructor args > env vars (`CCORE_*`) > config file > defaults

@@ -63,6 +63,8 @@ class ContentCoreConfig(BaseSettings):
 
     # Firecrawl
     firecrawl_api_url: str = "https://api.firecrawl.dev"
+    firecrawl_proxy: Optional[str] = "auto"
+    firecrawl_wait_for: int = 3000
 
     # LLM models (for summarize)
     llm_provider: str = "openai"
