@@ -17,7 +17,7 @@ async def extract_content(
     file_path: str = None,
     engine: str = None,
 ) -> str:
-    """Extract content from a URL or file. Supports PDFs, web pages, YouTube transcripts, Office documents, audio/video files, and more.
+    """Extract content from a URL or file. Does not require an API key for most sources (web pages, PDFs, documents, YouTube transcripts). API key is only needed for audio/video transcription.
 
     Args:
         url: URL to extract content from (web page, YouTube video, PDF link, etc.)
@@ -52,7 +52,7 @@ async def summarize_content(
     content: str,
     context: str = "",
 ) -> str:
-    """Summarize content using LLM with optional context.
+    """Summarize content using LLM with optional context. Requires OPENAI_API_KEY (or another LLM provider key) to be configured.
 
     Args:
         content: The text content to summarize
@@ -67,6 +67,14 @@ async def summarize_content(
         result = await summarize(content, context)
         return result or ""
     except Exception as e:
+        error_msg = str(e).lower()
+        if "api key" in error_msg or "authentication" in error_msg or "auth" in error_msg or "api_key" in error_msg or "unauthorized" in error_msg:
+            logger.error(f"Summarization failed — missing or invalid API key: {e}")
+            return (
+                "Error: Summarization requires a valid LLM API key (e.g., OPENAI_API_KEY). "
+                "The extract_content tool does not require an API key for most sources. "
+                "Consider using extract_content instead if you only need the raw content."
+            )
         logger.error(f"Summarization failed: {e}")
         return f"Error: {e}"
 

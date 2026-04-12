@@ -8,7 +8,7 @@ from content_core.logging import logger
 from content_core.common.state import ExtractionOutput
 from content_core.processors.document.docling import DOCLING_SUPPORTED
 from content_core.processors.document import SUPPORTED_OFFICE_TYPES
-from content_core.processors.pdf import SUPPORTED_FITZ_TYPES
+from content_core.processors.document.pdf import SUPPORTED_FITZ_TYPES
 
 # Import engine functions from sub-modules
 from content_core.processors.url.bs4 import _fetch_url_html, extract_url_bs4
@@ -114,6 +114,13 @@ async def extract_from_url(url: str, config: ContentCoreConfig) -> ExtractionOut
         )
 
 
+from content_core.processors.url.youtube import (
+    extract_youtube,
+    get_best_transcript,
+    get_video_title,
+    extract_transcript_pytubefix,
+)
+
 __all__ = [
     "_fetch_url_mime_type",
     "_fetch_url_html",
@@ -127,4 +134,8 @@ __all__ = [
     "detect_remote_mime",
     "_extract_url_with_engine",
     "extract_from_url",
+    "extract_youtube",
+    "get_best_transcript",
+    "get_video_title",
+    "extract_transcript_pytubefix",
 ]

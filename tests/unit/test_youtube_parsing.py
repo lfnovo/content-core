@@ -1,11 +1,11 @@
-"""Unit tests for content_core.processors.youtube."""
+"""Unit tests for content_core.processors.url.youtube."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from content_core.config import ContentCoreConfig
-from content_core.processors.youtube import _extract_youtube_id, extract_youtube
+from content_core.processors.url.youtube import _extract_youtube_id, extract_youtube
 
 
 class TestExtractYoutubeId:
@@ -52,17 +52,17 @@ class TestExtractYoutube:
 
         with (
             patch(
-                "content_core.processors.youtube.get_best_transcript",
+                "content_core.processors.url.youtube.get_best_transcript",
                 new_callable=AsyncMock,
                 return_value=mock_transcript,
             ),
             patch(
-                "content_core.processors.youtube.get_video_title",
+                "content_core.processors.url.youtube.get_video_title",
                 new_callable=AsyncMock,
                 return_value="Test Video Title",
             ),
             patch(
-                "content_core.processors.youtube.TextFormatter"
+                "content_core.processors.url.youtube.TextFormatter"
             ) as mock_formatter_cls,
         ):
             mock_formatter_cls.return_value.format_transcript.return_value = (
@@ -81,17 +81,17 @@ class TestExtractYoutube:
     async def test_transcript_failure_with_pytubefix_fallback(self, config):
         with (
             patch(
-                "content_core.processors.youtube.get_best_transcript",
+                "content_core.processors.url.youtube.get_best_transcript",
                 new_callable=AsyncMock,
                 return_value=None,
             ),
             patch(
-                "content_core.processors.youtube.get_video_title",
+                "content_core.processors.url.youtube.get_video_title",
                 new_callable=AsyncMock,
                 return_value="Fallback Video",
             ),
             patch(
-                "content_core.processors.youtube.extract_transcript_pytubefix",
+                "content_core.processors.url.youtube.extract_transcript_pytubefix",
                 return_value=("Fallback transcript", "raw srt"),
             ),
         ):
@@ -104,17 +104,17 @@ class TestExtractYoutube:
     async def test_both_failures_returns_empty(self, config):
         with (
             patch(
-                "content_core.processors.youtube.get_best_transcript",
+                "content_core.processors.url.youtube.get_best_transcript",
                 new_callable=AsyncMock,
                 return_value=None,
             ),
             patch(
-                "content_core.processors.youtube.get_video_title",
+                "content_core.processors.url.youtube.get_video_title",
                 new_callable=AsyncMock,
                 return_value="",
             ),
             patch(
-                "content_core.processors.youtube.extract_transcript_pytubefix",
+                "content_core.processors.url.youtube.extract_transcript_pytubefix",
                 return_value=(None, None),
             ),
         ):
@@ -128,17 +128,17 @@ class TestExtractYoutube:
 
         with (
             patch(
-                "content_core.processors.youtube.get_best_transcript",
+                "content_core.processors.url.youtube.get_best_transcript",
                 new_callable=AsyncMock,
                 return_value=None,
             ) as mock_transcript,
             patch(
-                "content_core.processors.youtube.get_video_title",
+                "content_core.processors.url.youtube.get_video_title",
                 new_callable=AsyncMock,
                 return_value="",
             ),
             patch(
-                "content_core.processors.youtube.extract_transcript_pytubefix",
+                "content_core.processors.url.youtube.extract_transcript_pytubefix",
                 return_value=(None, None),
             ) as mock_pytubefix,
         ):

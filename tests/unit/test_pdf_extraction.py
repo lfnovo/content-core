@@ -1,11 +1,11 @@
-"""Unit tests for content_core.processors.pdf."""
+"""Unit tests for content_core.processors.document.pdf."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from content_core.config import ContentCoreConfig
-from content_core.processors.pdf import clean_pdf_text, extract_pdf_file
+from content_core.processors.document.pdf import clean_pdf_text, extract_pdf_file
 
 
 class TestCleanPdfText:
@@ -47,7 +47,7 @@ class TestExtractPdfFile:
 
     async def test_successful_extraction(self, config):
         with patch(
-            "content_core.processors.pdf._extract_text_from_pdf_v2",
+            "content_core.processors.document.pdf._extract_text_from_pdf_v2",
             new_callable=AsyncMock,
             return_value="Extracted PDF content",
         ):
@@ -58,7 +58,7 @@ class TestExtractPdfFile:
 
     async def test_epub_identified_type(self, config):
         with patch(
-            "content_core.processors.pdf._extract_text_from_pdf_v2",
+            "content_core.processors.document.pdf._extract_text_from_pdf_v2",
             new_callable=AsyncMock,
             return_value="Epub content",
         ):
@@ -72,7 +72,7 @@ class TestExtractPdfFile:
             pymupdf_ocr_fallback=False,
         )
         with patch(
-            "content_core.processors.pdf._extract_text_from_pdf_v2",
+            "content_core.processors.document.pdf._extract_text_from_pdf_v2",
             new_callable=AsyncMock,
             return_value="content",
         ) as mock_extract:
@@ -86,7 +86,7 @@ class TestExtractPdfFile:
 
     async def test_file_not_found_raises(self, config):
         with patch(
-            "content_core.processors.pdf._extract_text_from_pdf_v2",
+            "content_core.processors.document.pdf._extract_text_from_pdf_v2",
             new_callable=AsyncMock,
             side_effect=FileNotFoundError("not found"),
         ):

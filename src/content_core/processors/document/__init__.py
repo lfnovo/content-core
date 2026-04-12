@@ -63,8 +63,18 @@ async def extract_office(
     )
 
 
+from content_core.processors.document.pdf import (
+    SUPPORTED_FITZ_TYPES,
+    clean_pdf_text,
+    convert_table_to_markdown,
+    count_formula_placeholders,
+    extract_page_with_ocr,
+    extract_pdf_file,
+)
+
 __all__ = [
     "SUPPORTED_OFFICE_TYPES",
+    "SUPPORTED_FITZ_TYPES",
     "extract_docx_content_detailed",
     "get_docx_info",
     "extract_pptx_content",
@@ -72,4 +82,9 @@ __all__ = [
     "extract_xlsx_content",
     "get_xlsx_info",
     "extract_office",
+    "clean_pdf_text",
+    "convert_table_to_markdown",
+    "count_formula_placeholders",
+    "extract_page_with_ocr",
+    "extract_pdf_file",
 ]

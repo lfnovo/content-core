@@ -3,7 +3,7 @@ Tests for PyMuPDF OCR enhancement functionality.
 """
 import pytest
 from unittest.mock import patch, MagicMock
-from content_core.processors.pdf import (
+from content_core.processors.document.pdf import (
     count_formula_placeholders,
     extract_page_with_ocr,
     convert_table_to_markdown,
@@ -97,7 +97,7 @@ class TestTableConversion:
 class TestOCRExtraction:
     """Test OCR extraction functionality."""
 
-    @patch('content_core.processors.pdf.fitz')
+    @patch('content_core.processors.document.pdf.fitz')
     def test_extract_page_with_ocr_success(self, mock_fitz):
         """Test successful OCR extraction."""
         # Mock page and textpage
@@ -112,7 +112,7 @@ class TestOCRExtraction:
         mock_page.get_textpage_ocr.assert_called_once()
         mock_textpage.extractText.assert_called_once()
 
-    @patch('content_core.processors.pdf.fitz')
+    @patch('content_core.processors.document.pdf.fitz')
     def test_extract_page_with_ocr_failure(self, mock_fitz):
         """Test OCR extraction failure (Tesseract not available)."""
         mock_page = MagicMock()
@@ -123,7 +123,7 @@ class TestOCRExtraction:
         assert result is None
         mock_page.get_textpage_ocr.assert_called_once()
 
-    @patch('content_core.processors.pdf.fitz')
+    @patch('content_core.processors.document.pdf.fitz')
     def test_extract_page_with_ocr_empty_result(self, mock_fitz):
         """Test OCR extraction returning empty textpage."""
         mock_page = MagicMock()
@@ -165,7 +165,7 @@ class TestPDFExtractionIntegration:
         assert result.source_type == "file"
         assert len(result.content) > 0
 
-    @patch('content_core.processors.pdf.extract_page_with_ocr')
+    @patch('content_core.processors.document.pdf.extract_page_with_ocr')
     async def test_pdf_extraction_with_ocr_fallback(self, mock_ocr):
         """Test PDF extraction with OCR failure and fallback."""
         from content_core.content.extraction import extract_content

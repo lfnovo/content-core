@@ -17,11 +17,11 @@ from content_core.common.state import ExtractionInput, ExtractionOutput
 # Import processor v2 functions
 from content_core.processors.media.audio import transcribe_audio
 from content_core.processors.document import SUPPORTED_OFFICE_TYPES, extract_office
-from content_core.processors.pdf import SUPPORTED_FITZ_TYPES, extract_pdf_file
+from content_core.processors.document.pdf import SUPPORTED_FITZ_TYPES, extract_pdf_file
 from content_core.processors.text import extract_text_file, process_text
 from content_core.processors.url import detect_remote_mime, extract_from_url
 from content_core.processors.media.video import extract_video
-from content_core.processors.youtube import extract_youtube
+from content_core.processors.url.youtube import extract_youtube
 
 # Optional docling
 try:

@@ -28,7 +28,24 @@ Add the following to your `claude_desktop_config.json`:
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
-### Recommended Configuration
+### Minimal Configuration (extraction only, no API key needed)
+
+Most extraction sources (URLs, PDFs, documents, YouTube transcripts) work without any API key:
+
+```json
+{
+  "mcpServers": {
+    "content-core": {
+      "command": "uvx",
+      "args": ["content-core", "mcp"]
+    }
+  }
+}
+```
+
+### Recommended Configuration (extraction + summarization)
+
+Add `OPENAI_API_KEY` to enable summarization and audio/video transcription:
 
 ```json
 {
@@ -89,7 +106,7 @@ The MCP server provides two tools. Both return plain text responses.
 
 ### extract_content
 
-Extracts content from a URL or file.
+Extracts content from a URL or file. **Does not require an API key** for most sources (web pages, PDFs, documents, YouTube transcripts). An API key is only needed for audio/video transcription.
 
 **Parameters:**
 - `url` (string, optional) -- URL to extract content from
@@ -100,7 +117,7 @@ Exactly one of `url` or `file_path` must be provided.
 
 ### summarize_content
 
-Summarizes text content using an LLM.
+Summarizes text content using an LLM. **Always requires an LLM API key** (e.g., `OPENAI_API_KEY`). If no API key is configured, use `extract_content` to get the raw content instead.
 
 **Parameters:**
 - `content` (string, required) -- the text to summarize
@@ -152,11 +169,11 @@ See the [usage guide](usage.md) for the full list of `CCORE_` environment variab
 
 | Key | Purpose | Required? |
 |-----|---------|-----------|
-| `OPENAI_API_KEY` | Audio/video transcription, summarization | Required for media and summarization |
+| `OPENAI_API_KEY` | Audio/video transcription, summarization | **Required** for `summarize_content` and audio/video extraction. **Not needed** for URL, PDF, document, or YouTube extraction. |
 | `FIRECRAWL_API_KEY` | High-quality web extraction | Optional (improves URL extraction) |
 | `JINA_API_KEY` | Alternative web extraction | Optional (avoids Jina rate limits) |
 
-Without `OPENAI_API_KEY`, audio/video transcription and summarization will not work. Without web crawling API keys, URL extraction falls back to BeautifulSoup.
+**When no API key is configured**, the AI agent should prefer `extract_content` over `summarize_content`. Most extraction sources (URLs, PDFs, Office documents, YouTube transcripts) work without any API key. Only audio/video transcription and summarization require `OPENAI_API_KEY` (or another LLM provider key). Without web crawling API keys, URL extraction falls back to BeautifulSoup.
 
 **Getting API keys:**
 - OpenAI: [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
