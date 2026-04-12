@@ -123,7 +123,7 @@ class TestExtractDocling:
             "content_core.processors.document.docling.InputFormat", mock_input_format
         ):
             MockConverter.return_value.convert.return_value = mock_result
-            result = await extract_docling("/fake/doc.pdf", config)
+            await extract_docling("/fake/doc.pdf", config)
             # Verify DocumentConverter was called with format_options
             call_kwargs = MockConverter.call_args[1]
             assert "format_options" in call_kwargs
@@ -148,6 +148,6 @@ class TestExtractDocling:
             "content_core.processors.document.docling.InputFormat", mock_input_format
         ):
             MockConverter.return_value.convert.return_value = mock_result
-            result = await extract_docling("/fake/doc.pdf", config)
+            await extract_docling("/fake/doc.pdf", config)
             call_kwargs = MockConverter.call_args[1]
             assert "format_options" in call_kwargs

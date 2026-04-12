@@ -106,9 +106,9 @@ def config_list_cmd():
 
     data = config_list()
     if not data:
-        click.echo(f"No values set. Use 'content-core config set <key> <value>' to configure.")
+        click.echo("No values set. Use 'content-core config set <key> <value>' to configure.")
         click.echo(f"File: {CONFIG_FILE}")
-        click.echo(f"Run 'content-core config --help' to see available keys.")
+        click.echo("Run 'content-core config --help' to see available keys.")
         return
     for key, value in sorted(data.items()):
         click.echo(f"{key} = {value}")

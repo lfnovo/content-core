@@ -32,7 +32,7 @@ def pytest_runtest_makereport(item, call):
         if hasattr(call, 'excinfo') and call.excinfo:
             exc_type = call.excinfo.type
             exc_value = call.excinfo.value
-            if exc_type == RuntimeError and "Event loop is closed" in str(exc_value):
+            if exc_type is RuntimeError and "Event loop is closed" in str(exc_value):
                 # Mark as passed to suppress this specific error
                 report.outcome = "passed"
                 report.wasxfail = None

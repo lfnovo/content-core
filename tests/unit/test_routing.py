@@ -320,7 +320,7 @@ async def test_docling_flags_warning_without_engine():
         mock_type.return_value = "application/pdf"
         mock_pdf.return_value = ExtractionOutput(content="text")
 
-        result = await extract_content(file_path="/tmp/test.pdf", config=cfg)
+        await extract_content(file_path="/tmp/test.pdf", config=cfg)
 
         mock_logger.warning.assert_called_once()
         assert "docling" in mock_logger.warning.call_args[0][0].lower()

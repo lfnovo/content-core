@@ -82,3 +82,6 @@ markers = [
     "e2e_heavy: heavy e2e tests requiring large model downloads (Docling)",
 ]
 addopts = "-m 'not e2e and not e2e_heavy' -W ignore::DeprecationWarning"
+
+[tool.ruff.lint]
+ignore = ["E402"]
