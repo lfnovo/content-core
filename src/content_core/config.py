@@ -195,5 +195,12 @@ DEFAULT_FIRECRAWL_API_URL = "https://api.firecrawl.dev"
 
 
 def get_firecrawl_api_url() -> str:
-    """Return firecrawl_api_url from default config."""
+    """Return Firecrawl API URL.
+
+    Checks FIRECRAWL_API_URL env var first (standard Firecrawl convention,
+    matching FIRECRAWL_API_KEY), then falls back to config file / default.
+    """
+    env_url = os.environ.get("FIRECRAWL_API_URL")
+    if env_url:
+        return env_url
     return get_default_config().firecrawl_api_url

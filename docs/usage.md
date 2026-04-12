@@ -169,7 +169,7 @@ CCORE_STT_PROVIDER=openai
 CCORE_STT_MODEL=whisper-1
 CCORE_STT_TIMEOUT=3600
 CCORE_YOUTUBE_LANGUAGES=en,pt
-CCORE_FIRECRAWL_API_URL=http://localhost:3002
+FIRECRAWL_API_URL=http://localhost:3002
 ```
 
 API keys for external services use their standard variable names:
@@ -194,7 +194,7 @@ The `url_engine` setting controls how web pages are extracted:
 | `jina` | Jina Reader API | Optional `JINA_API_KEY` |
 | `crawl4ai` | Local browser-based extraction | `pip install content-core[crawl4ai]` + Playwright |
 
-For self-hosted Firecrawl, set `CCORE_FIRECRAWL_API_URL` to your instance URL.
+For self-hosted Firecrawl, set `FIRECRAWL_API_URL` to your instance URL.
 
 ### Document Engines
 

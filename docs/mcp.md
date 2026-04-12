@@ -159,7 +159,7 @@ Engine selection and other settings can be passed through the `env` block in the
         "CCORE_URL_ENGINE": "firecrawl",
         "CCORE_DOCUMENT_ENGINE": "simple",
         "CCORE_AUDIO_CONCURRENCY": "5",
-        "CCORE_FIRECRAWL_API_URL": "http://localhost:3002"
+        "FIRECRAWL_API_URL": "http://localhost:3002"
       }
     }
   }

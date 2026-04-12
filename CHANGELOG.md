@@ -68,6 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Audio processing crashes on MP3 files with chapter metadata (#33) — replaced moviepy with direct ffmpeg calls
+- Firecrawl API URL now uses `FIRECRAWL_API_URL` env var (#13) — consistent with `FIRECRAWL_API_KEY` naming convention
 - MCP `engine` parameter now correctly routes to `document_engine` for file inputs
 - Office documents (DOCX, PPTX, XLSX) no longer extracted twice in certain conditions
 - Docling processor returns correct type consistently

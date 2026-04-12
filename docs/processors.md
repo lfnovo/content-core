@@ -44,7 +44,7 @@ The `url_engine` setting controls which processor handles web URLs. When set to 
 - File: `firecrawl.py`
 - Uses the Firecrawl API for high-quality web extraction
 - Requires `FIRECRAWL_API_KEY`
-- Supports self-hosted instances via `CCORE_FIRECRAWL_API_URL`
+- Supports self-hosted instances via `FIRECRAWL_API_URL`
 
 ### Crawl4AI (`crawl4ai`)
 
