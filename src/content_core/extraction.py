@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import os
 import tempfile
-from typing import Union
 from urllib.parse import urlparse
 
 import aiohttp
@@ -12,12 +11,13 @@ from content_core.common.exceptions import InvalidInputError, UnsupportedTypeExc
 from content_core.common.retry import retry_download
 from content_core.config import ContentCoreConfig, get_default_config
 from content_core.logging import logger
-from content_core.common.state import ExtractionInput, ExtractionOutput
+from content_core.common.state import ExtractionOutput
 
 # Import processor v2 functions
 from content_core.processors.media.audio import transcribe_audio
 from content_core.processors.document import SUPPORTED_OFFICE_TYPES, extract_office
-from content_core.processors.document.pdf import SUPPORTED_FITZ_TYPES, extract_pdf_file
+from content_core.processors.document.pdf import SUPPORTED_PDF_TYPES, extract_pdf_file
+from content_core.processors.document.epub import SUPPORTED_EPUB_TYPES, extract_epub_file
 from content_core.processors.text import extract_text_file, process_text
 from content_core.processors.url import detect_remote_mime, extract_from_url
 from content_core.processors.media.video import extract_video
@@ -37,28 +37,31 @@ except ImportError:
 
 
 async def extract_content(
-    input: Union[ExtractionInput, dict],
+    *,
+    url: str | None = None,
+    file_path: str | None = None,
+    content: str | None = None,
     config: ContentCoreConfig | None = None,
 ) -> ExtractionOutput:
     """Main extraction entry point.
 
     Args:
-        input: ExtractionInput or dict with content/file_path/url
+        url: URL to extract content from.
+        file_path: Local file path to extract content from.
+        content: Raw text or HTML content to process.
         config: Optional config override. If None, uses default config.
 
     Returns:
         ExtractionOutput with extracted content
     """
-    if isinstance(input, dict):
-        input = ExtractionInput(**input)
     cfg = config or get_default_config()
 
-    if input.content:
-        return await process_text(input.content, cfg)
-    elif input.url:
-        return await _extract_url(input.url, cfg)
-    elif input.file_path:
-        return await _extract_file(input.file_path, cfg)
+    if content:
+        return await process_text(content, cfg)
+    elif url:
+        return await _extract_url(url, cfg)
+    elif file_path:
+        return await _extract_file(file_path, cfg)
     else:
         raise InvalidInputError("No source provided: set content, url, or file_path")
 
@@ -73,7 +76,7 @@ async def _extract_url(url: str, cfg: ContentCoreConfig) -> ExtractionOutput:
     mime = await detect_remote_mime(url)
 
     # Downloadable file types (PDFs, Office docs, etc served over HTTP)
-    downloadable = set(SUPPORTED_FITZ_TYPES) | set(SUPPORTED_OFFICE_TYPES)
+    downloadable = set(SUPPORTED_PDF_TYPES) | set(SUPPORTED_EPUB_TYPES) | set(SUPPORTED_OFFICE_TYPES)
     if DOCLING_AVAILABLE:
         downloadable |= set(DOCLING_SUPPORTED)
     downloadable.discard("text/html")  # HTML is treated as web content, not downloaded
@@ -101,6 +104,7 @@ async def _extract_file(
     mime = await get_file_type(path)
     logger.debug(f"Detected file type: {mime} for {path}")
 
+    used_docling = False
     try:
         # Docling routing (if enabled and supported)
         engine = cfg.document_engine
@@ -108,14 +112,19 @@ async def _extract_file(
             engine == "auto" and DOCLING_AVAILABLE and mime in DOCLING_SUPPORTED
         ):
             if DOCLING_AVAILABLE and extract_docling is not None:
+                used_docling = True
                 result = await extract_docling(path, cfg)
                 if not result.title:
                     result.title = os.path.basename(path)
+                result.identified_type = mime
+                result.source_type = "file"
                 return result
 
         # Standard processors
-        if mime in SUPPORTED_FITZ_TYPES:
+        if mime in SUPPORTED_PDF_TYPES:
             result = await extract_pdf_file(path, cfg)
+        elif mime in SUPPORTED_EPUB_TYPES:
+            result = await extract_epub_file(path, cfg)
         elif mime in SUPPORTED_OFFICE_TYPES:
             result = await extract_office(path, mime, cfg)
         elif mime.startswith("video/"):
@@ -126,6 +135,13 @@ async def _extract_file(
             result = await extract_text_file(path, cfg)
         else:
             raise UnsupportedTypeException(f"Unsupported file type: {mime}")
+
+        if not used_docling and (cfg.docling_formulas or cfg.docling_vision or not cfg.docling_ocr):
+            logger.warning(
+                "Docling enrichment flags (docling_formulas, docling_vision, docling_ocr) "
+                "are only applied when document_engine='docling'. "
+                "Set CCORE_DOCUMENT_ENGINE=docling or pass --engine docling."
+            )
 
         if not result.title:
             result.title = os.path.basename(path)

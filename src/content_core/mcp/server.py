@@ -16,31 +16,48 @@ async def extract_content(
     url: str = None,
     file_path: str = None,
     engine: str = None,
+    formulas: bool = False,
+    pictures: bool = False,
+    no_ocr: bool = False,
 ) -> str:
     """Extract content from a URL or file. Does not require an API key for most sources (web pages, PDFs, documents, YouTube transcripts). API key is only needed for audio/video transcription.
 
     Args:
         url: URL to extract content from (web page, YouTube video, PDF link, etc.)
         file_path: Local file path to extract content from
-        engine: Optional extraction engine override (firecrawl, jina, crawl4ai, simple)
+        engine: Optional extraction engine override (firecrawl, jina, crawl4ai, simple, docling)
+        formulas: Enable formula extraction via Docling (requires engine=docling)
+        pictures: Enable image description + chart data extraction via Docling (requires engine=docling)
+        no_ocr: Disable OCR in Docling (requires engine=docling)
 
     Returns:
         Extracted text content
     """
     from content_core.config import ContentCoreConfig
     from content_core.extraction import extract_content as _extract
-    from content_core.common.state import ExtractionInput
 
     if not url and not file_path:
         return "Error: Provide either 'url' or 'file_path'"
     if url and file_path:
         return "Error: Provide only one of 'url' or 'file_path', not both"
 
-    config = ContentCoreConfig(url_engine=engine) if engine else None
-    inp = ExtractionInput(url=url, file_path=file_path)
+    kwargs = {}
+    if engine:
+        if file_path:
+            kwargs["document_engine"] = engine
+        else:
+            kwargs["url_engine"] = engine
+    if formulas:
+        kwargs["docling_formulas"] = True
+    if pictures:
+        kwargs["docling_vision"] = True
+    if no_ocr:
+        kwargs["docling_ocr"] = False
+
+    config = ContentCoreConfig(**kwargs) if kwargs else None
 
     try:
-        result = await _extract(inp, config=config)
+        result = await _extract(url=url, file_path=file_path, config=config)
         return result.content or ""
     except Exception as e:
         logger.error(f"Extraction failed: {e}")

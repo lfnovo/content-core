@@ -1,5 +1,7 @@
 """E2E tests for YouTube extraction — require network access."""
 import pytest
+
+pytestmark = pytest.mark.e2e
 from content_core.extraction import extract_content
 
 
@@ -7,7 +9,7 @@ from content_core.extraction import extract_content
 async def test_extract_content_from_youtube_url():
     """Tests extracting content from a YouTube URL."""
     youtube_url = "https://www.youtube.com/watch?v=pBy1zgt0XPc"
-    result = await extract_content(dict(url=youtube_url))
+    result = await extract_content(url=youtube_url)
 
     assert result.source_type == "url"
     assert result.identified_type == "youtube"

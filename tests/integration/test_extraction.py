@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from content_core.config import ContentCoreConfig
 from content_core.extraction import extract_content
 
 
@@ -13,8 +14,7 @@ def fixture_path():
 @pytest.mark.asyncio
 async def test_extract_content_from_text():
     """Tests content extraction from a raw text string."""
-    input_data = {"content": "My sample content for testing."}
-    result = await extract_content(input_data)
+    result = await extract_content(content="My sample content for testing.")
 
     assert hasattr(result, "source_type")
     assert result.source_type == "text"
@@ -26,7 +26,7 @@ async def test_extract_content_from_text():
 async def test_extract_content_from_html_text():
     """Tests that HTML content is converted to markdown."""
     html_content = "<h1>Title</h1><p>This is <strong>bold</strong> text.</p>"
-    result = await extract_content({"content": html_content})
+    result = await extract_content(content=html_content)
 
     assert result.source_type == "text"
     assert "# Title" in result.content  # H1 becomes markdown header
@@ -40,7 +40,7 @@ async def test_extract_content_from_html_text():
 async def test_extract_content_from_plain_text_unchanged():
     """Tests that plain text without HTML is unchanged."""
     plain_content = "Just some plain text without any formatting."
-    result = await extract_content({"content": plain_content})
+    result = await extract_content(content=plain_content)
 
     assert result.source_type == "text"
     assert result.content == plain_content  # Content unchanged
@@ -50,7 +50,7 @@ async def test_extract_content_from_plain_text_unchanged():
 async def test_extract_content_from_html_list():
     """Tests that HTML lists are converted to markdown."""
     html_content = "<ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul>"
-    result = await extract_content({"content": html_content})
+    result = await extract_content(content=html_content)
 
     assert result.source_type == "text"
     assert "- Item 1" in result.content
@@ -64,7 +64,7 @@ async def test_extract_content_from_html_list():
 async def test_extract_content_from_html_links():
     """Tests that HTML links are converted to markdown."""
     html_content = '<p>Visit <a href="https://example.com">our site</a> for more.</p>'
-    result = await extract_content({"content": html_content})
+    result = await extract_content(content=html_content)
 
     assert result.source_type == "text"
     assert "[our site](https://example.com)" in result.content
@@ -76,7 +76,7 @@ async def test_extract_content_html_detection_threshold():
     """Tests that single HTML tag doesn't trigger conversion (threshold is 2)."""
     # Single tag - should NOT convert
     single_tag_content = "Hello <br> World"
-    result = await extract_content({"content": single_tag_content})
+    result = await extract_content(content=single_tag_content)
 
     assert result.source_type == "text"
     # Content should be unchanged since only 1 tag
@@ -91,8 +91,7 @@ async def test_extract_content_from_markdown(fixture_path):
     if not md_file.exists():
         pytest.skip(f"Fixture file not found: {md_file}")
 
-    input_data = {"file_path": str(md_file)}
-    result = await extract_content(input_data)
+    result = await extract_content(file_path=str(md_file))
 
     assert hasattr(result, "source_type")
     assert result.source_type == "file"
@@ -109,8 +108,7 @@ async def test_extract_content_from_epub(fixture_path):
     if not epub_file.exists():
         pytest.skip(f"Fixture file not found: {epub_file}")
 
-    input_data = {"file_path": str(epub_file)}
-    result = await extract_content(input_data)
+    result = await extract_content(file_path=str(epub_file))
 
     assert hasattr(result, "source_type")
     assert result.source_type == "file"
@@ -128,7 +126,7 @@ async def test_extract_content_from_pdf(fixture_path):
     if not pdf_file.exists():
         pytest.skip(f"Fixture file not found: {pdf_file}")
 
-    result = await extract_content(dict(file_path=str(pdf_file)))
+    result = await extract_content(file_path=str(pdf_file))
 
     assert result.source_type == "file"
     assert result.identified_type == "application/pdf"
@@ -144,7 +142,7 @@ async def test_extract_content_from_pptx(fixture_path):
     if not pptx_file.exists():
         pytest.skip(f"Fixture file not found: {pptx_file}")
 
-    result = await extract_content(dict(file_path=str(pptx_file)))
+    result = await extract_content(file_path=str(pptx_file))
 
     assert result.source_type == "file"
     assert (
@@ -163,7 +161,7 @@ async def test_extract_content_from_docx(fixture_path):
     if not docx_file.exists():
         pytest.skip(f"Fixture file not found: {docx_file}")
 
-    result = await extract_content(dict(file_path=str(docx_file)))
+    result = await extract_content(file_path=str(docx_file))
 
     assert result.source_type == "file"
     assert (
@@ -182,7 +180,10 @@ async def test_extract_content_from_xlsx(fixture_path):
     if not xlsx_file.exists():
         pytest.skip(f"Fixture file not found: {xlsx_file}")
 
-    result = await extract_content(dict(file_path=str(xlsx_file), document_engine="simple"))
+    result = await extract_content(
+        file_path=str(xlsx_file),
+        config=ContentCoreConfig(document_engine="simple"),
+    )
 
     assert result.source_type == "file"
     assert (

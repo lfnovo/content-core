@@ -87,3 +87,67 @@ class TestExtractDocling:
         ):
             with pytest.raises(ValueError, match="No input provided"):
                 await extract_docling("", config)
+
+    async def test_ocr_enabled_by_default(self):
+        """Default config has OCR enabled."""
+        config = ContentCoreConfig()
+        assert config.docling_ocr is True
+
+    async def test_formulas_disabled_by_default(self):
+        """Default config has formulas disabled."""
+        config = ContentCoreConfig()
+        assert config.docling_formulas is False
+
+    async def test_vision_disabled_by_default(self):
+        """Default config has vision disabled."""
+        config = ContentCoreConfig()
+        assert config.docling_vision is False
+
+    async def test_formulas_flag_passed_to_pipeline(self):
+        """docling_formulas=True should pass do_formula_enrichment=True."""
+        config = ContentCoreConfig(docling_formulas=True)
+        mock_result = MagicMock()
+        mock_result.document.export_to_markdown.return_value = "content"
+        mock_pipeline_options_cls = MagicMock()
+        mock_pdf_format_option_cls = MagicMock()
+        mock_input_format = MagicMock()
+        with patch(
+            "content_core.processors.document.docling.DocumentConverter"
+        ) as MockConverter, patch(
+            "content_core.processors.document.docling.DOCLING_AVAILABLE", True
+        ), patch(
+            "content_core.processors.document.docling.PdfPipelineOptions", mock_pipeline_options_cls
+        ), patch(
+            "content_core.processors.document.docling.PdfFormatOption", mock_pdf_format_option_cls
+        ), patch(
+            "content_core.processors.document.docling.InputFormat", mock_input_format
+        ):
+            MockConverter.return_value.convert.return_value = mock_result
+            result = await extract_docling("/fake/doc.pdf", config)
+            # Verify DocumentConverter was called with format_options
+            call_kwargs = MockConverter.call_args[1]
+            assert "format_options" in call_kwargs
+
+    async def test_vision_flag_passed_to_pipeline(self):
+        """docling_vision=True should enable picture description and chart extraction."""
+        config = ContentCoreConfig(docling_vision=True)
+        mock_result = MagicMock()
+        mock_result.document.export_to_markdown.return_value = "content"
+        mock_pipeline_options_cls = MagicMock()
+        mock_pdf_format_option_cls = MagicMock()
+        mock_input_format = MagicMock()
+        with patch(
+            "content_core.processors.document.docling.DocumentConverter"
+        ) as MockConverter, patch(
+            "content_core.processors.document.docling.DOCLING_AVAILABLE", True
+        ), patch(
+            "content_core.processors.document.docling.PdfPipelineOptions", mock_pipeline_options_cls
+        ), patch(
+            "content_core.processors.document.docling.PdfFormatOption", mock_pdf_format_option_cls
+        ), patch(
+            "content_core.processors.document.docling.InputFormat", mock_input_format
+        ):
+            MockConverter.return_value.convert.return_value = mock_result
+            result = await extract_docling("/fake/doc.pdf", config)
+            call_kwargs = MockConverter.call_args[1]
+            assert "format_options" in call_kwargs

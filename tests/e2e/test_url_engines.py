@@ -3,14 +3,19 @@ import os
 from unittest.mock import patch
 
 import pytest
+
+pytestmark = pytest.mark.e2e
+from content_core.config import ContentCoreConfig
 from content_core.extraction import extract_content
 
 
 @pytest.mark.asyncio
 async def test_extract_content_from_url():
     """Tests content extraction from a URL using bs4/simple engine."""
-    input_data = {"url": "https://www.supernovalabs.com", "url_engine": "simple"}
-    result = await extract_content(input_data)
+    result = await extract_content(
+        url="https://www.supernovalabs.com",
+        config=ContentCoreConfig(url_engine="simple"),
+    )
 
     assert hasattr(result, "source_type")
     assert result.source_type == "url"
@@ -26,8 +31,10 @@ async def test_extract_content_from_url_firecrawl():
     except ImportError:
         pytest.skip("Firecrawl not installed")
 
-    input_data = {"url": "https://www.supernovalabs.com", "url_engine": "firecrawl"}
-    result = await extract_content(input_data)
+    result = await extract_content(
+        url="https://www.supernovalabs.com",
+        config=ContentCoreConfig(url_engine="firecrawl"),
+    )
 
     assert hasattr(result, "source_type")
     assert result.source_type == "url"
@@ -40,8 +47,10 @@ async def test_extract_content_from_url_firecrawl():
 @pytest.mark.asyncio
 async def test_extract_content_from_url_jina():
     """Tests content extraction from a URL using Jina engine."""
-    input_data = {"url": "https://www.supernovalabs.com", "url_engine": "jina"}
-    result = await extract_content(input_data)
+    result = await extract_content(
+        url="https://www.supernovalabs.com",
+        config=ContentCoreConfig(url_engine="jina"),
+    )
 
     assert hasattr(result, "source_type")
     assert result.source_type == "url"
@@ -55,8 +64,10 @@ async def test_extract_content_from_url_crawl4ai():
     """Tests content extraction from a URL using Crawl4AI."""
     pytest.importorskip("crawl4ai", reason="Crawl4AI not installed")
 
-    input_data = {"url": "https://www.supernovalabs.com", "url_engine": "crawl4ai"}
-    result = await extract_content(input_data)
+    result = await extract_content(
+        url="https://www.supernovalabs.com",
+        config=ContentCoreConfig(url_engine="crawl4ai"),
+    )
 
     assert hasattr(result, "source_type")
     assert result.source_type == "url"
@@ -91,9 +102,11 @@ async def test_auto_mode_fallback_to_crawl4ai():
             mock_jina.side_effect = Exception("Jina API error (mocked)")
 
             test_url = "https://www.supernovalabs.com"
-            input_data = {"url": test_url, "url_engine": "auto"}
 
-            result = await extract_content(input_data)
+            result = await extract_content(
+                url=test_url,
+                config=ContentCoreConfig(url_engine="auto"),
+            )
 
             assert result is not None
             assert hasattr(result, "source_type")

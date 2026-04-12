@@ -10,7 +10,13 @@ test:
 	uv run pytest tests/unit tests/integration -v
 
 test-e2e:
-	uv run pytest tests/e2e -v -m e2e
+	uv run pytest tests/e2e -v -m "e2e and not e2e_heavy"
+
+test-e2e-heavy:
+	uv run pytest tests/e2e -v -m e2e_heavy
+
+test-e2e-all:
+	uv run pytest tests/e2e -v -m "e2e or e2e_heavy"
 
 test-all:
 	uv run pytest -v -m ""

@@ -3,32 +3,28 @@
 import asyncio
 
 from content_core import extract_content, summarize, ContentCoreConfig
-from content_core.common.state import ExtractionInput
 
 
 async def main():
     # Extract from text
-    result = await extract_content({"content": "Hello, world!"})
+    result = await extract_content(content="Hello, world!")
     print(f"Text: {result.content}")
     print()
 
     # Extract from URL
-    result = await extract_content({"url": "https://example.com"})
+    result = await extract_content(url="https://example.com")
     print(f"URL title: {result.title}")
     print(f"URL content: {result.content[:200]}...")
     print()
 
     # Extract from file
-    result = await extract_content({"file_path": "document.pdf"})
+    result = await extract_content(file_path="document.pdf")
     print(f"File content: {result.content[:200]}...")
     print()
 
     # Extract with engine override
     config = ContentCoreConfig(url_engine="simple")
-    result = await extract_content(
-        ExtractionInput(url="https://example.com"),
-        config=config,
-    )
+    result = await extract_content(url="https://example.com", config=config)
     print(f"Simple engine: {result.content[:200]}...")
     print()
 

@@ -7,14 +7,20 @@ from content_core.common.state import ExtractionOutput
 
 DOCLING_AVAILABLE = False
 try:
-    from docling.document_converter import DocumentConverter
+    from docling.datamodel.base_models import InputFormat
+    from docling.datamodel.pipeline_options import PdfPipelineOptions
+    from docling.document_converter import DocumentConverter, PdfFormatOption
+
     DOCLING_AVAILABLE = True
 except ImportError:
+    InputFormat = None  # type: ignore
+    PdfPipelineOptions = None  # type: ignore
+    PdfFormatOption = None  # type: ignore
 
-    class DocumentConverter:
+    class DocumentConverter:  # type: ignore[no-redef]
         """Stub when docling is not installed."""
 
-        def __init__(self):
+        def __init__(self, **kwargs):
             raise ImportError(
                 "Docling not installed. Install with: pip install content-core[docling] "
                 "or use CCORE_DOCUMENT_ENGINE=simple to skip docling."
@@ -46,7 +52,20 @@ DOCLING_SUPPORTED = {
 
 async def extract_docling(source: str, config: ContentCoreConfig) -> ExtractionOutput:
     """Extract content using Docling."""
-    converter = DocumentConverter()
+    if DOCLING_AVAILABLE and PdfPipelineOptions is not None:
+        pipeline_options = PdfPipelineOptions(
+            do_ocr=config.docling_ocr,
+            do_formula_enrichment=config.docling_formulas,
+            do_picture_description=config.docling_vision,
+            do_chart_extraction=config.docling_vision,
+        )
+        converter = DocumentConverter(
+            format_options={
+                InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options),
+            }
+        )
+    else:
+        converter = DocumentConverter()
 
     if not source:
         raise ValueError("No input provided for Docling extraction.")

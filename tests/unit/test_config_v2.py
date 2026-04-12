@@ -82,18 +82,6 @@ class TestDefaults:
         cfg = ContentCoreConfig()
         assert cfg.youtube_languages == ["en", "es", "pt"]
 
-    def test_pymupdf_enable_formula_ocr_default(self):
-        cfg = ContentCoreConfig()
-        assert cfg.pymupdf_enable_formula_ocr is False
-
-    def test_pymupdf_formula_threshold_default(self):
-        cfg = ContentCoreConfig()
-        assert cfg.pymupdf_formula_threshold == 3
-
-    def test_pymupdf_ocr_fallback_default(self):
-        cfg = ContentCoreConfig()
-        assert cfg.pymupdf_ocr_fallback is True
-
     def test_docling_output_format_default(self):
         cfg = ContentCoreConfig()
         assert cfg.docling_output_format == "markdown"
@@ -132,12 +120,6 @@ class TestEnvVarOverride:
         monkeypatch.setenv("CCORE_LLM_MODEL", "claude-sonnet")
         cfg = ContentCoreConfig()
         assert cfg.llm_model == "claude-sonnet"
-
-    def test_pymupdf_enable_formula_ocr_from_env(self, monkeypatch):
-        monkeypatch.setenv("CCORE_PYMUPDF_ENABLE_FORMULA_OCR", "true")
-        cfg = ContentCoreConfig()
-        assert cfg.pymupdf_enable_formula_ocr is True
-
 
 class TestEnvVarListField:
     """Verify list fields can be set via environment variables."""

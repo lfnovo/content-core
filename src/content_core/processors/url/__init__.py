@@ -8,7 +8,8 @@ from content_core.logging import logger
 from content_core.common.state import ExtractionOutput
 from content_core.processors.document.docling import DOCLING_SUPPORTED
 from content_core.processors.document import SUPPORTED_OFFICE_TYPES
-from content_core.processors.document.pdf import SUPPORTED_FITZ_TYPES
+from content_core.processors.document.pdf import SUPPORTED_PDF_TYPES
+from content_core.processors.document.epub import SUPPORTED_EPUB_TYPES
 
 # Import engine functions from sub-modules
 from content_core.processors.url.bs4 import _fetch_url_html, extract_url_bs4
@@ -45,7 +46,8 @@ async def detect_remote_mime(url: str) -> str:
 
     if (
         mime in DOCLING_SUPPORTED
-        or mime in SUPPORTED_FITZ_TYPES
+        or mime in SUPPORTED_PDF_TYPES
+        or mime in SUPPORTED_EPUB_TYPES
         or mime in SUPPORTED_OFFICE_TYPES
     ):
         return mime

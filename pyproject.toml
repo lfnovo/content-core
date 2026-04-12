@@ -17,7 +17,8 @@ dependencies = [
     "loguru>=0.7.3",
     "openpyxl>=3.1.5",
     "pandas>=2.2.3",
-    "pymupdf>=1.25.5",
+    "pdfplumber>=0.11.0",
+    "fast-ebook>=0.2.0",
     "python-docx>=1.1.2",
     "python-dotenv>=1.1.0",
     "python-pptx>=1.0.2",
@@ -34,11 +35,12 @@ dependencies = [
     "tenacity>=8.0.0",
     "markdownify>=0.12.1",
     "pydantic-settings>=2.0",
+    "tomli>=2.0; python_version < '3.11'",
     "click>=8.0",
 ]
 
 [project.optional-dependencies]
-docling = ["docling>=2.34.0"]
+docling = ["docling>=2.86.0", "peft>=0.18.0"]
 crawl4ai = ["crawl4ai>=0.7.0"]
 langchain = ["langchain-core>=0.1.0"]
 
@@ -61,9 +63,11 @@ package-dir = {"content_core" = "src/content_core"}
 [dependency-groups]
 dev = [
     "crawl4ai>=0.8.0",
+    "docling>=2.86.0",
     "ipykernel>=4.0.1",
     "ipywidgets>=4.0.0",
     "openai>=1.78.1",
+    "peft>=0.18.1",
     "pyperclip>=1.9.0",
     "pytest>=7.2.0",
     "pytest-asyncio>=0.21.0",
@@ -76,5 +80,6 @@ asyncio_default_fixture_loop_scope = "function"
 asyncio_default_test_loop_scope = "function"
 markers = [
     "e2e: end-to-end tests requiring network and API keys",
+    "e2e_heavy: heavy e2e tests requiring large model downloads (Docling)",
 ]
-addopts = "-m 'not e2e' -W ignore::DeprecationWarning"
+addopts = "-m 'not e2e and not e2e_heavy' -W ignore::DeprecationWarning"

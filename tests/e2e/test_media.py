@@ -2,6 +2,8 @@
 from pathlib import Path
 
 import pytest
+
+pytestmark = pytest.mark.e2e
 from content_core.extraction import extract_content
 
 
@@ -18,8 +20,7 @@ async def test_extract_content_from_mp3(fixture_path):
     if not mp3_file.exists():
         pytest.skip(f"Fixture file not found: {mp3_file}")
 
-    input_data = {"file_path": str(mp3_file)}
-    result = await extract_content(input_data)
+    result = await extract_content(file_path=str(mp3_file))
 
     assert hasattr(result, "source_type")
     assert result.source_type == "file"
@@ -35,8 +36,7 @@ async def test_extract_content_from_mp4(fixture_path):
     if not mp4_file.exists():
         pytest.skip(f"Fixture file not found: {mp4_file}")
 
-    input_data = {"file_path": str(mp4_file)}
-    result = await extract_content(input_data)
+    result = await extract_content(file_path=str(mp4_file))
 
     assert hasattr(result, "source_type")
     assert result.source_type == "file"

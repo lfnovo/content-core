@@ -2,7 +2,7 @@ import asyncio
 import re
 import unicodedata
 
-import fitz  # type: ignore
+import pdfplumber  # type: ignore
 
 from content_core.config import ContentCoreConfig
 from content_core.logging import logger
@@ -11,7 +11,7 @@ from content_core.common.state import ExtractionOutput
 def count_formula_placeholders(text):
     """
     Count the number of formula placeholders in extracted text.
-    
+
     Args:
         text (str): Extracted text content
     Returns:
@@ -22,78 +22,39 @@ def count_formula_placeholders(text):
     return text.count('<!-- formula-not-decoded -->')
 
 
-def extract_page_with_ocr(page, page_num):
-    """
-    Extract text from a page using OCR (Tesseract).
-    
-    Args:
-        page: PyMuPDF page object
-        page_num (int): Page number for logging
-    Returns:
-        str: OCR-extracted text or None if OCR fails
-    """
-    try:
-        logger.debug(f"Attempting OCR extraction for page {page_num}")
-        # Create TextPage using OCR
-        textpage = page.get_textpage_ocr()
-        if textpage:
-            # Extract text from the OCR TextPage
-            ocr_text = textpage.extractText()
-            logger.debug(f"OCR successful for page {page_num}, extracted {len(ocr_text)} characters")
-            return ocr_text
-        else:
-            logger.warning(f"OCR TextPage creation failed for page {page_num}")
-            return None
-    except (ImportError, RuntimeError, OSError) as e:
-        # Common errors: Tesseract not installed, OCR failure, file access issues
-        logger.debug(f"OCR extraction failed for page {page_num}: {e}")
-        return None
-    except Exception as e:
-        # Unexpected errors - log as warning for debugging
-        logger.warning(f"Unexpected error during OCR extraction for page {page_num}: {e}")
-        return None
-
-
 def convert_table_to_markdown(table):
     """
-    Convert a PyMuPDF table to markdown format.
-    
+    Convert a table to markdown format.
+
     Args:
-        table: Table data from PyMuPDF (list of lists)
+        table: Table data (list of lists)
     Returns:
         str: Markdown-formatted table
     """
     if not table or not table[0]:
         return ""
-    
+
     # Build markdown table
     markdown_lines = []
-    
+
     # Header row
     header = table[0]
     header_row = "| " + " | ".join(str(cell) if cell else "" for cell in header) + " |"
     markdown_lines.append(header_row)
-    
+
     # Separator row
     separator = "|" + "|".join([" --- " for _ in header]) + "|"
     markdown_lines.append(separator)
-    
+
     # Data rows
     for row in table[1:]:
         if row:  # Skip empty rows
             row_text = "| " + " | ".join(str(cell) if cell else "" for cell in row) + " |"
             markdown_lines.append(row_text)
-    
+
     return "\n".join(markdown_lines) + "\n"
 
-# Configuration constants
-DEFAULT_FORMULA_THRESHOLD = 3
-DEFAULT_OCR_FALLBACK = True
-
-SUPPORTED_FITZ_TYPES = [
-    "application/pdf",
-    "application/epub+zip",
-]
+SUPPORTED_PDF_TYPES = ["application/pdf"]
 
 
 def clean_pdf_text(text):
@@ -115,33 +76,33 @@ def clean_pdf_text(text):
     # Step 2: Replace common PDF artifacts
     replacements = {
         # Common ligatures
-        "ﬁ": "fi",
-        "ﬂ": "fl",
-        "ﬀ": "ff",
-        "ﬃ": "ffi",
-        "ﬄ": "ffl",
+        "\ufb01": "fi",
+        "\ufb02": "fl",
+        "\ufb00": "ff",
+        "\ufb03": "ffi",
+        "\ufb04": "ffl",
         # Quotation marks and apostrophes
-        """: "'",
-        """: "'",
-        '"': '"',
-        "′": "'",
-        "‚": ",",
-        "„": '"',
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201c": '"',
+        "\u2032": "'",
+        "\u201a": ",",
+        "\u201e": '"',
         # Dashes and hyphens
-        "‒": "-",
-        "–": "-",
-        "—": "-",
-        "―": "-",
+        "\u2012": "-",
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u2015": "-",
         # Other common replacements
-        "…": "...",
-        "•": "*",
-        "°": " degrees ",
-        "¹": "1",
-        "²": "2",
-        "³": "3",
-        "©": "(c)",
-        "®": "(R)",
-        "™": "(TM)",
+        "\u2026": "...",
+        "\u2022": "*",
+        "\u00b0": " degrees ",
+        "\u00b9": "1",
+        "\u00b2": "2",
+        "\u00b3": "3",
+        "\u00a9": "(c)",
+        "\u00ae": "(R)",
+        "\u2122": "(TM)",
     }
     for old, new in replacements.items():
         text = text.replace(old, new)
@@ -186,104 +147,41 @@ def clean_pdf_text(text):
     return text.strip()
 
 
-
-
-async def _extract_text_from_pdf_v2(
-    pdf_path: str,
-    enable_ocr: bool = False,
-    formula_threshold: int = DEFAULT_FORMULA_THRESHOLD,
-    ocr_fallback: bool = DEFAULT_OCR_FALLBACK,
-) -> str:
-    """Extract text from PDF with explicit OCR parameters (no global CONFIG dependency)."""
-
+async def _extract_text_from_pdf(pdf_path: str) -> str:
+    """Extract text from PDF using pdfplumber."""
     def _extract():
-        doc = fitz.open(pdf_path)
-        try:
+        with pdfplumber.open(pdf_path) as pdf:
             full_text = []
-            logger.debug(f"Found {len(doc)} pages in PDF")
-
-            extraction_flags = (
-                fitz.TEXT_PRESERVE_LIGATURES
-                | fitz.TEXT_PRESERVE_WHITESPACE
-                | fitz.TEXT_PRESERVE_IMAGES
-            )
-
-            for page_num, page in enumerate(doc):
-                standard_text = page.get_text(flags=extraction_flags)
-
-                formula_count = count_formula_placeholders(standard_text)
-                use_ocr = (
-                    enable_ocr
-                    and formula_count >= formula_threshold
-                    and formula_count > 0
-                )
-
-                if use_ocr:
-                    logger.debug(
-                        f"Page {page_num + 1} has {formula_count} formulas, attempting OCR"
-                    )
-                    ocr_text = extract_page_with_ocr(page, page_num + 1)
-
-                    if ocr_text and ocr_fallback:
-                        page_text = ocr_text
-                        logger.debug(f"Using OCR text for page {page_num + 1}")
-                    else:
-                        page_text = standard_text
-                        if not ocr_text:
-                            logger.debug(
-                                f"OCR failed for page {page_num + 1}, using standard extraction"
-                            )
-                else:
-                    page_text = standard_text
-
+            logger.debug(f"Found {len(pdf.pages)} pages in PDF")
+            for page_num, page in enumerate(pdf.pages):
+                page_text = page.extract_text() or ""
+                # Table extraction
                 try:
-                    tables = page.find_tables()
+                    tables = page.extract_tables()
                     if tables:
-                        logger.debug(
-                            f"Found {len(tables)} table(s) on page {page_num + 1}"
-                        )
+                        logger.debug(f"Found {len(tables)} table(s) on page {page_num + 1}")
                         for table_num, table in enumerate(tables):
-                            table_data = table.extract()
-                            if table_data and len(table_data) > 0 and any(
+                            if table and any(
                                 any(str(cell).strip() for cell in row if cell)
-                                for row in table_data
-                                if row
+                                for row in table if row
                             ):
-                                page_text += (
-                                    f"\n\n[Table {table_num + 1} from page {page_num + 1}]\n"
-                                )
-                                markdown_table = convert_table_to_markdown(table_data)
-                                page_text += markdown_table + "\n"
+                                page_text += f"\n\n[Table {table_num + 1} from page {page_num + 1}]\n"
+                                page_text += convert_table_to_markdown(table) + "\n"
                 except Exception as e:
                     logger.debug(f"Table extraction failed on page {page_num + 1}: {e}")
-
                 full_text.append(page_text)
-
-            combined_text = "".join(full_text)
-            return clean_pdf_text(combined_text)
-        finally:
-            doc.close()
-
+            return clean_pdf_text("".join(full_text))
     return await asyncio.get_event_loop().run_in_executor(None, _extract)
 
 
 async def extract_pdf_file(file_path: str, config: ContentCoreConfig) -> ExtractionOutput:
-    """Extract content from a PDF or EPUB file."""
+    """Extract content from a PDF file."""
     try:
-        text = await _extract_text_from_pdf_v2(
-            file_path,
-            enable_ocr=config.pymupdf_enable_formula_ocr,
-            formula_threshold=config.pymupdf_formula_threshold,
-            ocr_fallback=config.pymupdf_ocr_fallback,
-        )
-        # Detect the MIME type based on file extension
-        identified_type = "application/pdf"
-        if file_path.lower().endswith(".epub"):
-            identified_type = "application/epub+zip"
+        text = await _extract_text_from_pdf(file_path)
         return ExtractionOutput(
             content=text,
             source_type="file",
-            identified_type=identified_type,
+            identified_type="application/pdf",
         )
     except FileNotFoundError:
         raise FileNotFoundError(f"File not found at {file_path}")

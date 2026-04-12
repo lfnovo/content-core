@@ -64,17 +64,21 @@ async def extract_office(
 
 
 from content_core.processors.document.pdf import (
-    SUPPORTED_FITZ_TYPES,
+    SUPPORTED_PDF_TYPES,
     clean_pdf_text,
     convert_table_to_markdown,
     count_formula_placeholders,
-    extract_page_with_ocr,
     extract_pdf_file,
+)
+from content_core.processors.document.epub import (
+    SUPPORTED_EPUB_TYPES,
+    extract_epub_file,
 )
 
 __all__ = [
     "SUPPORTED_OFFICE_TYPES",
-    "SUPPORTED_FITZ_TYPES",
+    "SUPPORTED_PDF_TYPES",
+    "SUPPORTED_EPUB_TYPES",
     "extract_docx_content_detailed",
     "get_docx_info",
     "extract_pptx_content",
@@ -85,6 +89,6 @@ __all__ = [
     "clean_pdf_text",
     "convert_table_to_markdown",
     "count_formula_placeholders",
-    "extract_page_with_ocr",
     "extract_pdf_file",
+    "extract_epub_file",
 ]

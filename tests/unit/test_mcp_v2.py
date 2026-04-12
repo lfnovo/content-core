@@ -69,6 +69,38 @@ class TestExtractContent:
             assert "Error" in result
             assert "Network error" in result
 
+    @pytest.mark.asyncio
+    async def test_extract_file_with_engine_routes_to_document_engine(self):
+        """engine param with file_path should set document_engine, not url_engine."""
+        from content_core.common.state import ExtractionOutput
+
+        with patch(
+            "content_core.extraction.extract_content", new_callable=AsyncMock
+        ) as mock:
+            mock.return_value = ExtractionOutput(content="ok")
+            await extract_content_fn(file_path="/tmp/test.pdf", engine="docling")
+            _, kwargs = mock.call_args
+            assert kwargs["config"].document_engine == "docling"
+
+    @pytest.mark.asyncio
+    async def test_extract_with_docling_flags(self):
+        """Docling enrichment flags should be passed to config."""
+        from content_core.common.state import ExtractionOutput
+
+        with patch(
+            "content_core.extraction.extract_content", new_callable=AsyncMock
+        ) as mock:
+            mock.return_value = ExtractionOutput(content="ok")
+            await extract_content_fn(
+                file_path="/tmp/test.pdf",
+                engine="docling",
+                formulas=True,
+                pictures=True,
+            )
+            _, kwargs = mock.call_args
+            assert kwargs["config"].docling_formulas is True
+            assert kwargs["config"].docling_vision is True
+
 
 class TestSummarizeContent:
     @pytest.mark.asyncio

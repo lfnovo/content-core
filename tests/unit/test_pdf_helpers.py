@@ -1,11 +1,8 @@
-"""
-Tests for PyMuPDF OCR enhancement functionality.
-"""
+"""Tests for PDF helper functions."""
 import pytest
 from unittest.mock import patch, MagicMock
 from content_core.processors.document.pdf import (
     count_formula_placeholders,
-    extract_page_with_ocr,
     convert_table_to_markdown,
 )
 from content_core.config import ContentCoreConfig
@@ -94,92 +91,26 @@ class TestTableConversion:
         assert "---" in result  # Should have separator
 
 
-class TestOCRExtraction:
-    """Test OCR extraction functionality."""
-
-    @patch('content_core.processors.document.pdf.fitz')
-    def test_extract_page_with_ocr_success(self, mock_fitz):
-        """Test successful OCR extraction."""
-        # Mock page and textpage
-        mock_page = MagicMock()
-        mock_textpage = MagicMock()
-        mock_textpage.extractText.return_value = "OCR extracted text with formulas"
-        mock_page.get_textpage_ocr.return_value = mock_textpage
-
-        result = extract_page_with_ocr(mock_page, 1)
-
-        assert result == "OCR extracted text with formulas"
-        mock_page.get_textpage_ocr.assert_called_once()
-        mock_textpage.extractText.assert_called_once()
-
-    @patch('content_core.processors.document.pdf.fitz')
-    def test_extract_page_with_ocr_failure(self, mock_fitz):
-        """Test OCR extraction failure (Tesseract not available)."""
-        mock_page = MagicMock()
-        mock_page.get_textpage_ocr.side_effect = Exception("Tesseract not found")
-
-        result = extract_page_with_ocr(mock_page, 1)
-
-        assert result is None
-        mock_page.get_textpage_ocr.assert_called_once()
-
-    @patch('content_core.processors.document.pdf.fitz')
-    def test_extract_page_with_ocr_empty_result(self, mock_fitz):
-        """Test OCR extraction returning empty textpage."""
-        mock_page = MagicMock()
-        mock_page.get_textpage_ocr.return_value = None
-
-        result = extract_page_with_ocr(mock_page, 1)
-
-        assert result is None
-
-
 @pytest.mark.asyncio
 class TestPDFExtractionIntegration:
-    """Integration tests for PDF extraction with OCR."""
+    """Integration tests for PDF extraction."""
 
-    async def test_pdf_extraction_without_ocr(self):
-        """Test PDF extraction with OCR disabled."""
+    async def test_pdf_extraction(self):
+        """Test PDF extraction."""
         from content_core.content.extraction import extract_content
 
-        cfg = ContentCoreConfig(pymupdf_enable_formula_ocr=False)
+        cfg = ContentCoreConfig(
+            document_engine="simple",
+        )
 
-        result = await extract_content({
-            'file_path': 'tests/input_content/file.pdf',
-            'document_engine': 'simple'
-        })
+        result = await extract_content(
+            file_path="tests/input_content/file.pdf",
+            config=cfg,
+        )
 
         assert result.source_type == "file"
         assert len(result.content) > 0
         assert "OCR extracted" not in result.content
-
-    async def test_pdf_extraction_with_ocr_disabled_by_threshold(self):
-        """Test PDF extraction where OCR is enabled but threshold not met."""
-        from content_core.content.extraction import extract_content
-
-        result = await extract_content({
-            'file_path': 'tests/input_content/file.pdf',
-            'document_engine': 'simple'
-        })
-
-        assert result.source_type == "file"
-        assert len(result.content) > 0
-
-    @patch('content_core.processors.document.pdf.extract_page_with_ocr')
-    async def test_pdf_extraction_with_ocr_fallback(self, mock_ocr):
-        """Test PDF extraction with OCR failure and fallback."""
-        from content_core.content.extraction import extract_content
-
-        mock_ocr.return_value = None
-
-        result = await extract_content({
-            'file_path': 'tests/input_content/file.pdf',
-            'document_engine': 'simple'
-        })
-
-        assert result.source_type == "file"
-        assert len(result.content) > 0
-        assert "Buenos Aires" in result.content
 
 
 class TestEdgeCases:
