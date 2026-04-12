@@ -45,19 +45,12 @@ async def test_docling_with_formulas(pdf_file):
 
 @pytest.mark.asyncio
 async def test_docling_with_vision(pdf_file):
-    """Test Docling extraction with vision enrichment enabled (image description + charts).
-
-    Note: This test may fail due to upstream compatibility issues between
-    Docling's vision models and the installed transformers version.
-    """
+    """Test Docling extraction with vision enrichment enabled (image description + charts)."""
     config = ContentCoreConfig(
         document_engine="docling",
         docling_vision=True,
     )
-    try:
-        result = await extract_content(file_path=pdf_file, config=config)
-    except ImportError as e:
-        pytest.skip(f"Docling vision model incompatible with installed transformers: {e}")
+    result = await extract_content(file_path=pdf_file, config=config)
 
     assert result.source_type == "file"
     assert len(result.content) > 0

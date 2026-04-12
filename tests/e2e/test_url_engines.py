@@ -69,9 +69,6 @@ async def test_extract_content_from_url_crawl4ai():
         config=ContentCoreConfig(url_engine="crawl4ai"),
     )
 
-    if not result.content:
-        pytest.skip("Crawl4AI returned no content — Playwright browsers may need reinstalling: python -m playwright install")
-
     assert result.source_type == "url"
     assert len(result.content) > 100
 

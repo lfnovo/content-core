@@ -39,7 +39,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-docling = ["docling>=2.86.0", "peft>=0.18.0"]
+docling = ["docling>=2.86.0", "peft>=0.18.0", "transformers>=4.50,<5"]
 crawl4ai = ["crawl4ai>=0.7.0"]
 langchain = ["langchain-core>=0.1.0"]
 
@@ -63,6 +63,7 @@ package-dir = {"content_core" = "src/content_core"}
 dev = [
     "crawl4ai>=0.8.0",
     "docling>=2.86.0",
+    "transformers>=4.50,<5",
     "ipykernel>=7.0.0",
     "ipywidgets>=8.0.0",
     "openai>=2.15.0",
