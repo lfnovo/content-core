@@ -5,7 +5,6 @@ from content_core.config import (
     ContentCoreConfig,
     DEFAULT_FIRECRAWL_API_URL,
     get_default_config,
-    get_firecrawl_api_url,
 )
 from content_core.logging import logger
 
@@ -15,8 +14,7 @@ async def _fetch_url_firecrawl(url: str, config: ContentCoreConfig) -> dict:
     """Internal function to fetch URL content via Firecrawl - wrapped with retry logic."""
     from firecrawl import AsyncFirecrawlApp
 
-    # Get custom API URL for self-hosted instances
-    api_url = get_firecrawl_api_url()
+    api_url = os.environ.get("FIRECRAWL_API_URL") or config.firecrawl_api_url
     if api_url != DEFAULT_FIRECRAWL_API_URL:
         logger.debug(f"Using custom Firecrawl API URL: {api_url}")
 

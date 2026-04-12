@@ -172,7 +172,7 @@ See the [usage guide](usage.md) for the full list of `CCORE_` environment variab
 
 | Key | Purpose | Required? |
 |-----|---------|-----------|
-| `OPENAI_API_KEY` | Audio/video transcription, summarization | **Required** for `summarize_content` and audio/video extraction. **Not needed** for URL, PDF, document, or YouTube extraction. |
+| An LLM/STT API key (e.g., `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY`) | Audio/video transcription, summarization | **Required** for `summarize_content` and audio/video extraction. **Not needed** for URL, PDF, document, or YouTube extraction. Any provider supported by [Esperanto](https://github.com/lfnovo/esperanto) works. |
 | `FIRECRAWL_API_KEY` | High-quality web extraction | Optional (improves URL extraction) |
 | `JINA_API_KEY` | Alternative web extraction | Optional (avoids Jina rate limits) |
 

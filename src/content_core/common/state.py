@@ -10,7 +10,8 @@ from pydantic import BaseModel, Field
 class ExtractionInput(BaseModel):
     """Public input for content extraction.
 
-    Exactly one of content, file_path, or url should be set.
+    At least one of content, file_path, or url should be set.
+    Validated by the extraction orchestrator.
     """
 
     content: Optional[str] = None

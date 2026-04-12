@@ -58,21 +58,27 @@ async def _extract_url_with_engine(url: str, engine: str, config: ContentCoreCon
             logger.debug(
                 "Engine 'auto' selected: using Firecrawl (FIRECRAWL_API_KEY detected)"
             )
-            return await extract_url_firecrawl(url, config)
-        else:
             try:
-                logger.debug("Trying to use Jina to extract URL")
-                return await extract_url_jina(url)
-            except Exception as e:
-                logger.error(f"Jina extraction error for URL: {url}: {e}")
-                logger.debug("Trying to use Crawl4AI to extract URL")
-                result = await extract_url_crawl4ai(url)
+                result = await extract_url_firecrawl(url, config)
                 if result is not None:
                     return result
-                logger.debug(
-                    "Crawl4AI failed or not installed, falling back to BeautifulSoup"
-                )
-                return await extract_url_bs4(url)
+            except Exception as e:
+                logger.error(f"Firecrawl extraction error for URL: {url}: {e}")
+            logger.debug("Firecrawl failed, falling through to jina→crawl4ai→bs4 chain")
+
+        try:
+            logger.debug("Trying to use Jina to extract URL")
+            return await extract_url_jina(url)
+        except Exception as e:
+            logger.error(f"Jina extraction error for URL: {url}: {e}")
+            logger.debug("Trying to use Crawl4AI to extract URL")
+            result = await extract_url_crawl4ai(url)
+            if result is not None:
+                return result
+            logger.debug(
+                "Crawl4AI failed or not installed, falling back to BeautifulSoup"
+            )
+            return await extract_url_bs4(url)
     elif engine == "simple":
         return await extract_url_bs4(url)
     elif engine == "firecrawl":

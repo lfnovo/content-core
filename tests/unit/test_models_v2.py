@@ -1,7 +1,6 @@
 """Tests for content_core.common.state and content_core.processors.protocol."""
 from __future__ import annotations
 
-import pytest
 
 from content_core.config import ContentCoreConfig
 from content_core.common.state import ExtractionInput, ExtractionOutput

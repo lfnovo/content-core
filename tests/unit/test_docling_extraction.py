@@ -127,6 +127,12 @@ class TestExtractDocling:
             # Verify DocumentConverter was called with format_options
             call_kwargs = MockConverter.call_args[1]
             assert "format_options" in call_kwargs
+            # Verify pipeline option values match config
+            pipeline_call_kwargs = mock_pipeline_options_cls.call_args[1]
+            assert pipeline_call_kwargs["do_ocr"] == config.docling_ocr
+            assert pipeline_call_kwargs["do_formula_enrichment"] is True
+            assert pipeline_call_kwargs["do_picture_description"] == config.docling_vision
+            assert pipeline_call_kwargs["do_chart_extraction"] == config.docling_vision
 
     async def test_vision_flag_passed_to_pipeline(self):
         """docling_vision=True should enable picture description and chart extraction."""
@@ -151,3 +157,9 @@ class TestExtractDocling:
             await extract_docling("/fake/doc.pdf", config)
             call_kwargs = MockConverter.call_args[1]
             assert "format_options" in call_kwargs
+            # Verify pipeline option values match config
+            pipeline_call_kwargs = mock_pipeline_options_cls.call_args[1]
+            assert pipeline_call_kwargs["do_ocr"] == config.docling_ocr
+            assert pipeline_call_kwargs["do_formula_enrichment"] == config.docling_formulas
+            assert pipeline_call_kwargs["do_picture_description"] is True
+            assert pipeline_call_kwargs["do_chart_extraction"] is True

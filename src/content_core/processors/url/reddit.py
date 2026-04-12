@@ -1,5 +1,6 @@
 """Reddit post extraction via public JSON endpoint."""
 import re
+from urllib.parse import urlparse, urlunparse
 
 import aiohttp
 
@@ -22,8 +23,10 @@ def is_reddit_post(url: str) -> bool:
 @retry_url_network()
 async def _fetch_reddit_json(url: str) -> dict:
     """Fetch Reddit post data via the public .json endpoint."""
-    # Normalize URL: strip trailing slash, append .json
-    json_url = url.rstrip("/") + ".json"
+    parsed = urlparse(url)
+    clean_path = parsed.path.rstrip("/")
+    clean_url = urlunparse((parsed.scheme, parsed.netloc, clean_path, "", "", ""))
+    json_url = clean_url + ".json"
 
     async with aiohttp.ClientSession(trust_env=True) as session:
         async with session.get(

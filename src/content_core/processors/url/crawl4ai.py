@@ -1,9 +1,10 @@
 import os
+from typing import Optional
 
 import aiohttp
 
 from content_core.common.retry import retry_url_api
-from content_core.config import get_crawl4ai_api_url
+from content_core.config import ContentCoreConfig, get_default_config
 from content_core.logging import logger
 
 
@@ -79,7 +80,7 @@ async def _fetch_url_crawl4ai_local(url: str) -> dict:
         }
 
 
-async def extract_url_crawl4ai(url: str) -> dict | None:
+async def extract_url_crawl4ai(url: str, config: Optional[ContentCoreConfig] = None) -> dict | None:
     """Get the content of a URL using Crawl4AI.
 
     Automatically selects Docker API mode (when CRAWL4AI_API_URL is set)
@@ -87,7 +88,8 @@ async def extract_url_crawl4ai(url: str) -> dict | None:
 
     Returns {"title": ..., "content": ...} or None on failure.
     """
-    api_url = get_crawl4ai_api_url()
+    cfg = config or get_default_config()
+    api_url = os.environ.get("CRAWL4AI_API_URL") or cfg.crawl4ai_api_url
 
     try:
         if api_url:

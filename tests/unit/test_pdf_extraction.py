@@ -1,6 +1,6 @@
 """Unit tests for content_core.processors.document.pdf."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 

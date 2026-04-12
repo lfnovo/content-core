@@ -1,6 +1,5 @@
 """Tests for PDF helper functions."""
 import pytest
-from unittest.mock import patch, MagicMock
 from content_core.processors.document.pdf import (
     count_formula_placeholders,
     convert_table_to_markdown,

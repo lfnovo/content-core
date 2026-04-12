@@ -137,6 +137,11 @@ def _read_config_file() -> dict:
         return {}
 
 
+def _escape_toml_string(s: str) -> str:
+    """Escape backslashes and double quotes for TOML string values."""
+    return s.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def _write_config_file(data: dict) -> None:
     """Write config data to the TOML file."""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -147,10 +152,10 @@ def _write_config_file(data: dict) -> None:
         elif isinstance(value, int):
             lines.append(f"{key} = {value}")
         elif isinstance(value, list):
-            items = ", ".join(f'"{v}"' for v in value)
+            items = ", ".join(f'"{_escape_toml_string(str(v))}"' for v in value)
             lines.append(f"{key} = [{items}]")
         else:
-            lines.append(f'{key} = "{value}"')
+            lines.append(f'{key} = "{_escape_toml_string(str(value))}"')
     CONFIG_FILE.write_text("\n".join(lines) + "\n" if lines else "")
 
 

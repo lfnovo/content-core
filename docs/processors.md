@@ -68,7 +68,7 @@ The `url_engine` setting controls which processor handles web URLs. When set to 
 
 ## Document Processors
 
-Located in `src/content_core/processors/document/` and `src/content_core/processors/pdf.py`.
+Located in `src/content_core/processors/document/`.
 
 ### Engine Selection
 
@@ -139,7 +139,7 @@ Located in `src/content_core/processors/media/`.
 
 ## YouTube Processor
 
-- File: `processors/youtube.py`
+- File: `processors/url/youtube.py`
 - Extracts transcripts from YouTube videos
 - Uses youtube-transcript-api (primary) with pytubefix as fallback
 - Supports configurable language preferences via `CCORE_YOUTUBE_LANGUAGES`
@@ -160,5 +160,5 @@ Located in `src/content_core/processors/media/`.
   - Binary signature matching for PDF, images, audio, video, and archives
   - ZIP structure inspection for Office formats (DOCX, XLSX, PPTX) and EPUB
   - Content analysis for text-based formats (HTML, XML, JSON, YAML, CSV, Markdown)
-- Reads only the first ~8KB of a file for performance
+- Reads only the first 512 bytes for binary signatures and 1024 bytes for text content analysis
 - Works regardless of file extension

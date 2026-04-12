@@ -6,7 +6,6 @@ Tests the retry module including:
 - Decorator behavior (retries, backoff, logging)
 - Exception handling after retry exhaustion
 """
-import os
 from unittest.mock import MagicMock, patch
 
 import aiohttp

@@ -170,7 +170,7 @@ async def _extract_text_from_pdf(pdf_path: str) -> str:
                 except Exception as e:
                     logger.debug(f"Table extraction failed on page {page_num + 1}: {e}")
                 full_text.append(page_text)
-            return clean_pdf_text("".join(full_text))
+            return clean_pdf_text("\n\n".join(full_text))
     return await asyncio.get_event_loop().run_in_executor(None, _extract)
 
 

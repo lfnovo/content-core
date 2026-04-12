@@ -51,9 +51,10 @@ async def extract_url_bs4(url: str) -> dict:
                 or soup.find("h1")
                 or soup.find("meta", property="og:title")
             )
-            title = (
-                title_tag.get_text(strip=True) if title_tag else "No title found"
-            )
+            if title_tag:
+                title = title_tag.get("content", "") or title_tag.get_text(strip=True)
+            else:
+                title = "No title found"
             # Extract content from common content tags
             content_tags = soup.select(
                 'article, .content, .post, main, [role="main"], div[class*="content"], div[class*="article"]'

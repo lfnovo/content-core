@@ -296,7 +296,7 @@ config = ContentCoreConfig(audio_provider="openai", audio_model="whisper-1")
 result = await content_core.extract_content(file_path="audio.mp3", config=config)
 ```
 
-Both `audio_provider` and `audio_model` must be specified together. If only one is provided, the default model is used and a warning is logged.
+Both `audio_provider` and `audio_model` should be specified together for a complete override. If only `audio_model` is provided, it is used with the default provider.
 
 ## Docling Integration
 

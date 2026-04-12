@@ -1,4 +1,4 @@
-.PHONY: tag test test-e2e test-all build-docs ruff mcp-server
+.PHONY: tag test test-e2e test-e2e-heavy test-e2e-all test-all build-docs ruff mcp-server
 
 tag:
 	@version=$$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/'); \

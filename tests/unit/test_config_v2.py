@@ -1,5 +1,6 @@
 """Tests for ContentCoreConfig (pydantic-settings based config v2)."""
 import os
+from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
@@ -9,6 +10,18 @@ from content_core.config import (
     get_default_config,
     reset_default_config,
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolate_config_file(tmp_path):
+    """Point CONFIG_FILE to a non-existent temp path so the developer's
+    real ~/.content-core/config.toml never influences test results."""
+    fake_config_file = tmp_path / "config.toml"
+    with (
+        patch("content_core.config.CONFIG_DIR", tmp_path),
+        patch("content_core.config.CONFIG_FILE", fake_config_file),
+    ):
+        yield
 
 
 @pytest.fixture(autouse=True)

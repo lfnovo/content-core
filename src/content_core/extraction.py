@@ -70,7 +70,9 @@ async def extract_content(
 async def _extract_url(url: str, cfg: ContentCoreConfig) -> ExtractionOutput:
     """Route URL to appropriate processor."""
     # YouTube detection
-    if "youtube.com" in url or "youtu.be" in url:
+    parsed = urlparse(url)
+    hostname = (parsed.hostname or "").lower()
+    if hostname in ("youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"):
         return await extract_youtube(url, cfg)
 
     # Reddit detection — use JSON endpoint, fall back to normal extraction

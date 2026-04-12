@@ -165,11 +165,16 @@ async def extract_video(file_path: str, config: ContentCoreConfig) -> Extraction
 
     logger.debug(f"Successfully extracted audio to: {output_file}")
 
-    # Transcribe the extracted audio
-    result = await transcribe_audio(output_file, config)
-    return ExtractionOutput(
-        content=result.content,
-        source_type="file",
-        identified_type="video/*",
-        metadata=result.metadata,
-    )
+    try:
+        result = await transcribe_audio(output_file, config)
+        return ExtractionOutput(
+            content=result.content,
+            source_type="file",
+            identified_type="video/*",
+            metadata=result.metadata,
+        )
+    finally:
+        try:
+            os.remove(output_file)
+        except OSError:
+            pass

@@ -1,6 +1,6 @@
 # Content Core v2.0 — Test Plan
 
-Status: 219 passed (unit+integration), 9 e2e (5 passed, 2 skipped, 2 failed pre-existing)
+Status: 285 collected (263 unit + 22 integration), 12 e2e tests
 
 ---
 

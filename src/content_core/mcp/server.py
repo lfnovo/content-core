@@ -47,6 +47,7 @@ async def extract_content(
             kwargs["document_engine"] = engine
         else:
             kwargs["url_engine"] = engine
+            kwargs["document_engine"] = engine
     if formulas:
         kwargs["docling_formulas"] = True
     if pictures:

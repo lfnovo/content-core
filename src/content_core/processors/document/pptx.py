@@ -1,5 +1,4 @@
 import asyncio
-from functools import partial
 
 from pptx import Presentation  # type: ignore
 

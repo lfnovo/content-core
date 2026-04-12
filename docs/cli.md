@@ -33,7 +33,6 @@ content-core extract [OPTIONS] SOURCE
 - `--formulas` — Enable formula extraction as LaTeX (Docling only)
 - `--pictures` — Enable image description + chart data extraction (Docling only)
 - `--no-ocr` — Disable OCR (Docling only)
-- `--debug` — Enable debug logging
 
 **Examples:**
 
@@ -70,7 +69,6 @@ content-core summarize [OPTIONS] [CONTENT]
 
 **Options:**
 - `--context TEXT` — Context for summarization (e.g., "bullet points", "explain to a child")
-- `--debug` — Enable debug logging
 
 **Examples:**
 

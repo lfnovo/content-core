@@ -1,5 +1,5 @@
 """Unit tests for CLI — mocked, no I/O."""
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from click.testing import CliRunner

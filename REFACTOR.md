@@ -226,10 +226,9 @@ class ContentCoreConfig(BaseSettings):
     # Firecrawl
     firecrawl_api_url: str = "https://api.firecrawl.dev"
 
-    # LLM models (for cleanup/summarize)
+    # LLM models (for summarize)
     llm_provider: str = "openai"
     llm_model: str = "gpt-4o-mini"
-    cleanup_model: str | None = None     # Falls back to llm_model
     summary_model: str | None = None     # Falls back to llm_model
 
     # STT model
@@ -281,7 +280,7 @@ src/content_core/
 │   │   └── crawl4ai.py      # Crawl4AI browser automation
 │   ├── document/
 │   │   ├── __init__.py      # Document type router
-│   │   ├── pdf.py           # PyMuPDF extraction
+│   │   ├── pdf.py           # pdfplumber extraction
 │   │   ├── docx.py          # python-docx
 │   │   ├── pptx.py          # python-pptx
 │   │   ├── xlsx.py          # openpyxl
@@ -320,7 +319,6 @@ Replace three separate binaries with one CLI using subcommands.
 
 ```
 content-core extract <source> [--engine ENGINE] [--format FORMAT]
-content-core clean [source] [--context CONTEXT]
 content-core summarize [source] [--context CONTEXT]
 content-core mcp                  # Start MCP server
 ```
@@ -329,7 +327,6 @@ content-core mcp                  # Start MCP server
 ```bash
 # No --from needed — package name = command name
 uvx content-core extract "https://example.com"
-uvx content-core clean "some text"
 uvx content-core extract "https://example.com" | uvx content-core summarize
 ```
 
@@ -342,7 +339,7 @@ import click
 @click.group()
 @click.option("--debug", is_flag=True, help="Enable debug logging")
 def cli(debug):
-    """Content Core — Extract, clean, and summarize content."""
+    """Content Core — Extract and summarize content."""
     if debug:
         configure_logging(debug=True)
 
@@ -352,13 +349,6 @@ def cli(debug):
 @click.option("--engine", default=None, help="Override extraction engine")
 def extract(source, format, engine):
     """Extract content from a URL, file, or text."""
-    ...
-
-@cli.command()
-@click.argument("content", required=False)
-@click.option("--context", default="", help="Context for processing")
-def clean(content, context):
-    """Clean content using LLM."""
     ...
 
 @cli.command()
@@ -407,11 +397,6 @@ async def extract_content(
     return result.content
 
 @mcp.tool
-async def clean_content(content: str) -> str:
-    """Clean and normalize extracted content using LLM."""
-    return await cleanup_content(content)
-
-@mcp.tool
 async def summarize_content(
     content: str,
     context: str = "",
@@ -421,11 +406,11 @@ async def summarize_content(
 ```
 
 **What changes:**
-- All 3 tools exposed (not just extract)
+- Both tools exposed (not just extract)
 - Return plain text, not verbose JSON dicts with metadata — LLMs work better with simple responses
 - Engine selection exposed as a parameter
 - No `sys.path.insert` hack
-- No `suppress_stdout` hack — handle MoviePy/ffmpeg output properly via logging config
+- No `suppress_stdout` hack — handle ffmpeg output properly via logging config
 - Remove the fake security check
 
 ### 2.6 Test strategy: three tiers with clear purpose
@@ -544,7 +529,7 @@ make test-all      # everything
 - `click` or `typer` — CLI framework (replaces raw argparse)
 
 ### Kept
-All processor dependencies remain unchanged (aiohttp, bs4, pymupdf, esperanto, moviepy, etc.)
+All processor dependencies remain unchanged (aiohttp, bs4, pdfplumber, esperanto, ffmpeg, etc.)
 
 ---
 
@@ -563,9 +548,6 @@ from content_core import ContentCoreConfig
 config = ContentCoreConfig(url_engine="firecrawl", audio_provider="google")
 result = await content_core.extract("https://example.com", config=config)
 
-# Clean
-cleaned = await content_core.clean("messy text here")
-
 # Summarize
 summary = await content_core.summarize("long text here", context="explain to a child")
 ```
@@ -574,12 +556,10 @@ summary = await content_core.summarize("long text here", context="explain to a c
 ```bash
 content-core extract "https://example.com"
 content-core extract document.pdf --format json
-content-core clean "messy text"
 content-core summarize "long text" --context "bullet points"
-echo "text" | content-core clean
 content-core extract "https://example.com" | content-core summarize
 content-core mcp
 ```
 
 **MCP:**
-Three tools: `extract_content`, `clean_content`, `summarize_content` — all returning plain text.
+Two tools: `extract_content`, `summarize_content` — both returning plain text.

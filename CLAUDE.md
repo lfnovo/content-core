@@ -45,14 +45,14 @@ src/content_core/
 │
 ├── processors/
 │   ├── protocol.py          # Processor Protocol definition
-│   ├── youtube.py           # YouTube transcript extraction
 │   ├── text.py              # Plain text + HTML-to-markdown
 │   ├── url/                 # URL extraction engines
 │   │   ├── __init__.py      # Engine router + fallback chain
 │   │   ├── bs4.py           # BeautifulSoup + readability
 │   │   ├── jina.py          # Jina Reader API
 │   │   ├── firecrawl.py     # Firecrawl SDK
-│   │   ├── reddit.py       # Reddit posts via public JSON endpoint
+│   │   ├── reddit.py        # Reddit posts via public JSON endpoint
+│   │   ├── youtube.py       # YouTube transcript extraction
 │   │   └── crawl4ai.py      # Crawl4AI browser automation
 │   ├── document/            # Document extraction
 │   │   ├── __init__.py      # Document type router
@@ -150,7 +150,7 @@ When you change a specific processor or module, run only the relevant tests for 
 
 ```
 tests/
-├── unit/              # Fast, mocked, no I/O or network (~210 tests)
+├── unit/              # Fast, mocked, no I/O or network (~263 tests)
 │   ├── test_routing.py            # Orchestrator: input → correct processor
 │   ├── test_config_v2.py          # ContentCoreConfig defaults, env vars, validation
 │   ├── test_url_engine_select.py  # URL engine: auto/firecrawl/jina/simple

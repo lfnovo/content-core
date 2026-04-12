@@ -57,7 +57,7 @@ class TestExtractContent:
 
             mock_extract.return_value = ExtractionOutput(content="text")
             await extract_content_fn(url="https://example.com", engine="firecrawl")
-            mock_config.assert_called_once_with(url_engine="firecrawl")
+            mock_config.assert_called_once_with(url_engine="firecrawl", document_engine="firecrawl")
 
     @pytest.mark.asyncio
     async def test_extract_error(self):

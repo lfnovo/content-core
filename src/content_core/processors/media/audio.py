@@ -22,7 +22,7 @@ async def get_audio_duration(input_file: str) -> float:
             "-v", "quiet",
             "-print_format", "json",
             "-show_entries", "format=duration",
-            input_file,
+            path,
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
@@ -151,12 +151,15 @@ async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> Extract
                     f"Audio is longer than 10 minutes ({duration_s:.0f}s), splitting into "
                     f"{math.ceil(duration_s / segment_length_s)} segments"
                 )
+                loop = asyncio.get_event_loop()
                 for i in range(math.ceil(duration_s / segment_length_s)):
                     start_time = i * segment_length_s
                     end_time = min((i + 1) * segment_length_s, duration_s)
                     output_filename = f"{output_prefix}_{str(i + 1).zfill(3)}.mp3"
                     output_path = os.path.join(temp_dir, output_filename)
-                    extract_audio(file_path, output_path, start_time, end_time)
+                    await loop.run_in_executor(
+                        None, partial(extract_audio, file_path, output_path, start_time, end_time)
+                    )
                     output_files.append(output_path)
             else:
                 output_files = [file_path]

@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Docling enrichment flags: `docling_ocr`, `docling_formulas`, `docling_vision` for controlling OCR, formula extraction, and image/chart processing
-- `ContentCoreConfig` based on pydantic-settings with `CCORE_` environment variable prefix for all configuration
+- `ContentCoreConfig` based on pydantic-settings with `CCORE_` environment variable prefix for configuration (note: `FIRECRAWL_API_URL` and `CRAWL4AI_API_URL` use their standard names without the `CCORE_` prefix)
 - Unified CLI command `content-core` with subcommands: `extract`, `summarize`, `mcp`
 - `summarize_content` MCP tool for text summarization directly in Claude Desktop
 - New configuration fields: `CCORE_LLM_PROVIDER`, `CCORE_LLM_MODEL`, `CCORE_STT_PROVIDER`, `CCORE_STT_MODEL`, `CCORE_STT_TIMEOUT`, `CCORE_YOUTUBE_LANGUAGES`
@@ -50,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced LangGraph orchestration with plain async Python orchestrator in `extraction.py`
 - Restructured processors into `url/` (bs4, jina, firecrawl, crawl4ai), `document/` (docx, pptx, xlsx, docling), and `media/` (audio, video)
 - MCP server now returns plain text instead of structured JSON
-- MCP server invoked via `content-core mcp` instead of `content-core-mcp`
+- MCP server invoked via `content-core mcp` instead of `content-core-mcp` (the `content-core-mcp` entry point is kept for backward compatibility)
 - Public API simplified to `content_core.extract_content()`, `content_core.summarize()`, `content_core.ContentCoreConfig`
 - Configuration uses pydantic-settings instead of YAML files and `CONFIG` dict
 - `langchain-core` moved to optional dependency (`pip install content-core[langchain]`)

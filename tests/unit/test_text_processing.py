@@ -1,7 +1,6 @@
 """Unit tests for content_core.processors.text."""
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
