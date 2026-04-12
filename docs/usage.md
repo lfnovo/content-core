@@ -172,6 +172,7 @@ CCORE_YOUTUBE_LANGUAGES=en,pt
 CCORE_FIRECRAWL_PROXY=auto
 CCORE_FIRECRAWL_WAIT_FOR=3000
 FIRECRAWL_API_URL=http://localhost:3002
+CRAWL4AI_API_URL=http://localhost:11235
 ```
 
 API keys for external services use their standard variable names:

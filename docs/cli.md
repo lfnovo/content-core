@@ -156,6 +156,7 @@ content-core config delete llm_provider
 |-----|-------------|---------|
 | `audio_concurrency` | Parallel transcription limit (1-10) | `3` |
 | `audio_model` | Override STT model | — |
+| `crawl4ai_api_url` | Crawl4AI Docker API URL (omit for local mode) | — |
 | `audio_provider` | Override STT provider | — |
 | `docling_formulas` | Enable formula extraction | `false` |
 | `docling_ocr` | Enable OCR for scanned PDFs | `true` |

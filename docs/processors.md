@@ -60,9 +60,10 @@ The `url_engine` setting controls which processor handles web URLs. When set to 
 ### Crawl4AI (`crawl4ai`)
 
 - File: `crawl4ai.py`
-- Local browser-based extraction using Playwright
-- Requires `pip install content-core[crawl4ai]` and `python -m playwright install --with-deps`
-- No API keys needed; all processing happens locally
+- Two modes: local browser automation or Docker API
+- **Local mode** (default): Requires `pip install content-core[crawl4ai]` and `python -m playwright install --with-deps`
+- **Docker mode**: Set `CRAWL4AI_API_URL` (e.g., `http://localhost:11235`) to use a remote Crawl4AI container — no local Playwright needed
+- No API keys needed; all processing happens locally or on your server
 - Handles JavaScript-heavy sites well
 
 ## Document Processors

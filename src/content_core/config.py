@@ -61,6 +61,9 @@ class ContentCoreConfig(BaseSettings):
     audio_model: Optional[str] = None
     audio_concurrency: int = Field(default=3, ge=1, le=10)
 
+    # Crawl4AI
+    crawl4ai_api_url: Optional[str] = None
+
     # Firecrawl
     firecrawl_api_url: str = "https://api.firecrawl.dev"
     firecrawl_proxy: Optional[str] = "auto"
@@ -194,6 +197,18 @@ def config_list() -> dict:
 # ---------------------------------------------------------------------------
 
 DEFAULT_FIRECRAWL_API_URL = "https://api.firecrawl.dev"
+
+
+def get_crawl4ai_api_url() -> str | None:
+    """Return Crawl4AI API URL for Docker mode.
+
+    Checks CRAWL4AI_API_URL env var first (standard convention),
+    then falls back to config file / default (None = local mode).
+    """
+    env_url = os.environ.get("CRAWL4AI_API_URL")
+    if env_url:
+        return env_url
+    return get_default_config().crawl4ai_api_url
 
 
 def get_firecrawl_api_url() -> str:

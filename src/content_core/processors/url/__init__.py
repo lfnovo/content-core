@@ -18,10 +18,7 @@ from content_core.processors.url.firecrawl import (
     _fetch_url_firecrawl,
     extract_url_firecrawl,
 )
-from content_core.processors.url.crawl4ai import (
-    _fetch_url_crawl4ai,
-    extract_url_crawl4ai,
-)
+from content_core.processors.url.crawl4ai import extract_url_crawl4ai
 
 
 @retry_url_network()
@@ -132,7 +129,6 @@ __all__ = [
     "_fetch_url_html",
     "_fetch_url_jina",
     "_fetch_url_firecrawl",
-    "_fetch_url_crawl4ai",
     "extract_url_bs4",
     "extract_url_jina",
     "extract_url_firecrawl",
