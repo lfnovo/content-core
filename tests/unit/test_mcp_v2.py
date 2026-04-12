@@ -6,9 +6,10 @@ import pytest
 from content_core.mcp.server import extract_content as _extract_tool
 from content_core.mcp.server import summarize_content as _summarize_tool
 
-# Access the underlying async functions from the FastMCP FunctionTool wrappers
-extract_content_fn = _extract_tool.fn
-summarize_content_fn = _summarize_tool.fn
+# In fastmcp 3.x, @mcp.tool returns the function directly
+# In fastmcp 2.x, it returned a FunctionTool wrapper with a .fn attribute
+extract_content_fn = getattr(_extract_tool, "fn", _extract_tool)
+summarize_content_fn = getattr(_summarize_tool, "fn", _summarize_tool)
 
 
 class TestExtractContent:
