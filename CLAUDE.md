@@ -104,29 +104,68 @@ Key settings: `url_engine`, `document_engine`, `audio_provider`, `audio_model`, 
 - **Error handling**: Use custom exceptions from `common/exceptions.py`
 - **Tests**: Three tiers — see below
 
-## Test Structure
+## Testing
+
+### When to use each command
+
+| Command | When to use | Speed |
+|---------|------------|-------|
+| `make test` | After any code change — default validation | ~12s |
+| `uv run pytest -k "keyword"` | After changing a specific area (see table below) | <2s |
+| `make test-e2e` | Before a release — validates real APIs and network | ~30s |
+| `make test-all` | Full validation, all tiers | ~40s |
+
+### Targeted test keywords by area
+
+When you change a specific processor or module, run only the relevant tests for fast feedback:
+
+| Area changed | Test command |
+|---|---|
+| `extraction.py` (orchestrator/routing) | `uv run pytest -k "routing"` |
+| `config.py` | `uv run pytest -k "config"` |
+| `processors/url/` (any URL engine) | `uv run pytest -k "url_engine"` |
+| `processors/url/youtube.py` | `uv run pytest -k "youtube"` |
+| `processors/document/pdf.py` | `uv run pytest -k "pdf"` |
+| `processors/document/docx.py` or `pptx.py` or `xlsx.py` | `uv run pytest -k "office"` |
+| `processors/document/docling.py` | `uv run pytest -k "docling"` |
+| `processors/text.py` | `uv run pytest -k "text_processing"` |
+| `processors/media/audio.py` | `uv run pytest -k "audio or media_pipeline"` |
+| `processors/media/video.py` | `uv run pytest -k "media_pipeline"` |
+| `mcp/server.py` | `uv run pytest -k "mcp"` |
+| `cli.py` | `uv run pytest -k "cli"` |
+| `common/retry.py` | `uv run pytest -k "retry"` |
+| `content/identification/` | `uv run pytest -k "file_detector"` |
+| `common/state.py` (models) | `uv run pytest -k "models"` |
+
+### Test structure
 
 ```
 tests/
-├── unit/              # Fast, mocked, no I/O or network (~200 tests, <5s)
-│   ├── test_routing.py, test_config_v2.py, test_retry.py        # Core logic
-│   ├── test_text_processing.py, test_youtube_parsing.py          # Processor unit tests
-│   ├── test_pdf_extraction.py, test_office_extraction.py         # Processor unit tests
-│   ├── test_docling_extraction.py, test_media_pipeline.py        # Processor unit tests
-│   ├── test_url_engine_select.py                                 # Engine selection
-│   └── test_mcp_v2.py, test_models_v2.py, test_file_detector*.py
+├── unit/              # Fast, mocked, no I/O or network (~210 tests)
+│   ├── test_routing.py            # Orchestrator: input → correct processor
+│   ├── test_config_v2.py          # ContentCoreConfig defaults, env vars, validation
+│   ├── test_url_engine_select.py  # URL engine: auto/firecrawl/jina/simple
+│   ├── test_youtube_parsing.py    # YouTube ID extraction, transcript fallbacks
+│   ├── test_pdf_extraction.py     # PDF text cleaning, extraction with mocked fitz
+│   ├── test_pymupdf_ocr.py        # OCR, formula detection, table conversion
+│   ├── test_office_extraction.py  # DOCX/PPTX/XLSX routing and extraction
+│   ├── test_docling_extraction.py # Docling output formats with mocked converter
+│   ├── test_text_processing.py    # HTML detection, markdown conversion
+│   ├── test_media_pipeline.py     # Audio transcription, video pipeline, stream selection
+│   ├── test_audio_concurrency.py  # Semaphore, ordering, concurrency limits
+│   ├── test_mcp_v2.py             # MCP tools: extract + summarize
+│   ├── test_cli.py                # CLI: _build_input, commands with mocked extraction
+│   ├── test_models_v2.py          # ExtractionInput/Output, Processor Protocol
+│   ├── test_retry.py              # Retry decorators, exception classification
+│   └── test_file_detector*.py     # MIME detection, performance, edge cases
 │
-├── integration/       # Local files, no network (~20 tests, <25s)
-│   ├── test_extraction.py   # Real file extraction (PDF, DOCX, PPTX, XLSX, etc.)
-│   └── test_cli_v2.py       # CLI subcommands with click CliRunner
+├── integration/       # Local files, no network (~22 tests)
+│   ├── test_extraction.py   # Real file extraction (PDF, DOCX, PPTX, XLSX, EPUB, etc.)
+│   └── test_cli_v2.py       # CLI subcommands via CliRunner with real extraction
 │
-└── e2e/               # Network + API keys — pre-release only
-    ├── test_url_engines.py   # Firecrawl, Jina, Crawl4AI, BS4
-    ├── test_youtube.py       # Real YouTube transcript
-    ├── test_remote.py        # Remote PDF download
-    └── test_media.py         # Audio/video transcription (STT API)
+└── e2e/               # Network + API keys — pre-release only (~9 tests)
+    ├── test_url_engines.py   # Firecrawl, Jina, Crawl4AI, BS4 with real URLs
+    ├── test_youtube.py       # Real YouTube transcript extraction
+    ├── test_remote.py        # Remote PDF download from arxiv
+    └── test_media.py         # Audio/video transcription via STT API
 ```
-
-- `make test` — unit + integration (fast, deterministic, AI agent feedback)
-- `make test-e2e` — e2e only (pre-release gate, requires API keys)
-- `make test-all` — everything
