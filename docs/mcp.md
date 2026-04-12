@@ -112,6 +112,9 @@ Extracts content from a URL or file. **Does not require an API key** for most so
 - `url` (string, optional) -- URL to extract content from
 - `file_path` (string, optional) -- local file path to extract content from
 - `engine` (string, optional) -- extraction engine override
+- `formulas` (bool, optional) -- Enable formula extraction via Docling
+- `pictures` (bool, optional) -- Enable image description + chart data extraction via Docling
+- `no_ocr` (bool, optional) -- Disable OCR in Docling
 
 Exactly one of `url` or `file_path` must be provided.
 

@@ -10,12 +10,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.0.0] - 2026-04-11
 
 ### Added
+- Docling enrichment flags: `docling_ocr`, `docling_formulas`, `docling_vision` for controlling OCR, formula extraction, and image/chart processing
 - `ContentCoreConfig` based on pydantic-settings with `CCORE_` environment variable prefix for all configuration
 - Unified CLI command `content-core` with subcommands: `extract`, `summarize`, `mcp`
 - `summarize_content` MCP tool for text summarization directly in Claude Desktop
 - New configuration fields: `CCORE_LLM_PROVIDER`, `CCORE_LLM_MODEL`, `CCORE_STT_PROVIDER`, `CCORE_STT_MODEL`, `CCORE_STT_TIMEOUT`, `CCORE_YOUTUBE_LANGUAGES`
+- CLI `--engine` flag routes automatically to `url_engine` or `document_engine` based on input type
+- Persistent config file at `~/.content-core/config.toml` with CLI management (`config list`, `config set`, `config delete`)
+- Configuration priority: constructor args > env vars (`CCORE_*`) > config file > defaults
+- New EPUB processor using fast-ebook (MIT, Rust-powered) for EPUB extraction
 
 ### Changed
+- **Breaking**: `extract_content()` now uses keyword-only arguments instead of `ExtractionInput`/dict positional parameter:
+  ```python
+  # Before
+  await extract_content({"url": "https://example.com"})
+  await extract_content(ExtractionInput(file_path="doc.pdf"))
+
+  # After
+  await extract_content(url="https://example.com")
+  await extract_content(file_path="doc.pdf")
+  ```
+- **Breaking**: Engine overrides are now passed via `ContentCoreConfig` instead of input dict:
+  ```python
+  # Before
+  await extract_content({"url": "...", "url_engine": "firecrawl"})
+
+  # After
+  config = ContentCoreConfig(url_engine="firecrawl")
+  await extract_content(url="...", config=config)
+  ```
+- Bumped Docling optional dependency to >=2.86.0
+- Replaced PyMuPDF (AGPL3) with pdfplumber (MIT) for PDF extraction
+- EPUB extraction now uses fast-ebook (MIT) instead of PyMuPDF — separate `processors/document/epub.py` processor
 - Replaced LangGraph orchestration with plain async Python orchestrator in `extraction.py`
 - Restructured processors into `url/` (bs4, jina, firecrawl, crawl4ai), `document/` (docx, pptx, xlsx, docling), and `media/` (audio, video)
 - MCP server now returns plain text instead of structured JSON
@@ -32,8 +59,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Old CLI entry points: `ccore`, `cclean`, `csum`
 - Raycast extension
 - macOS Services integration
+- `ExtractionInput` as required parameter (model still available for internal use)
+- PyMuPDF dependency (AGPL3 license)
+- `pymupdf_enable_formula_ocr`, `pymupdf_formula_threshold`, `pymupdf_ocr_fallback` config fields and `CCORE_PYMUPDF_*` environment variables
+- Built-in OCR support for formula-heavy PDFs (was disabled by default)
 
 ### Fixed
+- MCP `engine` parameter now correctly routes to `document_engine` for file inputs
 - Office documents (DOCX, PPTX, XLSX) no longer extracted twice in certain conditions
 - Docling processor returns correct type consistently
 

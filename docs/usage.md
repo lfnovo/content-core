@@ -6,21 +6,21 @@ This guide covers the Python API, configuration, and usage patterns for Content 
 
 ### Extraction
 
-The primary function is `extract_content`, which accepts a dictionary or `ExtractionInput` object and returns an `ExtractionOutput`:
+The primary function is `extract_content`, which accepts keyword arguments and returns an `ExtractionOutput`:
 
 ```python
 import content_core
 
 # Extract from a URL
-result = await content_core.extract_content({"url": "https://example.com"})
+result = await content_core.extract_content(url="https://example.com")
 print(result.content)
 
 # Extract from a file
-result = await content_core.extract_content({"file_path": "document.pdf"})
+result = await content_core.extract_content(file_path="document.pdf")
 print(result.content)
 
 # Extract from raw text
-result = await content_core.extract_content({"content": "Some text content."})
+result = await content_core.extract_content(content="Some text content.")
 print(result.content)
 ```
 
@@ -44,59 +44,54 @@ summary = await content_core.summarize(text, context="action items")
 
 ```python
 # Auto-detect best engine
-result = await content_core.extract_content({"url": "https://example.com"})
+result = await content_core.extract_content(url="https://example.com")
 
 # Force a specific engine
-result = await content_core.extract_content({
-    "url": "https://example.com",
-    "url_engine": "firecrawl"
-})
+from content_core import ContentCoreConfig
+config = ContentCoreConfig(url_engine="firecrawl")
+result = await content_core.extract_content(url="https://example.com", config=config)
 ```
 
 ### Documents
 
 ```python
 # PDF
-result = await content_core.extract_content({"file_path": "report.pdf"})
+result = await content_core.extract_content(file_path="report.pdf")
 
 # Word document
-result = await content_core.extract_content({"file_path": "document.docx"})
+result = await content_core.extract_content(file_path="document.docx")
 
 # PowerPoint
-result = await content_core.extract_content({"file_path": "slides.pptx"})
+result = await content_core.extract_content(file_path="slides.pptx")
 
 # Excel
-result = await content_core.extract_content({"file_path": "data.xlsx"})
+result = await content_core.extract_content(file_path="data.xlsx")
 
 # Use Docling engine for richer parsing
-result = await content_core.extract_content({
-    "file_path": "report.pdf",
-    "document_engine": "docling",
-    "output_format": "html"
-})
+from content_core import ContentCoreConfig
+config = ContentCoreConfig(document_engine="docling", docling_output_format="html")
+result = await content_core.extract_content(file_path="report.pdf", config=config)
 ```
 
 ### Audio and Video
 
 ```python
 # Audio transcription
-result = await content_core.extract_content({"file_path": "interview.mp3"})
+result = await content_core.extract_content(file_path="interview.mp3")
 
 # Video (audio is extracted and transcribed automatically)
-result = await content_core.extract_content({"file_path": "lecture.mp4"})
+result = await content_core.extract_content(file_path="lecture.mp4")
 
 # With custom speech-to-text model
-result = await content_core.extract_content({
-    "file_path": "interview.mp3",
-    "audio_provider": "openai",
-    "audio_model": "whisper-1"
-})
+from content_core import ContentCoreConfig
+config = ContentCoreConfig(audio_provider="openai", audio_model="whisper-1")
+result = await content_core.extract_content(file_path="interview.mp3", config=config)
 ```
 
 ### YouTube
 
 ```python
-result = await content_core.extract_content({"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"})
+result = await content_core.extract_content(url="https://www.youtube.com/watch?v=dQw4w9WgXcQ")
 print(result.content)  # Video transcript
 ```
 
@@ -104,17 +99,41 @@ print(result.content)  # Video transcript
 
 ```python
 # Plain text passes through unchanged
-result = await content_core.extract_content({"content": "Plain text here."})
+result = await content_core.extract_content(content="Plain text here.")
 
 # HTML content is automatically detected and converted to markdown
-result = await content_core.extract_content({
-    "content": "<h1>Title</h1><p>Paragraph with <a href='url'>link</a></p>"
-})
+result = await content_core.extract_content(
+    content="<h1>Title</h1><p>Paragraph with <a href='url'>link</a></p>"
+)
 ```
 
 ## Configuration
 
-Content Core uses `ContentCoreConfig` backed by pydantic-settings. Configuration can be set in code, via environment variables (prefixed with `CCORE_`), or through a `.env` file.
+Content Core uses `ContentCoreConfig` backed by pydantic-settings. Configuration is resolved in priority order:
+
+1. **Constructor args** (Python API) or **command flags** (CLI) — highest priority
+2. **Environment variables** (`CCORE_*` prefix)
+3. **Config file** (`~/.content-core/config.toml`)
+4. **Defaults** — lowest priority
+
+### Config File
+
+Set persistent defaults via CLI or edit the file directly:
+
+```bash
+content-core config set llm_provider anthropic
+content-core config set llm_model claude-sonnet-4-20250514
+content-core config set url_engine firecrawl
+```
+
+Or edit `~/.content-core/config.toml`:
+
+```toml
+llm_provider = "anthropic"
+llm_model = "claude-sonnet-4-20250514"
+url_engine = "firecrawl"
+youtube_languages = ["en", "pt"]
+```
 
 ### In Code
 
@@ -133,7 +152,7 @@ config = ContentCoreConfig(
     youtube_languages=["en", "pt"],
 )
 
-result = await content_core.extract_content({"url": "https://example.com"}, config=config)
+result = await content_core.extract_content(url="https://example.com", config=config)
 ```
 
 ### Via Environment Variables
@@ -184,8 +203,66 @@ The `document_engine` setting controls how files (PDF, DOCX, PPTX, XLSX) are pro
 | Engine | Description | Requirements |
 |--------|-------------|-------------|
 | `auto` (default) | Tries Docling first, falls back to simple | Depends on installed extras |
-| `simple` | PyMuPDF for PDF/EPUB, python-docx/openpyxl/python-pptx for Office | None (included) |
+| `simple` | pdfplumber for PDF, fast-ebook for EPUB, python-docx/openpyxl/python-pptx for Office | None (included) |
 | `docling` | Docling library for rich document parsing | `pip install content-core[docling]` |
+
+## AI Providers
+
+Content Core uses [Esperanto](https://github.com/lfnovo/esperanto) as a unified abstraction layer for LLM and Speech-to-Text providers. This means you can use any provider supported by Esperanto without changing your code — just update the config.
+
+### Supported Providers
+
+| Provider | LLM | STT | API Key |
+|----------|-----|-----|---------|
+| `openai` (default) | GPT-4o, GPT-4o-mini, etc. | Whisper | `OPENAI_API_KEY` |
+| `anthropic` | Claude Sonnet, Claude Opus, etc. | — | `ANTHROPIC_API_KEY` |
+| `google` | Gemini models | — | `GOOGLE_API_KEY` |
+| `groq` | LLaMA, Mixtral, etc. | Whisper | `GROQ_API_KEY` |
+| `deepseek` | DeepSeek models | — | `DEEPSEEK_API_KEY` |
+| `ollama` | Local models | — | — (local) |
+| `openrouter` | Multiple providers | — | `OPENROUTER_API_KEY` |
+
+For a complete and up-to-date list of providers and models, see the [Esperanto documentation](https://github.com/lfnovo/esperanto).
+
+### LLM Configuration (Summarization)
+
+```bash
+# Via config file (persistent)
+content-core config set llm_provider anthropic
+content-core config set llm_model claude-sonnet-4-20250514
+
+# Via environment variables (per-session)
+export CCORE_LLM_PROVIDER=anthropic
+export CCORE_LLM_MODEL=claude-sonnet-4-20250514
+```
+
+```python
+# Via Python API (per-call)
+config = ContentCoreConfig(llm_provider="anthropic", llm_model="claude-sonnet-4-20250514")
+summary = await content_core.summarize("text", "bullet points", config=config)
+```
+
+Use `summary_model` to set a different model specifically for summarization while keeping `llm_model` as the default for other LLM operations.
+
+### STT Configuration (Audio/Video Transcription)
+
+```bash
+# Via config file (persistent)
+content-core config set stt_provider openai
+content-core config set stt_model whisper-1
+
+# Via environment variables (per-session)
+export CCORE_STT_PROVIDER=openai
+export CCORE_STT_MODEL=whisper-1
+```
+
+```python
+# Via Python API (per-call)
+config = ContentCoreConfig(stt_provider="openai", stt_model="whisper-1")
+result = await content_core.extract_content(file_path="audio.mp3", config=config)
+```
+
+Use `audio_provider` and `audio_model` together to override the STT provider for a specific call without changing the default.
 
 ## Audio Processing
 
@@ -212,11 +289,8 @@ Higher values speed up processing of long files but may hit API rate limits.
 Override the speech-to-text provider and model per call:
 
 ```python
-result = await content_core.extract_content({
-    "file_path": "audio.mp3",
-    "audio_provider": "openai",
-    "audio_model": "whisper-1"
-})
+config = ContentCoreConfig(audio_provider="openai", audio_model="whisper-1")
+result = await content_core.extract_content(file_path="audio.mp3", config=config)
 ```
 
 Both `audio_provider` and `audio_model` must be specified together. If only one is provided, the default model is used and a warning is logged.
@@ -238,28 +312,56 @@ pip install content-core[docling]
 config = ContentCoreConfig(document_engine="docling")
 
 # Or per-call
-result = await content_core.extract_content({
-    "file_path": "report.pdf",
-    "document_engine": "docling",
-    "output_format": "html"  # markdown (default), html, or json
-})
+config = ContentCoreConfig(document_engine="docling", docling_output_format="html")
+result = await content_core.extract_content(file_path="report.pdf", config=config)
 ```
 
-## PDF OCR Configuration
+### Enrichment Features
 
-The PyMuPDF-based simple engine includes enhanced quality flags for better text extraction. For scientific documents with mathematical formulas, optional OCR enhancement is available.
+Docling supports optional enrichment features that require additional models. These are disabled by default to avoid extra download and processing time.
 
-OCR requires Tesseract:
+| Flag | What it does | Default | Impact |
+|------|-------------|---------|--------|
+| `docling_ocr` | OCR for scanned PDFs | `true` | Medium — runs per page |
+| `docling_formulas` | Extract equations as LaTeX | `false` | High — downloads ~500MB model, CPU/CUDA only |
+| `docling_vision` | Image descriptions + chart data extraction | `false` | High — downloads ~2GB model |
+
+#### Via config file (persistent)
 
 ```bash
-# macOS
-brew install tesseract
-
-# Ubuntu/Debian
-sudo apt-get install tesseract-ocr
+content-core config set docling_formulas true
+content-core config set docling_vision true
 ```
 
-Without Tesseract, standard extraction still provides improved quality via enhanced PyMuPDF flags (ligatures, whitespace, table detection). OCR only triggers selectively on formula-heavy pages.
+#### Via CLI (per-call)
+
+```bash
+content-core extract --engine docling --formulas paper.pdf
+content-core extract --engine docling --pictures --no-ocr paper.pdf
+```
+
+#### Via Python API
+
+```python
+from content_core import ContentCoreConfig
+
+config = ContentCoreConfig(
+    document_engine="docling",
+    docling_formulas=True,
+    docling_vision=True,
+)
+result = await content_core.extract_content(file_path="paper.pdf", config=config)
+```
+
+#### Via MCP
+
+The `extract_content` MCP tool accepts `formulas`, `pictures`, and `no_ocr` parameters:
+
+```
+extract_content(file_path="paper.pdf", engine="docling", formulas=true, pictures=true)
+```
+
+> **Note:** Enrichment flags are only applied when `document_engine="docling"`. A warning is logged if flags are set without the Docling engine.
 
 ## Proxy Configuration
 

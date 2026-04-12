@@ -28,7 +28,7 @@ pip install content-core
 ```python
 import content_core
 
-result = await content_core.extract_content({"url": "https://example.com"})
+result = await content_core.extract_content(url="https://example.com")
 print(result.content)
 ```
 
@@ -80,6 +80,22 @@ cat article.txt | content-core summarize --context "explain to a child"
 content-core mcp
 ```
 
+### Configuration
+
+```bash
+# Set persistent config
+content-core config set llm_provider anthropic
+content-core config set llm_model claude-sonnet-4-20250514
+
+# List current config
+content-core config list
+
+# Delete a config value
+content-core config delete llm_provider
+```
+
+Config is stored in `~/.content-core/config.toml`. Priority: command flags > env vars > config file > defaults.
+
 ### Zero-Install with uvx
 
 All commands work without installation using `uvx`:
@@ -98,19 +114,18 @@ uvx content-core mcp
 import content_core
 
 # From a URL
-result = await content_core.extract_content({"url": "https://example.com"})
+result = await content_core.extract_content(url="https://example.com")
 
 # From a file
-result = await content_core.extract_content({"file_path": "document.pdf"})
+result = await content_core.extract_content(file_path="document.pdf")
 
 # From text
-result = await content_core.extract_content({"content": "some text"})
+result = await content_core.extract_content(content="some text")
 
 # With engine override
-result = await content_core.extract_content({
-    "url": "https://example.com",
-    "url_engine": "firecrawl"
-})
+from content_core import ContentCoreConfig
+config = ContentCoreConfig(url_engine="firecrawl")
+result = await content_core.extract_content(url="https://example.com", config=config)
 ```
 
 ### Summarization
@@ -131,7 +146,7 @@ config = ContentCoreConfig(
     document_engine="docling",
     audio_concurrency=5,
 )
-result = await content_core.extract_content({"url": "https://example.com"}, config=config)
+result = await content_core.extract_content(url="https://example.com", config=config)
 ```
 
 ## MCP Integration
@@ -162,9 +177,37 @@ The MCP server exposes two tools: `extract_content` and `summarize_content`. Bot
 
 For detailed setup, see the [MCP documentation](docs/mcp.md).
 
+## Claude Code Skill
+
+Content Core includes a [`SKILL.md`](SKILL.md) that teaches AI agents how to use it for extracting content from external sources. To make it available in your Claude Code project, copy it to your skills directory:
+
+```bash
+# Download the skill
+curl -o .claude/skills/content-core/SKILL.md --create-dirs \
+  https://raw.githubusercontent.com/lfnovo/content-core/main/SKILL.md
+```
+
+Once installed, Claude Code can use content-core to extract content from URLs, documents, and media files — either via CLI (`uvx content-core`) or MCP if configured.
+
+## AI Providers
+
+Content Core uses [Esperanto](https://github.com/lfnovo/esperanto) to support multiple LLM and STT providers. Switch providers by changing the config — no code changes needed:
+
+```bash
+# Use Anthropic for summarization
+content-core config set llm_provider anthropic
+content-core config set llm_model claude-sonnet-4-20250514
+
+# Use Groq for transcription
+content-core config set stt_provider groq
+content-core config set stt_model whisper-large-v3
+```
+
+Supported providers include OpenAI, Anthropic, Google, Groq, DeepSeek, Ollama, and more. See the [Esperanto documentation](https://github.com/lfnovo/esperanto) for the full list.
+
 ## Configuration
 
-Content Core uses `ContentCoreConfig` powered by pydantic-settings. All settings can be provided via environment variables with the `CCORE_` prefix, or passed directly in code.
+Content Core uses `ContentCoreConfig` powered by pydantic-settings. Settings are resolved in priority order: constructor args > env vars (`CCORE_*`) > config file (`~/.content-core/config.toml`) > defaults.
 
 ### Environment Variables
 

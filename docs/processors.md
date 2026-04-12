@@ -63,18 +63,21 @@ Located in `src/content_core/processors/document/` and `src/content_core/process
 The `document_engine` setting controls document processing. When set to `auto` (the default):
 
 1. **Docling** -- tried first if installed
-2. **Simple** -- PyMuPDF for PDF/EPUB, native parsers for Office formats
+2. **Simple** -- pdfplumber for PDF, fast-ebook for EPUB, native parsers for Office formats
 
 ### PDF (Simple Engine)
 
-- File: `pdf.py`
-- Uses PyMuPDF with enhanced quality flags
+- File: `document/pdf.py`
+- Uses pdfplumber for text and table extraction
 - Features:
-  - Preserves ligatures and whitespace for better text rendering
   - Automatic table detection and conversion to markdown
-  - Eliminates formula placeholder artifacts
-  - Optional OCR for formula-heavy pages (requires Tesseract)
-- Also handles EPUB files
+  - Text cleaning (ligatures, whitespace, hyphenation normalization)
+
+### EPUB
+
+- File: `document/epub.py`
+- Uses fast-ebook (Rust-powered) for EPUB2/EPUB3 extraction
+- Converts EPUB content to markdown
 
 ### DOCX
 
