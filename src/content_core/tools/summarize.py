@@ -1,17 +1,18 @@
-from typing import Optional
-
+"""LangChain tool wrapper for content summarization."""
 from langchain_core.tools import tool
 
-from content_core.content_summary import summarize
-from content_core.common import process_input_content
+from content_core.content.summary import summarize
 
 
 @tool
-async def summarize_content_tool(content: str, context: Optional[str] = None) -> str:
+async def summarize_content_tool(content: str, context: str = "") -> str:
+    """Summarize content with optional context.
+
+    Args:
+        content: The content to summarize.
+        context: Optional context for the summarization.
+
+    Returns:
+        str: Summarized content.
     """
-    Summarize content according to instructions provided via context.
-    Accepts direct text, URLs, or file paths. If a URL or file path is provided,
-    the content will be extracted first before summarizing.
-    """
-    content = await process_input_content(content)
-    return await summarize(content, context or "")
+    return await summarize(content, context)

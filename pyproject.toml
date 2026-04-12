@@ -1,6 +1,6 @@
 [project]
 name = "content-core"
-version = "1.14.1"
+version = "2.0.0"
 description = "Extract what matters from any media source. Available as Python Library, macOS Service, CLI and MCP Server"
 readme = "README.md"
 homepage = "https://github.com/lfnovo/content-core"
@@ -9,42 +9,42 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "aiohttp>=3.11",
+    "aiohttp>=3.13",
     "bs4>=0.0.2",
-    "esperanto>=2.17.0",
+    "esperanto>=2.20.0",
     "jinja2>=3.1.6",
     "langdetect>=1.0.9",
     "loguru>=0.7.3",
     "openpyxl>=3.1.5",
     "pandas>=2.2.3",
-    "pymupdf>=1.25.5",
+    "pdfplumber>=0.11.0",
+    "fast-ebook>=0.2.0",
     "python-docx>=1.1.2",
-    "python-dotenv>=1.1.0",
+    "python-dotenv>=1.2.0",
     "python-pptx>=1.0.2",
-    "youtube-transcript-api>=1.0.3",
-    "langgraph>=1.0.0",
-    "dicttoxml>=1.7.16",
+    "youtube-transcript-api>=1.2.0",
     "validators>=0.34.0",
-    "ai-prompter>=0.2.3",
-    "moviepy>=2.1.2",
+    "ai-prompter>=0.4.0",
     "readability-lxml>=0.8.4.1",
-    "firecrawl-py>=2.7.0",
-    "pillow>=10.4.0",
+    "firecrawl-py>=4.13.0",
+    "pillow>=12.0.0",
     "asciidoc>=10.2.1",
-    "pytubefix>=9.1.1",
-    "fastmcp>=2.10.0",
-    "tenacity>=8.0.0",
-    "markdownify>=0.12.1",
+    "pytubefix>=10.0.0",
+    "fastmcp>=3.0.0",
+    "tenacity>=9.0.0",
+    "markdownify>=0.14.0",
+    "pydantic-settings>=2.12.0",
+    "tomli>=2.0; python_version < '3.11'",
+    "click>=8.3.0",
 ]
 
 [project.optional-dependencies]
-docling = ["docling>=2.34.0"]
+docling = ["docling>=2.86.0", "peft>=0.18.0", "transformers>=4.50,<5"]
 crawl4ai = ["crawl4ai>=0.7.0"]
+langchain = ["langchain-core>=0.1.0"]
 
 [project.scripts]
-ccore = "content_core:ccore"
-cclean = "content_core:cclean"
-csum = "content_core:csum"
+content-core = "content_core.cli:cli"
 content-core-mcp = "content_core.mcp.server:main"
 
 [tool.hatch.metadata]
@@ -61,12 +61,16 @@ package-dir = {"content_core" = "src/content_core"}
 
 [dependency-groups]
 dev = [
-    "ipykernel>=4.0.1",
-    "ipywidgets>=4.0.0",
-    "openai>=1.78.1",
+    "crawl4ai>=0.8.0",
+    "docling>=2.86.0",
+    "transformers>=4.50,<5",
+    "ipykernel>=7.0.0",
+    "ipywidgets>=8.0.0",
+    "openai>=2.15.0",
+    "peft>=0.18.1",
     "pyperclip>=1.9.0",
-    "pytest>=7.2.0",
-    "pytest-asyncio>=0.21.0",
+    "pytest>=9.0.0",
+    "pytest-asyncio>=1.0.0",
 ]
 
 [tool.pytest.ini_options]
@@ -74,3 +78,11 @@ pythonpath = ["src"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 asyncio_default_test_loop_scope = "function"
+markers = [
+    "e2e: end-to-end tests requiring network and API keys",
+    "e2e_heavy: heavy e2e tests requiring large model downloads (Docling)",
+]
+addopts = "-m 'not e2e and not e2e_heavy' -W ignore::DeprecationWarning"
+
+[tool.ruff.lint]
+ignore = ["E402"]
