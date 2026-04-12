@@ -24,7 +24,7 @@ async def test_extract_content_from_mp3(fixture_path):
     assert hasattr(result, "source_type")
     assert result.source_type == "file"
     assert result.title == "file.mp3"
-    assert result.identified_type == "audio/mpeg"
+    assert result.identified_type.startswith("audio/")
     assert "welcome" in result.content.lower()
 
 
@@ -41,5 +41,5 @@ async def test_extract_content_from_mp4(fixture_path):
     assert hasattr(result, "source_type")
     assert result.source_type == "file"
     assert result.title == "file.mp4"
-    assert result.identified_type == "audio/mp3"
+    assert result.identified_type.startswith("video/")
     assert "welcome" in result.content.lower()

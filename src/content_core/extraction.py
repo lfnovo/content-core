@@ -129,8 +129,7 @@ async def _extract_file(
 
         if not result.title:
             result.title = os.path.basename(path)
-        if not result.identified_type:
-            result.identified_type = mime
+        result.identified_type = mime
         result.source_type = "file"
         return result
     finally:

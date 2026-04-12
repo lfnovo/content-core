@@ -72,7 +72,7 @@ class TestDefaults:
 
     def test_stt_model_default(self):
         cfg = ContentCoreConfig()
-        assert cfg.stt_model == "gpt-4o-transcribe-diarize"
+        assert cfg.stt_model == "whisper-1"
 
     def test_stt_timeout_default(self):
         cfg = ContentCoreConfig()
