@@ -52,6 +52,7 @@ src/content_core/
 │   │   ├── bs4.py           # BeautifulSoup + readability
 │   │   ├── jina.py          # Jina Reader API
 │   │   ├── firecrawl.py     # Firecrawl SDK
+│   │   ├── reddit.py       # Reddit posts via public JSON endpoint
 │   │   └── crawl4ai.py      # Crawl4AI browser automation
 │   ├── document/            # Document extraction
 │   │   ├── __init__.py      # Document type router
@@ -132,6 +133,7 @@ When you change a specific processor or module, run only the relevant tests for 
 | `config.py` | `uv run pytest -k "config"` |
 | `processors/url/` (any URL engine) | `uv run pytest -k "url_engine"` |
 | `processors/url/youtube.py` | `uv run pytest -k "youtube"` |
+| `processors/url/reddit.py` | `uv run pytest -k "reddit"` |
 | `processors/document/pdf.py` | `uv run pytest -k "pdf"` |
 | `processors/document/docx.py` or `pptx.py` or `xlsx.py` | `uv run pytest -k "office"` |
 | `processors/document/docling.py` | `uv run pytest -k "docling"` |
@@ -153,6 +155,7 @@ tests/
 │   ├── test_config_v2.py          # ContentCoreConfig defaults, env vars, validation
 │   ├── test_url_engine_select.py  # URL engine: auto/firecrawl/jina/simple
 │   ├── test_youtube_parsing.py    # YouTube ID extraction, transcript fallbacks
+│   ├── test_reddit_extraction.py  # Reddit URL detection, JSON parsing, formatting
 │   ├── test_pdf_extraction.py     # PDF text cleaning, extraction with mocked pdfplumber
 │   ├── test_pdf_helpers.py        # Formula detection, table conversion helpers
 │   ├── test_epub_extraction.py    # EPUB extraction with mocked fast-ebook

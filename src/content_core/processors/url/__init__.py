@@ -116,6 +116,10 @@ async def extract_from_url(url: str, config: ContentCoreConfig) -> ExtractionOut
         )
 
 
+from content_core.processors.url.reddit import (
+    extract_reddit,
+    is_reddit_post,
+)
 from content_core.processors.url.youtube import (
     extract_youtube,
     get_best_transcript,
@@ -136,6 +140,8 @@ __all__ = [
     "detect_remote_mime",
     "_extract_url_with_engine",
     "extract_from_url",
+    "extract_reddit",
+    "is_reddit_post",
     "extract_youtube",
     "get_best_transcript",
     "get_video_title",

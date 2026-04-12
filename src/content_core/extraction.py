@@ -21,6 +21,7 @@ from content_core.processors.document.epub import SUPPORTED_EPUB_TYPES, extract_
 from content_core.processors.text import extract_text_file, process_text
 from content_core.processors.url import detect_remote_mime, extract_from_url
 from content_core.processors.media.video import extract_video
+from content_core.processors.url.reddit import extract_reddit, is_reddit_post
 from content_core.processors.url.youtube import extract_youtube
 
 # Optional docling
@@ -71,6 +72,13 @@ async def _extract_url(url: str, cfg: ContentCoreConfig) -> ExtractionOutput:
     # YouTube detection
     if "youtube.com" in url or "youtu.be" in url:
         return await extract_youtube(url, cfg)
+
+    # Reddit detection — use JSON endpoint, fall back to normal extraction
+    if is_reddit_post(url):
+        result = await extract_reddit(url, cfg)
+        if result and result.content:
+            return result
+        logger.debug("Reddit JSON extraction failed, falling back to normal URL extraction")
 
     # Check MIME type via HEAD request
     mime = await detect_remote_mime(url)

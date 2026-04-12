@@ -58,6 +58,46 @@ async def test_youtu_be_url_calls_extract_youtube():
 
 
 # ---------------------------------------------------------------------------
+# 2b. Reddit URL -> extract_reddit
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_reddit_url_calls_extract_reddit():
+    expected = _make_output(source_type="url", identified_type="reddit")
+    with patch(
+        "content_core.extraction.extract_reddit", new_callable=AsyncMock, return_value=expected
+    ) as mock:
+        result = await extract_content(
+            url="https://www.reddit.com/r/python/comments/abc123/some_post/"
+        )
+        mock.assert_awaited_once()
+        assert result is expected
+
+
+@pytest.mark.asyncio
+async def test_reddit_fallback_on_failure():
+    """When Reddit JSON extraction fails, falls back to normal URL extraction."""
+    fallback = _make_output(source_type="url", identified_type="article")
+    with patch(
+        "content_core.extraction.extract_reddit",
+        new_callable=AsyncMock,
+        return_value=None,
+    ), patch(
+        "content_core.extraction.detect_remote_mime",
+        new_callable=AsyncMock,
+        return_value="article",
+    ), patch(
+        "content_core.extraction.extract_from_url",
+        new_callable=AsyncMock,
+        return_value=fallback,
+    ) as mock_url:
+        result = await extract_content(
+            url="https://www.reddit.com/r/python/comments/abc123/some_post/"
+        )
+        mock_url.assert_awaited_once()
+        assert result.identified_type == "article"
+
+
+# ---------------------------------------------------------------------------
 # 3. Regular URL with article MIME -> extract_from_url
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio

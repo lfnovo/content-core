@@ -15,7 +15,7 @@ Extract, process, and summarize content from URLs, files, and text through a uni
 
 | Category | Formats |
 |----------|---------|
-| Web | URLs, HTML pages, YouTube videos |
+| Web | URLs, HTML pages, YouTube videos, Reddit posts |
 | Documents | PDF, DOCX, PPTX, XLSX, EPUB, Markdown, plain text |
 | Media | MP3, WAV, M4A, FLAC, OGG (audio); MP4, AVI, MOV, MKV (video) |
 

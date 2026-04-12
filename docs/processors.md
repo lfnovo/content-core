@@ -48,6 +48,15 @@ The `url_engine` setting controls which processor handles web URLs. When set to 
 - Configurable proxy (`CCORE_FIRECRAWL_PROXY`, default: `auto`) — retries with stealth proxies on anti-bot blocks
 - Configurable wait time (`CCORE_FIRECRAWL_WAIT_FOR`, default: `3000`ms) — waits for dynamic content before extraction
 
+### Reddit (automatic)
+
+- File: `reddit.py`
+- Automatically detects Reddit post URLs and extracts via the public `.json` endpoint
+- Extracts post title, body, metadata (author, score, subreddit), and full comment tree with nested replies
+- No API key or authentication needed for public posts
+- Falls back to the configured URL engine if JSON extraction fails
+- Supports `www.reddit.com`, `old.reddit.com`, and `new.reddit.com`
+
 ### Crawl4AI (`crawl4ai`)
 
 - File: `crawl4ai.py`
