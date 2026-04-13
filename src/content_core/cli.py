@@ -7,7 +7,13 @@ import click
 from content_core.logging import configure_logging
 
 
+def _get_version():
+    from importlib.metadata import version
+    return version("content-core")
+
+
 @click.group()
+@click.version_option(package_name="content-core")
 @click.option("--debug", is_flag=True, help="Enable debug logging")
 def cli(debug):
     """Content Core — Extract and summarize content from any source."""
