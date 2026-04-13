@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-04-13
+
+### Fixed
+- LLM errors silently swallowed during summarization — errors now propagate with clear messages
+- Thinking models (e.g., Ollama Qwen 3.5) return empty content — now uses `cleaned_content` from Esperanto 2.20.1
+- Default LLM temperature changed from 0 to 0.5 and max_tokens from 600 to 4096 for compatibility with thinking models
+- LLM timeout increased to 120s for local model providers
+
+### Changed
+- Bumped esperanto dependency to >=2.20.1 (thinking model support, trailing slash fix)
+
 ## [2.0.1] - 2026-04-13
 
 ### Fixed

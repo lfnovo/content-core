@@ -775,7 +775,7 @@ wheels = [
 
 [[package]]
 name = "content-core"
-version = "2.0.0"
+version = "2.0.2"
 source = { editable = "." }
 dependencies = [
     { name = "ai-prompter" },
@@ -844,7 +844,7 @@ requires-dist = [
     { name = "click", specifier = ">=8.3.0" },
     { name = "crawl4ai", marker = "extra == 'crawl4ai'", specifier = ">=0.7.0" },
     { name = "docling", marker = "extra == 'docling'", specifier = ">=2.86.0" },
-    { name = "esperanto", specifier = ">=2.20.0" },
+    { name = "esperanto", specifier = ">=2.20.1" },
     { name = "fast-ebook", specifier = ">=0.2.0" },
     { name = "fastmcp", specifier = ">=3.0.0" },
     { name = "firecrawl-py", specifier = ">=4.13.0" },
@@ -1335,15 +1335,15 @@ wheels = [
 
 [[package]]
 name = "esperanto"
-version = "2.20.0"
+version = "2.20.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/bb/8c/eba93a2b7b1a4fc6812bcf0a83a69a3376fcaf5831fae04a0ad539baeff6/esperanto-2.20.0.tar.gz", hash = "sha256:53a16c539ed2f83e3400b4e56d5a20b7873df6cb926c1e6696a9611b3be928fb", size = 845084, upload-time = "2026-03-21T14:32:04.589Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/78/ae/7ff8cd45a2de81236722721417c06843abce3e2c3272edc2b6de1d800d08/esperanto-2.20.1.tar.gz", hash = "sha256:36707c5acdede3ea9c5de621f6dc4256d7e4b461b882cb63fff9e59b420e320c", size = 847075, upload-time = "2026-04-13T14:08:37.586Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/13/83/476dd4d7ee9f1b013ccd66e2518d150e66d3537736aed735b27230af0eb4/esperanto-2.20.0-py3-none-any.whl", hash = "sha256:767f95d08dd29e7d1950f4cc2ec908084e93ec61e945ce9446f001c54b86bb63", size = 203977, upload-time = "2026-03-21T14:32:05.676Z" },
+    { url = "https://files.pythonhosted.org/packages/93/ca/17e01c763e73c168868614746d1d694a10246ece5901b426355cd2c5dd83/esperanto-2.20.1-py3-none-any.whl", hash = "sha256:2cd258b7f1db0d68c06a61effabd7431d23a1a0040a9f413823d1542c521d7ea", size = 204252, upload-time = "2026-04-13T14:08:36.328Z" },
 ]
 
 [[package]]

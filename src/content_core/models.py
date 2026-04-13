@@ -40,9 +40,9 @@ class ModelFactory:
         elif model_alias == "summary_model":
             provider = cfg.llm_provider
             model_name = cfg.summary_model or cfg.llm_model
-            return AIFactory.create_language(provider, model_name, config={})
+            return AIFactory.create_language(provider, model_name, config={"timeout": 120, "max_tokens": 4096})
         elif model_alias == "default_model":
-            return AIFactory.create_language(cfg.llm_provider, cfg.llm_model, config={})
+            return AIFactory.create_language(cfg.llm_provider, cfg.llm_model, config={"timeout": 120, "max_tokens": 4096})
         else:
             raise ValueError(f"Unknown model alias: {model_alias}")
 
