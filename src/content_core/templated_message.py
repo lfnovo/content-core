@@ -63,8 +63,4 @@ async def templated_message(
         ).render(data=input.data)
         msgs.append({"role": "user", "content": user_prompt})
 
-    try:
-        return await _execute_llm_call(model, msgs)
-    except Exception as e:
-        logger.error(f"LLM call failed after retries: {e}")
-        return None
+    return await _execute_llm_call(model, msgs)

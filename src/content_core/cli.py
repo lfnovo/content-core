@@ -69,7 +69,14 @@ def summarize(content, context):
     content = _get_content(content)
     # If content looks like a URL or file, extract first
     content = asyncio.run(_maybe_extract(content))
-    result = asyncio.run(summarize_fn(content, context))
+    try:
+        result = asyncio.run(summarize_fn(content, context))
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    if not result:
+        click.echo("Error: Summarization returned no result. Run with --debug for details.", err=True)
+        sys.exit(1)
     click.echo(result)
 
 
