@@ -152,8 +152,9 @@ If summarization fails with an API key error, fall back to `extract_content` and
 
 ## Guidelines
 
-- Prefer the MCP tools if available — they are async and more efficient than CLI calls
-- If MCP is not available, use the CLI via Bash with `uvx content-core`
+- For small/medium content (articles, short pages): prefer MCP tools if available — they are async and more efficient
+- For large content (long documents, full books, lengthy transcripts): prefer the CLI via Bash, redirecting output to a file (`uvx content-core extract "URL" > output.md`). This avoids flooding the agent's context window with large payloads. Read only the relevant sections from the file as needed.
+- If MCP is not available, always use the CLI via Bash with `uvx content-core`
 - For URLs: extraction works without any API key
 - For audio/video: requires `OPENAI_API_KEY` (or another STT provider key)
 - For summarization: requires an LLM API key
