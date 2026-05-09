@@ -1,13 +1,4 @@
-from typing import Dict, Union
+"""Content extraction — delegates to extraction module."""
+from content_core.extraction import extract_content
 
-from content_core.common import ProcessSourceInput, ProcessSourceOutput
-from content_core.content.extraction.graph import graph
-
-# todo: input/output schema do langgraph
-
-
-async def extract_content(data: Union[ProcessSourceInput, Dict]) -> ProcessSourceOutput:
-    if isinstance(data, dict):
-        data = ProcessSourceInput(**data)
-    result = await graph.ainvoke(data)
-    return ProcessSourceOutput(**result)
+__all__ = ["extract_content"]

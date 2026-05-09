@@ -1,50 +1,55 @@
-"""
-Unit tests for vision-based extraction processors.
+"""Unit tests for vision-based extraction processors (v2).
 
 Tests verify that:
-1. Image processor analyzes images with vision model when configured
-2. Image processor returns placeholder when no vision model configured
-3. Video vision processor extracts frames and analyzes them
-4. PDF vision processor converts pages and analyzes them
-5. Graph routing selects vision processors when config is present
-6. Backward compatibility maintained when no vision config
+1. Image processor analyzes images with vision model when configured.
+2. Image processor returns placeholder when no vision model configured.
+3. Video vision processor extracts frames and analyzes them.
+4. PDF vision processor converts pages and analyzes them.
+5. extraction.py routes to vision processors when vision config is present.
+6. Backward compatibility maintained when no vision config.
 """
 
-import os
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from content_core.common import ProcessSourceState
+from content_core.config import ContentCoreConfig
 
 
 def _mock_create_image_message(image_source, prompt="", **kwargs):
     """Mock create_image_message that doesn't read files."""
-    return {"role": "user", "content": [
-        {"type": "text", "text": prompt},
-        {"type": "image_url", "image_url": {"url": "data:image/png;base64,fakedata"}},
-    ]}
+    return {
+        "role": "user",
+        "content": [
+            {"type": "text", "text": prompt},
+            {"type": "image_url", "image_url": {"url": "data:image/png;base64,fakedata"}},
+        ],
+    }
+
+
+def _vision_cfg(provider="openai", model="gpt-4o", **overrides) -> ContentCoreConfig:
+    overrides.setdefault("document_engine", "simple")
+    return ContentCoreConfig(
+        vision_provider=provider, vision_model=model, **overrides
+    )
+
+
+def _no_vision_cfg(**overrides) -> ContentCoreConfig:
+    overrides.setdefault("document_engine", "simple")
+    return ContentCoreConfig(**overrides)
 
 
 class TestImageProcessor:
-    """Tests for the image extraction processor."""
-
     @pytest.mark.asyncio
     async def test_image_extraction_with_vision_model(self):
-        """Test image analysis when vision model is configured."""
-        state = ProcessSourceState(
-            file_path="/fake/image.png",
-            vision_provider="openai",
-            vision_model="gpt-4o",
-        )
+        cfg = _vision_cfg()
 
         mock_response = MagicMock()
         mock_response.choices = [
             MagicMock(message=MagicMock(content="A photo of a cat sitting on a table."))
         ]
 
-        # Create mock modules for esperanto.utils.vision
         mock_vision_module = MagicMock()
         mock_vision_module.create_image_message = _mock_create_image_message
 
@@ -53,190 +58,160 @@ class TestImageProcessor:
         mock_model.achat_complete = AsyncMock(return_value=mock_response)
         mock_ai_factory.create_language.return_value = mock_model
 
-        with patch.dict(sys.modules, {
-            "esperanto.utils.vision": mock_vision_module,
-        }):
+        with patch.dict(sys.modules, {"esperanto.utils.vision": mock_vision_module}):
             with patch("esperanto.AIFactory", mock_ai_factory):
-                from content_core.processors.image import extract_image
+                from content_core.processors.document.image import extract_image
 
-                result = await extract_image(state)
+                result = await extract_image("/fake/image.png", cfg)
 
-        assert "A photo of a cat sitting on a table." in result["content"]
-        assert result["title"] == "image.png"
+        assert "A photo of a cat sitting on a table." in result.content
+        assert result.title == "image.png"
+        assert result.source_type == "file"
         mock_ai_factory.create_language.assert_called_once_with(
             "openai", "gpt-4o", config=None
         )
 
     @pytest.mark.asyncio
     async def test_image_extraction_without_vision_model(self):
-        """Test image returns placeholder when no vision config."""
-        state = ProcessSourceState(
-            file_path="/fake/image.png",
-        )
+        cfg = _no_vision_cfg()
 
-        from content_core.processors.image import extract_image
+        from content_core.processors.document.image import extract_image
 
-        result = await extract_image(state)
+        result = await extract_image("/fake/image.png", cfg)
 
-        assert "no vision model configured" in result["content"]
-        assert result["title"] == "image.png"
+        assert "no vision model configured" in result.content
+        assert result.title == "image.png"
 
     @pytest.mark.asyncio
     async def test_image_extraction_handles_error(self):
-        """Test image processor handles analysis errors gracefully."""
-        state = ProcessSourceState(
-            file_path="/fake/image.png",
-            vision_provider="openai",
-            vision_model="gpt-4o",
-        )
+        cfg = _vision_cfg()
 
         mock_vision_module = MagicMock()
         mock_vision_module.create_image_message = _mock_create_image_message
 
-        with patch.dict(sys.modules, {
-            "esperanto.utils.vision": mock_vision_module,
-        }):
+        with patch.dict(sys.modules, {"esperanto.utils.vision": mock_vision_module}):
             with patch("esperanto.AIFactory") as mock_factory:
                 mock_factory.create_language.side_effect = Exception("API error")
 
-                from content_core.processors.image import extract_image
+                from content_core.processors.document.image import extract_image
 
-                result = await extract_image(state)
+                result = await extract_image("/fake/image.png", cfg)
 
-        assert "analysis failed" in result["content"]
+        assert "analysis failed" in result.content
 
 
 class TestVideoVisionProcessor:
-    """Tests for the video vision extraction processor."""
-
     @pytest.mark.asyncio
     async def test_video_vision_extraction(self):
-        """Test video vision processing with mocked ffmpeg and model."""
-        state = ProcessSourceState(
-            file_path="/fake/video.mp4",
-            vision_provider="openai",
-            vision_model="gpt-4o",
-        )
+        cfg = _vision_cfg()
 
         mock_response = MagicMock()
         mock_response.choices = [
             MagicMock(message=MagicMock(content="A person walking in a park."))
         ]
 
+        mock_vision_module = MagicMock()
+        mock_vision_module.create_image_message = _mock_create_image_message
+
+        mock_ai_factory = MagicMock()
+        mock_model_inst = MagicMock()
+        mock_model_inst.achat_complete = AsyncMock(return_value=mock_response)
+        mock_ai_factory.create_language.return_value = mock_model_inst
+
         with patch(
-            "content_core.processors.video_vision.get_video_duration",
+            "content_core.processors.media.video_vision.get_video_duration",
             new_callable=AsyncMock,
             return_value=30.0,
-        ):
-            with patch(
-                "content_core.processors.video_vision.extract_frames",
-                new_callable=AsyncMock,
-                return_value=[("/tmp/frame_0001.jpg", 0.0), ("/tmp/frame_0002.jpg", 1.0)],
-            ):
-                mock_vision_module = MagicMock()
-                mock_vision_module.create_image_message = _mock_create_image_message
+        ), patch(
+            "content_core.processors.media.video_vision.extract_frames",
+            new_callable=AsyncMock,
+            return_value=[("/tmp/frame_0001.jpg", 0.0), ("/tmp/frame_0002.jpg", 1.0)],
+        ), patch(
+            "content_core.processors.media.video_vision._transcribe_video_audio",
+            new_callable=AsyncMock,
+            return_value="",
+        ), patch(
+            "content_core.processors.media.video_vision.cleanup_temp_files"
+        ), patch.dict(
+            sys.modules, {"esperanto.utils.vision": mock_vision_module}
+        ), patch("esperanto.AIFactory", mock_ai_factory):
+            from content_core.processors.media.video_vision import (
+                extract_video_with_vision,
+            )
 
-                mock_ai_factory = MagicMock()
-                mock_model_inst = MagicMock()
-                mock_model_inst.achat_complete = AsyncMock(return_value=mock_response)
-                mock_ai_factory.create_language.return_value = mock_model_inst
+            result = await extract_video_with_vision("/fake/video.mp4", cfg)
 
-                with patch.dict(sys.modules, {
-                    "esperanto.utils.vision": mock_vision_module,
-                }):
-                    with patch("esperanto.AIFactory", mock_ai_factory):
-                        with patch(
-                            "content_core.processors.video_vision.cleanup_temp_files"
-                        ):
-                            from content_core.processors.video_vision import (
-                                extract_video_with_vision,
-                            )
-
-                            result = await extract_video_with_vision(state)
-
-        assert "Video Analysis" in result["content"]
-        assert result["title"] == "video.mp4"
-        assert result["metadata"]["frames_analyzed"] == 2
+        assert "Video Analysis" in result.content
+        assert result.title == "video.mp4"
+        assert result.metadata["frames_analyzed"] == 2
         mock_ai_factory.create_language.assert_called_once_with(
             "openai", "gpt-4o", config=None
         )
 
 
 class TestPdfVisionProcessor:
-    """Tests for the PDF vision extraction processor."""
-
     @pytest.mark.asyncio
     async def test_pdf_vision_extraction(self):
-        """Test PDF vision processing with mocked pdftoppm and model."""
-        state = ProcessSourceState(
-            file_path="/fake/document.pdf",
-            identified_type="application/pdf",
-            vision_provider="anthropic",
-            vision_model="claude-sonnet-4-5-20250929",
-        )
+        cfg = _vision_cfg("anthropic", "claude-sonnet-4-5-20250929")
 
         mock_response = MagicMock()
         mock_response.choices = [
             MagicMock(message=MagicMock(content="Page contains a table of financial data."))
         ]
 
+        mock_vision_module = MagicMock()
+        mock_vision_module.create_image_message = _mock_create_image_message
+
+        mock_ai_factory = MagicMock()
+        mock_model_inst = MagicMock()
+        mock_model_inst.achat_complete = AsyncMock(return_value=mock_response)
+        mock_ai_factory.create_language.return_value = mock_model_inst
+
         with patch(
-            "content_core.processors.pdf_vision.convert_pdf_to_images",
+            "content_core.processors.document.pdf_vision.convert_pdf_to_images",
             new_callable=AsyncMock,
             return_value=[("/tmp/page_0001.png", 1), ("/tmp/page_0002.png", 2)],
-        ):
-            mock_vision_module = MagicMock()
-            mock_vision_module.create_image_message = _mock_create_image_message
+        ), patch.dict(
+            sys.modules, {"esperanto.utils.vision": mock_vision_module}
+        ), patch("esperanto.AIFactory", mock_ai_factory):
+            from content_core.processors.document.pdf_vision import (
+                extract_pdf_with_vision,
+            )
 
-            mock_ai_factory = MagicMock()
-            mock_model_inst = MagicMock()
-            mock_model_inst.achat_complete = AsyncMock(return_value=mock_response)
-            mock_ai_factory.create_language.return_value = mock_model_inst
+            result = await extract_pdf_with_vision("/fake/document.pdf", cfg)
 
-            with patch.dict(sys.modules, {
-                "esperanto.utils.vision": mock_vision_module,
-            }):
-                with patch("esperanto.AIFactory", mock_ai_factory):
-                    from content_core.processors.pdf_vision import (
-                        extract_pdf_with_vision,
-                    )
-
-                    result = await extract_pdf_with_vision(state)
-
-        assert "Document: document.pdf" in result["content"]
-        assert "Page 1" in result["content"]
-        assert "Page 2" in result["content"]
+        assert "Document: document.pdf" in result.content
+        assert "Page 1" in result.content
+        assert "Page 2" in result.content
         mock_ai_factory.create_language.assert_called_once_with(
             "anthropic", "claude-sonnet-4-5-20250929", config=None
         )
 
 
 class TestFrameParams:
-    """Tests for adaptive frame/page sampling parameters."""
-
     def test_short_video_params(self):
-        from content_core.processors.video_vision import calculate_frame_params
+        from content_core.processors.media.video_vision import calculate_frame_params
 
         fps, max_frames = calculate_frame_params(30.0)
         assert fps == 1.0
         assert max_frames == 60
 
     def test_medium_video_params(self):
-        from content_core.processors.video_vision import calculate_frame_params
+        from content_core.processors.media.video_vision import calculate_frame_params
 
         fps, max_frames = calculate_frame_params(180.0)
         assert fps == 0.5
         assert max_frames == 150
 
     def test_long_video_params(self):
-        from content_core.processors.video_vision import calculate_frame_params
+        from content_core.processors.media.video_vision import calculate_frame_params
 
         fps, max_frames = calculate_frame_params(600.0)
         assert fps == 0.2
         assert max_frames == 180
 
     def test_very_long_video_params(self):
-        from content_core.processors.video_vision import calculate_frame_params
+        from content_core.processors.media.video_vision import calculate_frame_params
 
         fps, max_frames = calculate_frame_params(3600.0)
         assert fps == 0.1
@@ -244,156 +219,176 @@ class TestFrameParams:
 
 
 class TestPageParams:
-    """Tests for adaptive PDF page sampling parameters."""
-
     def test_short_pdf_params(self):
-        from content_core.processors.pdf_vision import calculate_page_params
+        from content_core.processors.document.pdf_vision import calculate_page_params
 
         step, max_pages = calculate_page_params(10)
         assert step == 1
         assert max_pages == 20
 
     def test_medium_pdf_params(self):
-        from content_core.processors.pdf_vision import calculate_page_params
+        from content_core.processors.document.pdf_vision import calculate_page_params
 
         step, max_pages = calculate_page_params(50)
         assert step == 2
         assert max_pages == 50
 
     def test_long_pdf_params(self):
-        from content_core.processors.pdf_vision import calculate_page_params
+        from content_core.processors.document.pdf_vision import calculate_page_params
 
         step, max_pages = calculate_page_params(200)
         assert step == 5
         assert max_pages == 100
 
     def test_very_long_pdf_params(self):
-        from content_core.processors.pdf_vision import calculate_page_params
+        from content_core.processors.document.pdf_vision import calculate_page_params
 
         step, max_pages = calculate_page_params(1000)
         assert step == 10
         assert max_pages == 100
 
 
-class TestGraphRouting:
-    """Tests for extraction graph routing with vision config."""
+class TestExtractionRouting:
+    """Vision-aware routing inside `extraction.py::_extract_file`."""
 
     @pytest.mark.asyncio
-    async def test_image_routing(self):
-        """Test that images route to extract_image."""
-        from content_core.content.extraction.graph import file_type_edge
+    async def test_image_routes_to_extract_image(self):
+        from content_core.common.state import ExtractionOutput
+        from content_core.extraction import _extract_file
 
-        state = ProcessSourceState(
-            file_path="/fake/photo.jpg",
-            identified_type="image/jpeg",
-        )
-        result = await file_type_edge(state)
-        assert result == "extract_image"
+        cfg = _no_vision_cfg()
 
-    @pytest.mark.asyncio
-    async def test_video_routes_to_vision_when_configured(self):
-        """Test video routes to vision processor when vision model is set."""
-        from content_core.content.extraction.graph import file_type_edge
+        with patch(
+            "content_core.content.identification.get_file_type",
+            new_callable=AsyncMock,
+            return_value="image/jpeg",
+        ), patch(
+            "content_core.extraction.extract_image",
+            new_callable=AsyncMock,
+            return_value=ExtractionOutput(content="img", title="photo.jpg"),
+        ) as mock_image:
+            result = await _extract_file("/fake/photo.jpg", cfg)
 
-        state = ProcessSourceState(
-            file_path="/fake/video.mp4",
-            identified_type="video/mp4",
-            vision_provider="openai",
-            vision_model="gpt-4o",
-        )
-        result = await file_type_edge(state)
-        assert result == "extract_video_with_vision"
-
-    @pytest.mark.asyncio
-    async def test_video_routes_to_audio_when_no_vision(self):
-        """Test video routes to audio extraction without vision config."""
-        from content_core.content.extraction.graph import file_type_edge
-
-        state = ProcessSourceState(
-            file_path="/fake/video.mp4",
-            identified_type="video/mp4",
-        )
-        result = await file_type_edge(state)
-        assert result == "extract_best_audio_from_video"
+        mock_image.assert_awaited_once()
+        assert result.content == "img"
+        assert result.identified_type == "image/jpeg"
 
     @pytest.mark.asyncio
     async def test_pdf_routes_to_vision_when_configured(self):
-        """Test PDF routes to vision processor when vision model is set."""
-        from content_core.content.extraction.graph import file_type_edge
+        from content_core.common.state import ExtractionOutput
+        from content_core.extraction import _extract_file
 
-        state = ProcessSourceState(
-            file_path="/fake/doc.pdf",
-            identified_type="application/pdf",
-            vision_provider="anthropic",
-            vision_model="claude-sonnet-4-5-20250929",
-        )
-        result = await file_type_edge(state)
-        assert result == "extract_pdf_with_vision"
+        cfg = _vision_cfg("anthropic", "claude-sonnet-4-5-20250929")
 
-    @pytest.mark.asyncio
-    async def test_pdf_routes_to_fitz_when_no_vision(self):
-        """Test PDF routes to PyMuPDF extraction without vision config."""
-        from content_core.content.extraction.graph import file_type_edge
+        with patch(
+            "content_core.content.identification.get_file_type",
+            new_callable=AsyncMock,
+            return_value="application/pdf",
+        ), patch(
+            "content_core.extraction.extract_pdf_with_vision",
+            new_callable=AsyncMock,
+            return_value=ExtractionOutput(content="vision pdf", title="doc.pdf"),
+        ) as mock_vision, patch(
+            "content_core.extraction.extract_pdf_file",
+            new_callable=AsyncMock,
+            return_value=ExtractionOutput(content="plain pdf", title="doc.pdf"),
+        ) as mock_plain:
+            result = await _extract_file("/fake/doc.pdf", cfg)
 
-        state = ProcessSourceState(
-            file_path="/fake/doc.pdf",
-            identified_type="application/pdf",
-        )
-        result = await file_type_edge(state)
-        assert result == "extract_pdf"
-
-    @pytest.mark.asyncio
-    async def test_audio_routing_unchanged(self):
-        """Test audio routing is unchanged."""
-        from content_core.content.extraction.graph import file_type_edge
-
-        state = ProcessSourceState(
-            file_path="/fake/audio.mp3",
-            identified_type="audio/mpeg",
-        )
-        result = await file_type_edge(state)
-        assert result == "extract_audio_data"
+        mock_vision.assert_awaited_once()
+        mock_plain.assert_not_awaited()
+        assert "vision pdf" in result.content
 
     @pytest.mark.asyncio
-    async def test_text_routing_unchanged(self):
-        """Test text routing is unchanged."""
-        from content_core.content.extraction.graph import file_type_edge
+    async def test_pdf_routes_to_plain_when_no_vision(self):
+        from content_core.common.state import ExtractionOutput
+        from content_core.extraction import _extract_file
 
-        state = ProcessSourceState(
-            file_path="/fake/notes.txt",
-            identified_type="text/plain",
-        )
-        result = await file_type_edge(state)
-        assert result == "extract_txt"
+        cfg = _no_vision_cfg()
+
+        with patch(
+            "content_core.content.identification.get_file_type",
+            new_callable=AsyncMock,
+            return_value="application/pdf",
+        ), patch(
+            "content_core.extraction.extract_pdf_with_vision",
+            new_callable=AsyncMock,
+        ) as mock_vision, patch(
+            "content_core.extraction.extract_pdf_file",
+            new_callable=AsyncMock,
+            return_value=ExtractionOutput(content="plain pdf", title="doc.pdf"),
+        ) as mock_plain:
+            result = await _extract_file("/fake/doc.pdf", cfg)
+
+        mock_plain.assert_awaited_once()
+        mock_vision.assert_not_awaited()
+        assert "plain pdf" in result.content
+
+    @pytest.mark.asyncio
+    async def test_video_routes_to_vision_when_configured(self):
+        from content_core.common.state import ExtractionOutput
+        from content_core.extraction import _extract_file
+
+        cfg = _vision_cfg()
+
+        with patch(
+            "content_core.content.identification.get_file_type",
+            new_callable=AsyncMock,
+            return_value="video/mp4",
+        ), patch(
+            "content_core.extraction.extract_video_with_vision",
+            new_callable=AsyncMock,
+            return_value=ExtractionOutput(content="vision video", title="v.mp4"),
+        ) as mock_vision, patch(
+            "content_core.extraction.extract_video",
+            new_callable=AsyncMock,
+            return_value=ExtractionOutput(content="audio video", title="v.mp4"),
+        ) as mock_plain:
+            result = await _extract_file("/fake/v.mp4", cfg)
+
+        mock_vision.assert_awaited_once()
+        mock_plain.assert_not_awaited()
+        assert "vision video" in result.content
+
+    @pytest.mark.asyncio
+    async def test_video_routes_to_audio_when_no_vision(self):
+        from content_core.common.state import ExtractionOutput
+        from content_core.extraction import _extract_file
+
+        cfg = _no_vision_cfg()
+
+        with patch(
+            "content_core.content.identification.get_file_type",
+            new_callable=AsyncMock,
+            return_value="video/mp4",
+        ), patch(
+            "content_core.extraction.extract_video_with_vision",
+            new_callable=AsyncMock,
+        ) as mock_vision, patch(
+            "content_core.extraction.extract_video",
+            new_callable=AsyncMock,
+            return_value=ExtractionOutput(content="audio video", title="v.mp4"),
+        ) as mock_plain:
+            result = await _extract_file("/fake/v.mp4", cfg)
+
+        mock_plain.assert_awaited_once()
+        mock_vision.assert_not_awaited()
+        assert "audio video" in result.content
 
 
-class TestStateModel:
-    """Tests for vision fields in ProcessSourceState."""
-
-    def test_state_has_vision_fields(self):
-        """Test that state model accepts vision config fields."""
-        state = ProcessSourceState(
-            file_path="/fake/image.png",
+class TestConfigVisionFields:
+    def test_config_accepts_vision_fields(self):
+        cfg = ContentCoreConfig(
             vision_provider="openai",
             vision_model="gpt-4o",
+            vision_config={"api_key": "fake"},
         )
-        assert state.vision_provider == "openai"
-        assert state.vision_model == "gpt-4o"
+        assert cfg.vision_provider == "openai"
+        assert cfg.vision_model == "gpt-4o"
+        assert cfg.vision_config == {"api_key": "fake"}
 
-    def test_state_vision_fields_default_none(self):
-        """Test that vision fields default to None."""
-        state = ProcessSourceState(file_path="/fake/file.txt")
-        assert state.vision_provider is None
-        assert state.vision_model is None
-
-    def test_input_has_vision_fields(self):
-        """Test that input model accepts vision config fields."""
-        from content_core.common import ProcessSourceInput
-
-        input_state = ProcessSourceInput(
-            file_path="/fake/image.png",
-            vision_provider="anthropic",
-            vision_model="claude-sonnet-4-5-20250929",
-        )
-        assert input_state.vision_provider == "anthropic"
-        assert input_state.vision_model == "claude-sonnet-4-5-20250929"
+    def test_config_vision_defaults_to_none(self):
+        cfg = ContentCoreConfig()
+        assert cfg.vision_provider is None
+        assert cfg.vision_model is None
+        assert cfg.vision_config is None

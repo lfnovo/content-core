@@ -5,7 +5,6 @@ from esperanto import LanguageModel
 from pydantic import BaseModel, Field
 
 from content_core.common.retry import retry_llm
-from content_core.logging import logger
 from content_core.models import ModelFactory
 
 
@@ -18,9 +17,9 @@ class TemplatedMessageInput(BaseModel):
     config: Dict = Field(
         description="The config for the LLM",
         default={
-            "temperature": 0,
+            "temperature": 0.5,
             "top_p": 1,
-            "max_tokens": 600,
+            "max_tokens": 4096,
         },
     )
 
@@ -29,7 +28,8 @@ class TemplatedMessageInput(BaseModel):
 async def _execute_llm_call(model: LanguageModel, msgs: list) -> str:
     """Internal function to execute LLM call - wrapped with retry logic."""
     result = await model.achat_complete(msgs)
-    return result.content
+    msg = result.choices[0].message
+    return getattr(msg, "cleaned_content", None) or msg.content
 
 
 async def templated_message(
@@ -63,8 +63,4 @@ async def templated_message(
         ).render(data=input.data)
         msgs.append({"role": "user", "content": user_prompt})
 
-    try:
-        return await _execute_llm_call(model, msgs)
-    except Exception as e:
-        logger.error(f"LLM call failed after retries: {e}")
-        return None
+    return await _execute_llm_call(model, msgs)

@@ -30,8 +30,31 @@ from tenacity import (
 )
 
 from content_core.common.exceptions import NoTranscriptFound, NotFoundError
-from content_core.config import get_retry_config
 from content_core.logging import logger
+
+# Default retry configurations per operation type
+DEFAULT_RETRY_CONFIG = {
+    "youtube": {"max_attempts": 5, "base_delay": 2, "max_delay": 60},
+    "url_api": {"max_attempts": 3, "base_delay": 1, "max_delay": 30},
+    "url_network": {"max_attempts": 3, "base_delay": 0.5, "max_delay": 10},
+    "audio": {"max_attempts": 3, "base_delay": 2, "max_delay": 30},
+    "llm": {"max_attempts": 3, "base_delay": 1, "max_delay": 30},
+    "download": {"max_attempts": 3, "base_delay": 1, "max_delay": 15},
+}
+
+
+def get_retry_config(operation_type: str) -> dict:
+    """Get retry configuration for a specific operation type.
+
+    Args:
+        operation_type: One of 'youtube', 'url_api', 'url_network', 'audio', 'llm', 'download'
+
+    Returns:
+        dict with 'max_attempts', 'base_delay', 'max_delay'
+    """
+    return DEFAULT_RETRY_CONFIG.get(
+        operation_type, DEFAULT_RETRY_CONFIG["url_network"]
+    )
 
 
 # Exceptions that should NOT be retried (permanent failures)

@@ -6,7 +6,6 @@ Tests the retry module including:
 - Decorator behavior (retries, backoff, logging)
 - Exception handling after retry exhaustion
 """
-import os
 from unittest.mock import MagicMock, patch
 
 import aiohttp
@@ -23,7 +22,7 @@ from content_core.common.retry import (
     retry_url_network,
     retry_youtube,
 )
-from content_core.config import (
+from content_core.common.retry import (
     DEFAULT_RETRY_CONFIG,
     get_retry_config,
 )
@@ -74,46 +73,10 @@ class TestRetryConfig:
 
     def test_get_retry_config_unknown_operation(self):
         """Test that unknown operation types fall back to url_network."""
-        with patch("content_core.logging.logger") as mock_logger:
-            config = get_retry_config("unknown_operation")
-            mock_logger.warning.assert_called_once()
-            # Should return url_network defaults
-            assert config["max_attempts"] == 3
-            assert config["base_delay"] == 0.5
-
-    def test_get_retry_config_env_override_max_retries(self):
-        """Test environment variable override for max retries."""
-        with patch.dict(os.environ, {"CCORE_YOUTUBE_MAX_RETRIES": "10"}):
-            config = get_retry_config("youtube")
-            assert config["max_attempts"] == 10
-
-    def test_get_retry_config_env_override_base_delay(self):
-        """Test environment variable override for base delay."""
-        with patch.dict(os.environ, {"CCORE_LLM_BASE_DELAY": "5.5"}):
-            config = get_retry_config("llm")
-            assert config["base_delay"] == 5.5
-
-    def test_get_retry_config_env_override_max_delay(self):
-        """Test environment variable override for max delay."""
-        with patch.dict(os.environ, {"CCORE_DOWNLOAD_MAX_DELAY": "100"}):
-            config = get_retry_config("download")
-            assert config["max_delay"] == 100
-
-    def test_get_retry_config_invalid_max_retries(self):
-        """Test that invalid max retries value is ignored."""
-        with patch.dict(os.environ, {"CCORE_YOUTUBE_MAX_RETRIES": "100"}):  # > 20
-            with patch("content_core.logging.logger") as mock_logger:
-                config = get_retry_config("youtube")
-                mock_logger.warning.assert_called()
-                assert config["max_attempts"] == 5  # Default
-
-    def test_get_retry_config_invalid_base_delay(self):
-        """Test that invalid base delay value is ignored."""
-        with patch.dict(os.environ, {"CCORE_AUDIO_BASE_DELAY": "not_a_number"}):
-            with patch("content_core.logging.logger") as mock_logger:
-                config = get_retry_config("audio")
-                mock_logger.warning.assert_called()
-                assert config["base_delay"] == 2  # Default
+        config = get_retry_config("unknown_operation")
+        # Should return url_network defaults
+        assert config["max_attempts"] == 3
+        assert config["base_delay"] == 0.5
 
 
 class TestRetryDecorators:

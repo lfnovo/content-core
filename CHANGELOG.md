@@ -7,6 +7,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.3] - 2026-04-13
+
+### Added
+- `--version` flag to CLI (`content-core --version`)
+
+## [2.0.2] - 2026-04-13
+
+### Fixed
+- LLM errors silently swallowed during summarization — errors now propagate with clear messages
+- Thinking models (e.g., Ollama Qwen 3.5) return empty content — now uses `cleaned_content` from Esperanto 2.20.1
+- Default LLM temperature changed from 0 to 0.5 and max_tokens from 600 to 4096 for compatibility with thinking models
+- LLM timeout increased to 120s for local model providers
+
+### Changed
+- Bumped esperanto dependency to >=2.20.1 (thinking model support, trailing slash fix)
+
+## [2.0.1] - 2026-04-13
+
+### Fixed
+- Summarize command fails via `uvx`/`pip install` — Jinja template was not packaged in the wheel
+
+## [2.0.0] - 2026-04-11
+
+### Added
+- Docling enrichment flags: `docling_ocr`, `docling_formulas`, `docling_vision` for controlling OCR, formula extraction, and image/chart processing
+- `ContentCoreConfig` based on pydantic-settings with `CCORE_` environment variable prefix for configuration (note: `FIRECRAWL_API_URL` and `CRAWL4AI_API_URL` use their standard names without the `CCORE_` prefix)
+- Unified CLI command `content-core` with subcommands: `extract`, `summarize`, `mcp`
+- `summarize_content` MCP tool for text summarization directly in Claude Desktop
+- New configuration fields: `CCORE_LLM_PROVIDER`, `CCORE_LLM_MODEL`, `CCORE_STT_PROVIDER`, `CCORE_STT_MODEL`, `CCORE_STT_TIMEOUT`, `CCORE_YOUTUBE_LANGUAGES`
+- Crawl4AI Docker mode (#23) — set `CRAWL4AI_API_URL` to use a remote Crawl4AI server instead of local Playwright
+- Reddit post extraction via public JSON endpoint (#35) — extracts post content and comments, with fallback to normal URL extraction
+- Firecrawl `proxy` and `wait_for` options (#34) — defaults to `auto` proxy and 3000ms wait for better out-of-the-box extraction
+- CLI `--engine` flag routes automatically to `url_engine` or `document_engine` based on input type
+- Persistent config file at `~/.content-core/config.toml` with CLI management (`config list`, `config set`, `config delete`)
+- Configuration priority: constructor args > env vars (`CCORE_*`) > config file > defaults
+- New EPUB processor using fast-ebook (MIT, Rust-powered) for EPUB extraction
+
+### Changed
+- **Breaking**: `extract_content()` now uses keyword-only arguments instead of `ExtractionInput`/dict positional parameter:
+  ```python
+  # Before
+  await extract_content({"url": "https://example.com"})
+  await extract_content(ExtractionInput(file_path="doc.pdf"))
+
+  # After
+  await extract_content(url="https://example.com")
+  await extract_content(file_path="doc.pdf")
+  ```
+- **Breaking**: Engine overrides are now passed via `ContentCoreConfig` instead of input dict:
+  ```python
+  # Before
+  await extract_content({"url": "...", "url_engine": "firecrawl"})
+
+  # After
+  config = ContentCoreConfig(url_engine="firecrawl")
+  await extract_content(url="...", config=config)
+  ```
+- Bumped Docling optional dependency to >=2.86.0
+- Replaced PyMuPDF (AGPL3) with pdfplumber (MIT) for PDF extraction
+- EPUB extraction now uses fast-ebook (MIT) instead of PyMuPDF — separate `processors/document/epub.py` processor
+- Replaced moviepy with direct ffmpeg/ffprobe calls for audio processing — faster (stream copy, no re-encoding), fixes chapter metadata parsing bug (#33)
+- Replaced LangGraph orchestration with plain async Python orchestrator in `extraction.py`
+- Restructured processors into `url/` (bs4, jina, firecrawl, crawl4ai), `document/` (docx, pptx, xlsx, docling), and `media/` (audio, video)
+- MCP server now returns plain text instead of structured JSON
+- MCP server invoked via `content-core mcp` instead of `content-core-mcp` (the `content-core-mcp` entry point is kept for backward compatibility)
+- Public API simplified to `content_core.extract_content()`, `content_core.summarize()`, `content_core.ContentCoreConfig`
+- Configuration uses pydantic-settings instead of YAML files and `CONFIG` dict
+- `langchain-core` moved to optional dependency (`pip install content-core[langchain]`)
+
+### Removed
+- LangGraph dependency and state graph workflow
+- YAML configuration files (`cc_config.yaml`, `models_config.yaml`)
+- `CONFIG` dict and `set_*()` configuration functions
+- Cleanup/clean functionality (`clean()`, `cleanup_content()`, `cclean` CLI command)
+- Old CLI entry points: `ccore`, `cclean`, `csum`
+- Raycast extension
+- macOS Services integration
+- `ExtractionInput` as required parameter (model still available for internal use)
+- PyMuPDF dependency (AGPL3 license)
+- moviepy dependency (replaced with direct ffmpeg/ffprobe calls)
+- `pymupdf_enable_formula_ocr`, `pymupdf_formula_threshold`, `pymupdf_ocr_fallback` config fields and `CCORE_PYMUPDF_*` environment variables
+- Built-in OCR support for formula-heavy PDFs (was disabled by default)
+
+### Fixed
+- Audio processing crashes on MP3 files with chapter metadata (#33) — replaced moviepy with direct ffmpeg calls
+- Firecrawl API URL now uses `FIRECRAWL_API_URL` env var (#13) — consistent with `FIRECRAWL_API_KEY` naming convention
+- MCP `engine` parameter now correctly routes to `document_engine` for file inputs
+- Office documents (DOCX, PPTX, XLSX) no longer extracted twice in certain conditions
+- Docling processor returns correct type consistently
+
 ## [1.14.1] - 2026-01-29
 
 ### Fixed
@@ -51,7 +141,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **LangGraph v1 Migration** - Updated to LangGraph v1.0+ (from v0.3.x)
   - Minimum requirement now `langgraph>=1.0.0`
-  - Updated StateGraph API: `input` → `input_schema`, `output` → `output_schema`
+  - Updated StateGraph API: `input` -> `input_schema`, `output` -> `output_schema`
   - No breaking changes for users - same API surface maintained
 
 ## [1.11.0] - 2026-01-25
