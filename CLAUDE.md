@@ -21,6 +21,38 @@ content-core mcp
 content-core config list|set|delete
 ```
 
+## For Automated Agents
+
+If you are an automated coding agent (harny, Claude Code in headless mode, etc.) working on this repo:
+
+### Install command
+
+```bash
+uv sync --group dev
+```
+
+### Validator command
+
+```bash
+uv run pytest tests/unit tests/integration -v
+```
+
+This is the gate. It returns clean pass/fail in ~15s, requires no credentials or network, and matches what CI enforces on `main` (CI runs only `tests/unit`; integration tests are also safe locally — no network/API keys). For targeted feedback during iteration, use `uv run pytest -k "<keyword>"` per the table in the Testing section below.
+
+### Do NOT use as gates
+
+- **`ruff check`** — available via `make ruff` but NOT enforced in CI. Including it as a validator gate would surface unaudited pre-existing findings unrelated to your task.
+- **`mypy`** — not enforced in CI. No baseline configured. Same risk.
+- **`make test-e2e` / `make test-e2e-heavy`** — require network access, API keys for LLM/STT providers, and large model downloads. Will fail in a sandboxed worktree.
+
+If you believe a task genuinely requires lint or type cleanup, do it as a *separate task* with explicit scope, not as a side effect of an unrelated change.
+
+### Scope guidance
+
+- Single processor changes (`processors/url/*.py`, `processors/document/*.py`, `processors/media/*.py`) are the natural unit of work — keep changes confined to one file plus its matching test in `tests/unit/`.
+- Avoid touching `extraction.py` (orchestrator) or `config.py` unless the task explicitly targets routing or configuration.
+- New processors should follow the `Processor` protocol in `src/content_core/processors/protocol.py`.
+
 ## Codebase Structure
 
 ```
