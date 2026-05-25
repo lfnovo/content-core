@@ -30,23 +30,21 @@ async def get_pdf_page_count(file_path: str) -> int:
 
 
 def calculate_page_params(total_pages: int) -> Tuple[int, int]:
-    """Adaptive sampling for PDF pages.
+    """Return (step_size, max_pages) for PDF page sampling.
 
-    | Pages     | Step Size   | Max Pages |
-    |-----------|-------------|-----------|
-    | <= 20     | every page  | 20        |
-    | 21-100    | every 2nd   | 50        |
-    | 101-500   | every 5th   | 100       |
-    | > 500     | every 10th  | 100       |
+    Every page on every PDF. The earlier adaptive sampling
+    (step=2 for medium docs, step=5/10 for large ones) was a cost
+    guardrail from when vision output was the primary `full_text` and
+    halving page count halved spend. With pdfplumber now providing
+    full-text coverage and vision only enriching the "Visual analysis"
+    insight, the insight needs to actually cover every page — otherwise
+    figures/tables/layout from skipped pages are silently lost.
+
+    No cap: a 500-page book yields 500 vision calls. If that becomes a
+    problem in practice, gate large PDFs behind a user-confirmation step
+    rather than silently truncating the analysis.
     """
-    if total_pages <= 20:
-        return (1, 20)
-    elif total_pages <= 100:
-        return (2, 50)
-    elif total_pages <= 500:
-        return (5, 100)
-    else:
-        return (10, 100)
+    return (1, total_pages)
 
 
 async def convert_pdf_to_images(
