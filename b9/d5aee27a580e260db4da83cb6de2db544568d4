@@ -1,0 +1,21 @@
+tests/unit/test_youtube_parsing.py
+  s_4835131254245d::t_2224ad499f3115 28-39
+src/content_core/processors/url/youtube.py
+  s_4835131254245d::t_5a2f06785e5f00 63-64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "b9d5aee27a580e260db4da83cb6de2db544568d4",
+  "prompts": {},
+  "sessions": {
+    "s_4835131254245d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "efe66e08-4064-479e-a180-b20ab0d97171",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Luis Novo <lfnovo@gmail.com>"
+    }
+  }
+}
