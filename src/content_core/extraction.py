@@ -11,7 +11,7 @@ from content_core.common.exceptions import InvalidInputError, UnsupportedTypeExc
 from content_core.common.retry import retry_download
 from content_core.config import ContentCoreConfig, get_default_config
 from content_core.logging import logger
-from content_core.common.state import ExtractionOutput
+from content_core.common.state import ExtractionOutput, FileSupport
 
 # Import processor v2 functions
 from content_core.processors.media.audio import transcribe_audio
@@ -105,6 +105,90 @@ async def _extract_url(url: str, cfg: ContentCoreConfig) -> ExtractionOutput:
     return await extract_from_url(url, cfg)
 
 
+def _route_for_mime(mime: str, cfg: ContentCoreConfig) -> str | None:
+    """Return the processor that would handle a file of this MIME type.
+
+    Single source of truth for file-support routing, shared by ``_extract_file``
+    (actual extraction) and ``check_file_support`` (pre-flight validation), so
+    the pre-flight answer can never disagree with what extraction really does.
+
+    Returns the processor name ("docling", "pdf", "epub", "office", "video",
+    "audio", "text") or ``None`` if the type is unsupported.
+    """
+    engine = cfg.document_engine
+    if engine == "docling" or (
+        engine == "auto" and DOCLING_AVAILABLE and mime in DOCLING_SUPPORTED
+    ):
+        if DOCLING_AVAILABLE and extract_docling is not None:
+            return "docling"
+
+    if mime in SUPPORTED_PDF_TYPES:
+        return "pdf"
+    if mime in SUPPORTED_EPUB_TYPES:
+        return "epub"
+    if mime in SUPPORTED_OFFICE_TYPES:
+        return "office"
+    if mime.startswith("video/"):
+        return "video"
+    if mime.startswith("audio/"):
+        return "audio"
+    if mime == "text/plain":
+        return "text"
+    return None
+
+
+async def check_file_support(
+    file_path: str, config: ContentCoreConfig | None = None
+) -> FileSupport:
+    """Check whether content-core can extract a given file, without extracting.
+
+    Runs the same identification + routing that ``extract_content`` uses, but
+    stops before extraction, so the answer carries the same authority as a real
+    run at a fraction of the cost (it only reads the file header). "Unsupported"
+    is returned as a verdict rather than raised, since it is an expected outcome
+    at ingestion time.
+
+    Args:
+        file_path: Local file path to validate.
+        config: Optional config override. The ``document_engine`` setting is
+            honored, since supported types vary by engine.
+
+    Returns:
+        FileSupport verdict with ``supported``, the ``identified_type`` (MIME),
+        the ``processor`` that would handle it (when supported), and a ``reason``
+        when it would not.
+    """
+    from content_core.content.identification import get_file_type
+
+    cfg = config or get_default_config()
+
+    # Identification can fail outright for unrecognizable files -- that is itself
+    # an "unsupported" verdict (extract_content would raise here too), not an
+    # error the caller should have to catch.
+    try:
+        mime = await get_file_type(file_path)
+    except UnsupportedTypeException as exc:
+        return FileSupport(
+            supported=False,
+            file_path=file_path,
+            identified_type="",
+            document_engine=cfg.document_engine,
+            processor=None,
+            reason=str(exc),
+        )
+
+    processor = _route_for_mime(mime, cfg)
+    supported = processor is not None
+    return FileSupport(
+        supported=supported,
+        file_path=file_path,
+        identified_type=mime,
+        document_engine=cfg.document_engine,
+        processor=processor,
+        reason=None if supported else f"Unsupported file type: {mime}",
+    )
+
+
 async def _extract_file(
     path: str, cfg: ContentCoreConfig, delete_after: bool = False
 ) -> ExtractionOutput:
@@ -116,32 +200,30 @@ async def _extract_file(
 
     used_docling = False
     try:
+        route = _route_for_mime(mime, cfg)
+
         # Docling routing (if enabled and supported)
-        engine = cfg.document_engine
-        if engine == "docling" or (
-            engine == "auto" and DOCLING_AVAILABLE and mime in DOCLING_SUPPORTED
-        ):
-            if DOCLING_AVAILABLE and extract_docling is not None:
-                used_docling = True
-                result = await extract_docling(path, cfg)
-                if not result.title:
-                    result.title = os.path.basename(path)
-                result.identified_type = mime
-                result.source_type = "file"
-                return result
+        if route == "docling":
+            used_docling = True
+            result = await extract_docling(path, cfg)
+            if not result.title:
+                result.title = os.path.basename(path)
+            result.identified_type = mime
+            result.source_type = "file"
+            return result
 
         # Standard processors
-        if mime in SUPPORTED_PDF_TYPES:
+        if route == "pdf":
             result = await extract_pdf_file(path, cfg)
-        elif mime in SUPPORTED_EPUB_TYPES:
+        elif route == "epub":
             result = await extract_epub_file(path, cfg)
-        elif mime in SUPPORTED_OFFICE_TYPES:
+        elif route == "office":
             result = await extract_office(path, mime, cfg)
-        elif mime.startswith("video/"):
+        elif route == "video":
             result = await extract_video(path, cfg)
-        elif mime.startswith("audio/"):
+        elif route == "audio":
             result = await transcribe_audio(path, cfg)
-        elif mime == "text/plain":
+        elif route == "text":
             result = await extract_text_file(path, cfg)
         else:
             raise UnsupportedTypeException(f"Unsupported file type: {mime}")

@@ -7,8 +7,8 @@ import pytest
 
 from content_core.common.exceptions import InvalidInputError, UnsupportedTypeException
 from content_core.config import ContentCoreConfig
-from content_core.extraction import extract_content
-from content_core.common.state import ExtractionOutput
+from content_core.extraction import check_file_support, extract_content
+from content_core.common.state import ExtractionOutput, FileSupport
 
 
 def _make_output(**kwargs) -> ExtractionOutput:
@@ -324,3 +324,86 @@ async def test_docling_flags_warning_without_engine():
 
         mock_logger.warning.assert_called_once()
         assert "docling" in mock_logger.warning.call_args[0][0].lower()
+
+
+# ---------------------------------------------------------------------------
+# 14. check_file_support pre-flight verdict
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_check_file_support_supported():
+    cfg = ContentCoreConfig(document_engine="simple")
+    with patch(
+        "content_core.content.identification.get_file_type",
+        new_callable=AsyncMock,
+        return_value="application/pdf",
+    ):
+        result = await check_file_support("/tmp/test.pdf", config=cfg)
+    assert isinstance(result, FileSupport)
+    assert result.supported is True
+    assert result.identified_type == "application/pdf"
+    assert result.processor == "pdf"
+    assert result.reason is None
+    assert result.document_engine == "simple"
+    assert result.file_path == "/tmp/test.pdf"
+
+
+@pytest.mark.asyncio
+async def test_check_file_support_unsupported():
+    cfg = ContentCoreConfig(document_engine="simple")
+    with patch(
+        "content_core.content.identification.get_file_type",
+        new_callable=AsyncMock,
+        return_value="application/x-unknown-binary",
+    ):
+        result = await check_file_support("/tmp/test.bin", config=cfg)
+    assert result.supported is False
+    assert result.processor is None
+    assert result.reason is not None
+    assert "application/x-unknown-binary" in result.reason
+
+
+@pytest.mark.asyncio
+async def test_check_file_support_unidentifiable_returns_verdict():
+    """A file whose type can't be determined is a verdict, not a raised error."""
+    cfg = ContentCoreConfig(document_engine="simple")
+    with patch(
+        "content_core.content.identification.get_file_type",
+        new_callable=AsyncMock,
+        side_effect=UnsupportedTypeException("Unable to determine file type for: x"),
+    ):
+        result = await check_file_support("/tmp/mystery.xyz", config=cfg)
+    assert result.supported is False
+    assert result.processor is None
+    assert result.identified_type == ""
+    assert "determine file type" in result.reason
+
+
+@pytest.mark.asyncio
+async def test_check_file_support_does_not_extract():
+    """The pre-flight check must never invoke a real extractor."""
+    cfg = ContentCoreConfig(document_engine="simple")
+    with patch(
+        "content_core.content.identification.get_file_type",
+        new_callable=AsyncMock,
+        return_value="application/pdf",
+    ), patch(
+        "content_core.extraction.extract_pdf_file", new_callable=AsyncMock
+    ) as mock_pdf:
+        await check_file_support("/tmp/test.pdf", config=cfg)
+        mock_pdf.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_check_file_support_agrees_with_extraction():
+    """The verdict must never disagree with what extract_content actually does."""
+    cfg = ContentCoreConfig(document_engine="simple")
+    with patch(
+        "content_core.content.identification.get_file_type",
+        new_callable=AsyncMock,
+        return_value="application/x-unknown-binary",
+    ):
+        verdict = await check_file_support("/tmp/test.bin", config=cfg)
+        assert verdict.supported is False
+        # extraction of the same type raises, confirming the verdict
+        with pytest.raises(UnsupportedTypeException):
+            await extract_content(file_path="/tmp/test.bin", config=cfg)
