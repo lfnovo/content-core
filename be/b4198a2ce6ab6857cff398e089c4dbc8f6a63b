@@ -1,0 +1,29 @@
+src/content_core/__init__.py
+  s_4835131254245d::t_2e7555225381e4 8,10,21,26
+tests/unit/test_routing.py
+  s_4835131254245d::t_9e97b9cd75476e 366-381
+  s_4835131254245d::t_0baf2063782b2d 327-365,382-409
+  s_4835131254245d::t_41a70fa09364bf 10-11
+src/content_core/extraction.py
+  s_4835131254245d::t_20990f23554411 164-179
+  s_4835131254245d::t_8e0a9cfef01a90 14
+  s_4835131254245d::t_b29ff1dc732c2d 108-163,180-191,203-204,206-213,216,218,220,222,224,226
+src/content_core/common/state.py
+  s_4835131254245d::t_41eff082273a80 32-47,51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "beb4198a2ce6ab6857cff398e089c4dbc8f6a63b",
+  "prompts": {},
+  "sessions": {
+    "s_4835131254245d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "efe66e08-4064-479e-a180-b20ab0d97171",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Luis Novo <lfnovo@gmail.com>"
+    }
+  }
+}
