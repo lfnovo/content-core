@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.4] - 2026-07-12
+
+### Added
+- `check_file_support(file_path, config)` public API for cheap pre-flight validation of whether a file can be extracted, without running extraction; returns a `FileSupport` verdict
+
+### Fixed
+- YouTube `youtube.com/live/<id>` and `youtube.com/shorts/<id>` URLs were not recognized, causing title and transcript extraction to fail
+
 ## [2.0.3] - 2026-04-13
 
 ### Added
