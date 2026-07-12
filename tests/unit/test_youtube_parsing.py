@@ -25,6 +25,18 @@ class TestExtractYoutubeId:
         )
         assert result == "dQw4w9WgXcQ"
 
+    async def test_live_url(self):
+        result = await _extract_youtube_id(
+            "https://www.youtube.com/live/dQw4w9WgXcQ"
+        )
+        assert result == "dQw4w9WgXcQ"
+
+    async def test_shorts_url(self):
+        result = await _extract_youtube_id(
+            "https://www.youtube.com/shorts/dQw4w9WgXcQ"
+        )
+        assert result == "dQw4w9WgXcQ"
+
     async def test_url_with_extra_params(self):
         result = await _extract_youtube_id(
             "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=120"

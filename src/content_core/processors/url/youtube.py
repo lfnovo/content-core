@@ -60,6 +60,8 @@ async def _extract_youtube_id(url):
         r"(?:"  # Group start
         r"/embed/"  # Embed URL
         r"|/v/"  # Older video URL
+        r"|/live/"  # Livestream URL (active or ended)
+        r"|/shorts/"  # Shorts URL
         r"|/watch\?v="  # Standard watch URL
         r"|/watch\?.+&v="  # Other watch URL
         r")"  # Group end
