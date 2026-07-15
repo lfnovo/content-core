@@ -5,8 +5,12 @@ import os
 from pathlib import Path
 from typing import Any, Optional, Tuple, Type
 
-from pydantic import Field
-from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
+from pydantic import AliasChoices, Field
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
 
 try:
     import tomllib
@@ -21,9 +25,7 @@ CONFIG_FILE = CONFIG_DIR / "config.toml"
 class TomlFileSettingsSource(PydanticBaseSettingsSource):
     """Read settings from ~/.content-core/config.toml."""
 
-    def get_field_value(
-        self, field: Any, field_name: str
-    ) -> Tuple[Any, str, bool]:
+    def get_field_value(self, field: Any, field_name: str) -> Tuple[Any, str, bool]:
         data = self._load_toml()
         if field_name in data:
             return data[field_name], field_name, False
@@ -88,6 +90,25 @@ class ContentCoreConfig(BaseSettings):
     docling_formulas: bool = False
     docling_vision: bool = False
 
+    # Docling Serve API (remote)
+    docling_api_url: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "docling_api_url",
+            "CCORE_DOCLING_API_URL",
+            "DOCLING_API_URL",
+        ),
+    )
+    docling_api_key: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "docling_api_key",
+            "CCORE_DOCLING_API_KEY",
+            "DOCLING_API_KEY",
+        ),
+    )
+    docling_timeout: int = Field(default=300, gt=0)
+
     @classmethod
     def settings_customise_sources(
         cls,
@@ -125,6 +146,7 @@ def reset_default_config() -> None:
 # ---------------------------------------------------------------------------
 # Config file management (used by CLI `config` subcommands)
 # ---------------------------------------------------------------------------
+
 
 def _read_config_file() -> dict:
     """Read the config file, returning empty dict if missing."""
@@ -164,7 +186,9 @@ def config_set(key: str, value: str) -> None:
     # Validate key exists in ContentCoreConfig
     valid_keys = set(ContentCoreConfig.model_fields.keys())
     if key not in valid_keys:
-        raise ValueError(f"Unknown config key: {key}. Valid keys: {', '.join(sorted(valid_keys))}")
+        raise ValueError(
+            f"Unknown config key: {key}. Valid keys: {', '.join(sorted(valid_keys))}"
+        )
 
     data = _read_config_file()
 
@@ -175,7 +199,10 @@ def config_set(key: str, value: str) -> None:
         data[key] = int(value)
     elif annotation is bool:
         data[key] = value.lower() in ("true", "1", "yes")
-    elif hasattr(annotation, "__origin__") and getattr(annotation, "__origin__", None) is list:
+    elif (
+        hasattr(annotation, "__origin__")
+        and getattr(annotation, "__origin__", None) is list
+    ):
         data[key] = [v.strip() for v in value.split(",")]
     else:
         data[key] = value
@@ -226,3 +253,14 @@ def get_firecrawl_api_url() -> str:
     if env_url:
         return env_url
     return get_default_config().firecrawl_api_url
+
+
+def get_docling_api_url() -> str | None:
+    """Return Docling Serve API URL.
+
+    Checks DOCLING_API_URL first, then falls back to config file / default.
+    """
+    env_url = os.environ.get("DOCLING_API_URL")
+    if env_url:
+        return env_url
+    return get_default_config().docling_api_url

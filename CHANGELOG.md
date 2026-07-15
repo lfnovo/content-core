@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- First-class support for remote Docling Serve document extraction via `DOCLING_API_URL` / `docling_api_url`, with per-request precedence over local Docling
+- New Docling Serve config fields: `docling_api_url`, `docling_api_key`, and `docling_timeout`
+
+### Changed
+- Docling routing in `document_engine="auto"` now treats a configured Docling Serve API as Docling capability even when local Docling is not installed
+
+### Fixed
+- Remote Docling extraction now raises actionable errors for connection failures, timeouts, HTTP errors, malformed responses, and empty conversion results instead of silently falling back
+
 ## [2.0.4] - 2026-07-12
 
 ### Added

@@ -46,6 +46,12 @@ class ExternalServiceError(ContentCoreError):
     pass
 
 
+class DocumentExtractionError(ContentCoreError):
+    """Raised when a document extraction backend fails."""
+
+    pass
+
+
 class RateLimitError(ContentCoreError):
     """Raised when a rate limit is exceeded."""
 

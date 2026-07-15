@@ -149,6 +149,12 @@ config = ContentCoreConfig(
 result = await content_core.extract_content(url="https://example.com", config=config)
 ```
 
+Remote Docling Serve is also supported for document extraction. When `docling_api_url`
+is configured, Content Core uploads local documents to Docling Serve via
+`POST /v1/convert/file` and returns `document.md_content` from the synchronous JSON
+response. If `docling_api_url` is not configured, Content Core preserves the existing
+local Docling behavior when the optional dependency is installed.
+
 ## MCP Integration
 
 Content Core includes a Model Context Protocol (MCP) server for use with Claude Desktop and other MCP-compatible applications.
@@ -217,6 +223,9 @@ Content Core uses `ContentCoreConfig` powered by pydantic-settings. Settings are
 | `CCORE_DOCUMENT_ENGINE` | Document extraction engine (`auto`, `simple`, `docling`) | `auto` |
 | `CCORE_AUDIO_CONCURRENCY` | Concurrent audio transcriptions (1-10) | `3` |
 | `CRAWL4AI_API_URL` | Crawl4AI Docker API URL (omit for local browser mode) | - |
+| `DOCLING_API_URL` | Docling Serve base URL for remote document extraction | - |
+| `DOCLING_API_KEY` | Docling Serve API key sent as `X-Api-Key` | - |
+| `CCORE_DOCLING_TIMEOUT` | Docling Serve request timeout in seconds | `300` |
 | `FIRECRAWL_API_URL` | Custom Firecrawl API URL for self-hosted instances | - |
 | `CCORE_FIRECRAWL_PROXY` | Firecrawl proxy mode (`auto`, `basic`, `stealth`) | `auto` |
 | `CCORE_FIRECRAWL_WAIT_FOR` | Wait time in ms before extraction | `3000` |
@@ -228,6 +237,18 @@ Content Core uses `ContentCoreConfig` powered by pydantic-settings. Settings are
 | `CCORE_YOUTUBE_LANGUAGES` | Preferred YouTube transcript languages | - |
 
 API keys for external services are set via their standard environment variables (e.g., `OPENAI_API_KEY`, `FIRECRAWL_API_KEY`, `JINA_API_KEY`).
+
+### Docling Routing Precedence
+
+For supported document types, Content Core resolves Docling extraction in this order:
+
+1. If `docling_api_url` or `DOCLING_API_URL` is configured, use the external Docling Serve API.
+2. Otherwise, if local Docling is installed, use the existing in-process Docling converter.
+3. Otherwise, preserve the current simple-engine fallback behavior.
+
+When the remote Docling Serve API is configured, Content Core does not silently fall back
+to local Docling on API failures. Connection failures, timeouts, HTTP errors, malformed
+responses, and empty/missing markdown content raise a clear extraction error instead.
 
 ### Proxy Configuration
 

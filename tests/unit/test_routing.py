@@ -25,7 +25,9 @@ def _make_output(**kwargs) -> ExtractionOutput:
 async def test_text_input_calls_process_text():
     expected = _make_output(source_type="text")
     with patch(
-        "content_core.extraction.process_text", new_callable=AsyncMock, return_value=expected
+        "content_core.extraction.process_text",
+        new_callable=AsyncMock,
+        return_value=expected,
     ) as mock:
         result = await extract_content(content="hello")
         mock.assert_awaited_once()
@@ -39,7 +41,9 @@ async def test_text_input_calls_process_text():
 async def test_youtube_url_calls_extract_youtube():
     expected = _make_output(source_type="url", identified_type="youtube")
     with patch(
-        "content_core.extraction.extract_youtube", new_callable=AsyncMock, return_value=expected
+        "content_core.extraction.extract_youtube",
+        new_callable=AsyncMock,
+        return_value=expected,
     ) as mock:
         result = await extract_content(url="https://www.youtube.com/watch?v=abc")
         mock.assert_awaited_once()
@@ -50,7 +54,9 @@ async def test_youtube_url_calls_extract_youtube():
 async def test_youtu_be_url_calls_extract_youtube():
     expected = _make_output(source_type="url", identified_type="youtube")
     with patch(
-        "content_core.extraction.extract_youtube", new_callable=AsyncMock, return_value=expected
+        "content_core.extraction.extract_youtube",
+        new_callable=AsyncMock,
+        return_value=expected,
     ) as mock:
         result = await extract_content(url="https://youtu.be/abc")
         mock.assert_awaited_once()
@@ -64,7 +70,9 @@ async def test_youtu_be_url_calls_extract_youtube():
 async def test_reddit_url_calls_extract_reddit():
     expected = _make_output(source_type="url", identified_type="reddit")
     with patch(
-        "content_core.extraction.extract_reddit", new_callable=AsyncMock, return_value=expected
+        "content_core.extraction.extract_reddit",
+        new_callable=AsyncMock,
+        return_value=expected,
     ) as mock:
         result = await extract_content(
             url="https://www.reddit.com/r/python/comments/abc123/some_post/"
@@ -161,6 +169,53 @@ async def test_file_pdf_calls_extract_pdf_file():
     ) as mock:
         result = await extract_content(file_path="/tmp/test.pdf", config=cfg)
         mock.assert_awaited_once()
+        assert result is expected
+
+
+@pytest.mark.asyncio
+async def test_file_pdf_uses_docling_when_remote_api_configured():
+    expected = _make_output(identified_type="application/pdf")
+    cfg = ContentCoreConfig(docling_api_url="https://docling.example")
+    with patch(
+        "content_core.content.identification.get_file_type",
+        new_callable=AsyncMock,
+        return_value="application/pdf",
+    ), patch(
+        "content_core.extraction.extract_docling",
+        new_callable=AsyncMock,
+        return_value=expected,
+    ) as mock_docling, patch(
+        "content_core.extraction.extract_pdf_file",
+        new_callable=AsyncMock,
+    ) as mock_pdf:
+        result = await extract_content(file_path="/tmp/test.pdf", config=cfg)
+        mock_docling.assert_awaited_once()
+        mock_pdf.assert_not_awaited()
+        assert result is expected
+
+
+@pytest.mark.asyncio
+async def test_file_pdf_uses_simple_pdf_when_remote_url_absent_and_docling_unavailable():
+    expected = _make_output(identified_type="application/pdf")
+    cfg = ContentCoreConfig(document_engine="auto")
+    with patch(
+        "content_core.content.identification.get_file_type",
+        new_callable=AsyncMock,
+        return_value="application/pdf",
+    ), patch(
+        "content_core.extraction.DOCLING_AVAILABLE",
+        False,
+    ), patch(
+        "content_core.extraction.extract_docling",
+        new_callable=AsyncMock,
+    ) as mock_docling, patch(
+        "content_core.extraction.extract_pdf_file",
+        new_callable=AsyncMock,
+        return_value=expected,
+    ) as mock_pdf:
+        result = await extract_content(file_path="/tmp/test.pdf", config=cfg)
+        mock_pdf.assert_awaited_once()
+        mock_docling.assert_not_awaited()
         assert result is expected
 
 
@@ -297,7 +352,9 @@ async def test_config_passed_to_processor():
     custom_cfg = ContentCoreConfig(url_engine="firecrawl")
     expected = _make_output(source_type="text")
     with patch(
-        "content_core.extraction.process_text", new_callable=AsyncMock, return_value=expected
+        "content_core.extraction.process_text",
+        new_callable=AsyncMock,
+        return_value=expected,
     ) as mock:
         await extract_content(content="hello", config=custom_cfg)
         # Verify the custom config was passed
@@ -314,9 +371,11 @@ async def test_docling_flags_warning_without_engine():
     """Warning should be logged when docling flags set but engine is not docling."""
     cfg = ContentCoreConfig(docling_formulas=True, document_engine="simple")
 
-    with patch("content_core.extraction.extract_pdf_file", new_callable=AsyncMock) as mock_pdf, \
-         patch("content_core.content.identification.get_file_type", new_callable=AsyncMock) as mock_type, \
-         patch("content_core.extraction.logger") as mock_logger:
+    with patch(
+        "content_core.extraction.extract_pdf_file", new_callable=AsyncMock
+    ) as mock_pdf, patch(
+        "content_core.content.identification.get_file_type", new_callable=AsyncMock
+    ) as mock_type, patch("content_core.extraction.logger") as mock_logger:
         mock_type.return_value = "application/pdf"
         mock_pdf.return_value = ExtractionOutput(content="text")
 

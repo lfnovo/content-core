@@ -17,7 +17,10 @@ from content_core.common.state import ExtractionOutput, FileSupport
 from content_core.processors.media.audio import transcribe_audio
 from content_core.processors.document import SUPPORTED_OFFICE_TYPES, extract_office
 from content_core.processors.document.pdf import SUPPORTED_PDF_TYPES, extract_pdf_file
-from content_core.processors.document.epub import SUPPORTED_EPUB_TYPES, extract_epub_file
+from content_core.processors.document.epub import (
+    SUPPORTED_EPUB_TYPES,
+    extract_epub_file,
+)
 from content_core.processors.text import extract_text_file, process_text
 from content_core.processors.url import detect_remote_mime, extract_from_url
 from content_core.processors.media.video import extract_video
@@ -80,13 +83,19 @@ async def _extract_url(url: str, cfg: ContentCoreConfig) -> ExtractionOutput:
         result = await extract_reddit(url, cfg)
         if result and result.content:
             return result
-        logger.debug("Reddit JSON extraction failed, falling back to normal URL extraction")
+        logger.debug(
+            "Reddit JSON extraction failed, falling back to normal URL extraction"
+        )
 
     # Check MIME type via HEAD request
     mime = await detect_remote_mime(url)
 
     # Downloadable file types (PDFs, Office docs, etc served over HTTP)
-    downloadable = set(SUPPORTED_PDF_TYPES) | set(SUPPORTED_EPUB_TYPES) | set(SUPPORTED_OFFICE_TYPES)
+    downloadable = (
+        set(SUPPORTED_PDF_TYPES)
+        | set(SUPPORTED_EPUB_TYPES)
+        | set(SUPPORTED_OFFICE_TYPES)
+    )
     if DOCLING_AVAILABLE:
         downloadable |= set(DOCLING_SUPPORTED)
     downloadable.discard("text/html")  # HTML is treated as web content, not downloaded
@@ -116,10 +125,11 @@ def _route_for_mime(mime: str, cfg: ContentCoreConfig) -> str | None:
     "audio", "text") or ``None`` if the type is unsupported.
     """
     engine = cfg.document_engine
+    docling_enabled = bool(cfg.docling_api_url) or DOCLING_AVAILABLE
     if engine == "docling" or (
-        engine == "auto" and DOCLING_AVAILABLE and mime in DOCLING_SUPPORTED
+        engine == "auto" and docling_enabled and mime in DOCLING_SUPPORTED
     ):
-        if DOCLING_AVAILABLE and extract_docling is not None:
+        if (cfg.docling_api_url or DOCLING_AVAILABLE) and extract_docling is not None:
             return "docling"
 
     if mime in SUPPORTED_PDF_TYPES:
@@ -228,7 +238,9 @@ async def _extract_file(
         else:
             raise UnsupportedTypeException(f"Unsupported file type: {mime}")
 
-        if not used_docling and (cfg.docling_formulas or cfg.docling_vision or not cfg.docling_ocr):
+        if not used_docling and (
+            cfg.docling_formulas or cfg.docling_vision or not cfg.docling_ocr
+        ):
             logger.warning(
                 "Docling enrichment flags (docling_formulas, docling_vision, docling_ocr) "
                 "are only applied when document_engine='docling'. "

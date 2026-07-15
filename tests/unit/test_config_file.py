@@ -68,6 +68,15 @@ class TestConfigSet:
         assert data["docling_vision"] is True
         assert data["docling_ocr"] is False
 
+    def test_set_docling_remote_settings(self, config_dir):
+        config_set("docling_api_url", "https://docling.example")
+        config_set("docling_api_key", "secret-token")
+        config_set("docling_timeout", "120")
+        data = config_list()
+        assert data["docling_api_url"] == "https://docling.example"
+        assert data["docling_api_key"] == "secret-token"
+        assert data["docling_timeout"] == 120
+
     def test_set_invalid_key_raises(self, config_dir):
         with pytest.raises(ValueError, match="Unknown config key"):
             config_set("nonexistent_key", "value")

@@ -71,7 +71,20 @@ result = await content_core.extract_content(file_path="data.xlsx")
 from content_core import ContentCoreConfig
 config = ContentCoreConfig(document_engine="docling", docling_output_format="html")
 result = await content_core.extract_content(file_path="report.pdf", config=config)
+
+# Or route document extraction through an external Docling Serve instance
+remote_config = ContentCoreConfig(
+    docling_api_url="http://localhost:5001",
+    docling_ocr=True,
+    docling_timeout=300,
+)
+result = await content_core.extract_content(file_path="report.pdf", config=remote_config)
 ```
+
+When `docling_api_url` is configured, Content Core uses Docling Serve's synchronous
+`POST /v1/convert/file` endpoint with multipart field `files`, sends `to_formats=md`
+and `do_ocr`, and reads markdown from `document.md_content`. Remote failures are raised
+as extraction errors; they do not fall back to local Docling automatically.
 
 ### Audio and Video
 

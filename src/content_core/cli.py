@@ -9,6 +9,7 @@ from content_core.logging import configure_logging
 
 def _get_version():
     from importlib.metadata import version
+
     return version("content-core")
 
 
@@ -36,9 +37,21 @@ def cli(debug):
     default=None,
     help="Override extraction engine (URL: firecrawl, jina, crawl4ai, simple; Document: docling, simple)",
 )
-@click.option("--formulas", is_flag=True, default=False, help="Enable formula extraction (Docling only)")
-@click.option("--pictures", is_flag=True, default=False, help="Enable image description + chart extraction (Docling only)")
-@click.option("--no-ocr", "no_ocr", is_flag=True, default=False, help="Disable OCR (Docling only)")
+@click.option(
+    "--formulas",
+    is_flag=True,
+    default=False,
+    help="Enable formula extraction (Docling only)",
+)
+@click.option(
+    "--pictures",
+    is_flag=True,
+    default=False,
+    help="Enable image description + chart extraction (Docling only)",
+)
+@click.option(
+    "--no-ocr", "no_ocr", is_flag=True, default=False, help="Disable OCR (Docling only)"
+)
 def extract(source, fmt, engine, formulas, pictures, no_ocr):
     """Extract content from a URL, file path, or text.
 
@@ -48,7 +61,9 @@ def extract(source, fmt, engine, formulas, pictures, no_ocr):
 
     if source is None:
         if sys.stdin.isatty():
-            click.echo("Error: No source provided. Provide a source or pipe input.", err=True)
+            click.echo(
+                "Error: No source provided. Provide a source or pipe input.", err=True
+            )
             sys.exit(1)
         source = sys.stdin.read().strip()
         if not source:
@@ -56,8 +71,14 @@ def extract(source, fmt, engine, formulas, pictures, no_ocr):
             sys.exit(1)
 
     inp = _build_input(source)
-    config = _build_config(inp, engine, formulas=formulas, pictures=pictures, no_ocr=no_ocr)
-    result = asyncio.run(extract_content(url=inp.url, file_path=inp.file_path, content=inp.content, config=config))
+    config = _build_config(
+        inp, engine, formulas=formulas, pictures=pictures, no_ocr=no_ocr
+    )
+    result = asyncio.run(
+        extract_content(
+            url=inp.url, file_path=inp.file_path, content=inp.content, config=config
+        )
+    )
 
     if fmt == "json":
         click.echo(result.model_dump_json(indent=2))
@@ -81,7 +102,10 @@ def summarize(content, context):
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
     if not result:
-        click.echo("Error: Summarization returned no result. Run with --debug for details.", err=True)
+        click.echo(
+            "Error: Summarization returned no result. Run with --debug for details.",
+            err=True,
+        )
         sys.exit(1)
     click.echo(result)
 
@@ -104,7 +128,10 @@ def config():
       crawl4ai_api_url     Crawl4AI Docker API URL (default: none, uses local mode)
       audio_model          Override STT model
       audio_provider       Override STT provider
+    docling_api_key      Docling Serve API key (default: none)
+    docling_api_url      Docling Serve base URL (default: none, uses local Docling if installed)
       docling_output_format  Docling output format (default: markdown)
+    docling_timeout      Docling Serve request timeout in seconds (default: 300)
       document_engine      Document extraction engine (auto, simple, docling)
       firecrawl_api_url    Firecrawl API URL
       firecrawl_proxy      Firecrawl proxy mode: auto, basic, stealth (default: auto)
@@ -131,7 +158,9 @@ def config_list_cmd():
 
     data = config_list()
     if not data:
-        click.echo("No values set. Use 'content-core config set <key> <value>' to configure.")
+        click.echo(
+            "No values set. Use 'content-core config set <key> <value>' to configure."
+        )
         click.echo(f"File: {CONFIG_FILE}")
         click.echo("Run 'content-core config --help' to see available keys.")
         return

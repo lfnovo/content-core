@@ -38,6 +38,8 @@ def _clean_env(monkeypatch):
     for key in list(os.environ):
         if key.startswith("CCORE_"):
             monkeypatch.delenv(key, raising=False)
+    for key in ("DOCLING_API_URL", "DOCLING_API_KEY"):
+        monkeypatch.delenv(key, raising=False)
 
 
 class TestDefaults:
@@ -99,6 +101,18 @@ class TestDefaults:
         cfg = ContentCoreConfig()
         assert cfg.docling_output_format == "markdown"
 
+    def test_docling_api_url_default(self):
+        cfg = ContentCoreConfig()
+        assert cfg.docling_api_url is None
+
+    def test_docling_api_key_default(self):
+        cfg = ContentCoreConfig()
+        assert cfg.docling_api_key is None
+
+    def test_docling_timeout_default(self):
+        cfg = ContentCoreConfig()
+        assert cfg.docling_timeout == 300
+
 
 class TestConstructorOverride:
     """Verify constructor arguments override defaults."""
@@ -133,6 +147,27 @@ class TestEnvVarOverride:
         monkeypatch.setenv("CCORE_LLM_MODEL", "claude-sonnet")
         cfg = ContentCoreConfig()
         assert cfg.llm_model == "claude-sonnet"
+
+    def test_docling_api_url_from_standard_env(self, monkeypatch):
+        monkeypatch.setenv("DOCLING_API_URL", "https://docling.example")
+        cfg = ContentCoreConfig()
+        assert cfg.docling_api_url == "https://docling.example"
+
+    def test_docling_api_url_from_prefixed_env(self, monkeypatch):
+        monkeypatch.setenv("CCORE_DOCLING_API_URL", "https://docling.example")
+        cfg = ContentCoreConfig()
+        assert cfg.docling_api_url == "https://docling.example"
+
+    def test_docling_api_key_from_standard_env(self, monkeypatch):
+        monkeypatch.setenv("DOCLING_API_KEY", "secret-token")
+        cfg = ContentCoreConfig()
+        assert cfg.docling_api_key == "secret-token"
+
+    def test_docling_timeout_from_prefixed_env(self, monkeypatch):
+        monkeypatch.setenv("CCORE_DOCLING_TIMEOUT", "120")
+        cfg = ContentCoreConfig()
+        assert cfg.docling_timeout == 120
+
 
 class TestEnvVarListField:
     """Verify list fields can be set via environment variables."""
@@ -175,6 +210,11 @@ class TestPriority:
         monkeypatch.setenv("CCORE_LLM_MODEL", "from-env")
         cfg = ContentCoreConfig(llm_model="from-constructor")
         assert cfg.llm_model == "from-constructor"
+
+    def test_constructor_beats_docling_standard_env(self, monkeypatch):
+        monkeypatch.setenv("DOCLING_API_URL", "https://from-env.example")
+        cfg = ContentCoreConfig(docling_api_url="https://from-constructor.example")
+        assert cfg.docling_api_url == "https://from-constructor.example"
 
 
 class TestSingleton:
