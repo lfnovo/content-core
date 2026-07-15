@@ -26,9 +26,15 @@ def _load_docling_classes():
             "or use CCORE_DOCUMENT_ENGINE=simple to skip docling."
         )
 
-    from docling.datamodel.base_models import InputFormat
-    from docling.datamodel.pipeline_options import PdfPipelineOptions
-    from docling.document_converter import DocumentConverter, PdfFormatOption
+    try:
+        from docling.datamodel.base_models import InputFormat
+        from docling.datamodel.pipeline_options import PdfPipelineOptions
+        from docling.document_converter import DocumentConverter, PdfFormatOption
+    except Exception as exc:
+        raise ImportError(
+            "Docling package was found but failed to import. "
+            "Reinstall content-core[docling] or use CCORE_DOCUMENT_ENGINE=simple."
+        ) from exc
 
     return InputFormat, PdfPipelineOptions, DocumentConverter, PdfFormatOption
 
@@ -163,6 +169,14 @@ async def _extract_docling_remote(
                     raise DocumentExtractionError(
                         f"Docling Serve request failed with HTTP {response.status}: {detail or 'no error details returned'}"
                     )
+    except asyncio.TimeoutError as exc:
+        raise DocumentExtractionError(
+            (
+                "Docling Serve request timed out "
+                f"after {config.docling_timeout} seconds. "
+                "Check network connectivity or increase docling_timeout."
+            )
+        ) from exc
     except aiohttp.ClientConnectorError as exc:
         raise DocumentExtractionError(
             f"Failed to connect to Docling Serve at {endpoint}: {exc}"
@@ -173,14 +187,6 @@ async def _extract_docling_remote(
         ) from exc
     except aiohttp.ClientError as exc:
         raise DocumentExtractionError(f"Docling Serve request failed: {exc}") from exc
-    except asyncio.TimeoutError as exc:
-        raise DocumentExtractionError(
-            (
-                "Docling Serve request timed out "
-                f"after {config.docling_timeout} seconds. "
-                "Check network connectivity or increase docling_timeout."
-            )
-        ) from exc
 
     try:
         payload = json.loads(body_text)
@@ -188,6 +194,11 @@ async def _extract_docling_remote(
         raise DocumentExtractionError(
             "Docling Serve returned invalid JSON for file conversion."
         ) from exc
+
+    if not isinstance(payload, dict):
+        raise DocumentExtractionError(
+            "Docling Serve returned an unexpected JSON payload type; expected an object."
+        )
 
     return ExtractionOutput(
         content=_extract_remote_markdown(payload),

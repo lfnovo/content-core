@@ -97,9 +97,7 @@ class TestExtractCommand:
             new_callable=AsyncMock,
             return_value=ExtractionOutput(content="ok"),
         ) as mock_extract:
-            result = runner.invoke(
-                cli, ["extract", "--engine", "docling", str(f)]
-            )
+            result = runner.invoke(cli, ["extract", "--engine", "docling", str(f)])
             assert result.exit_code == 0
             _, kwargs = mock_extract.call_args
             assert kwargs["config"] is not None
@@ -218,6 +216,18 @@ class TestConfigCommands:
         result = runner.invoke(cli, ["config", "list"])
         assert result.exit_code == 0
         assert "llm_provider = anthropic" in result.output
+
+    def test_config_list_redacts_docling_api_key(self):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli, ["config", "set", "docling_api_key", "secret-token"]
+        )
+        assert result.exit_code == 0
+
+        result = runner.invoke(cli, ["config", "list"])
+        assert result.exit_code == 0
+        assert "docling_api_key = ***" in result.output
+        assert "secret-token" not in result.output
 
     def test_config_set_invalid_key(self):
         runner = CliRunner()

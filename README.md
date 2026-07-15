@@ -149,7 +149,8 @@ config = ContentCoreConfig(
 result = await content_core.extract_content(url="https://example.com", config=config)
 ```
 
-Remote Docling Serve is also supported for document extraction. When `docling_api_url`
+Remote Docling Serve is also supported for document extraction. Remote Docling routing
+applies only when `document_engine` is `auto` or `docling`. When `docling_api_url`
 is configured, Content Core uploads local documents to Docling Serve via
 `POST /v1/convert/file` and returns `document.md_content` from the synchronous JSON
 response. If `docling_api_url` is not configured, Content Core preserves the existing
@@ -242,9 +243,12 @@ API keys for external services are set via their standard environment variables 
 
 For supported document types, Content Core resolves Docling extraction in this order:
 
-1. If `docling_api_url` or `DOCLING_API_URL` is configured, use the external Docling Serve API.
+1. If `document_engine` is `auto` or `docling` and `docling_api_url` or `DOCLING_API_URL` is configured, use the external Docling Serve API.
 2. Otherwise, if local Docling is installed, use the existing in-process Docling converter.
 3. Otherwise, preserve the current simple-engine fallback behavior.
+
+When `document_engine` is `simple`, Docling is bypassed (including remote Docling Serve),
+and Content Core uses simple document processors only.
 
 When the remote Docling Serve API is configured, Content Core does not silently fall back
 to local Docling on API failures. Connection failures, timeouts, HTTP errors, malformed

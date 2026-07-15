@@ -96,7 +96,9 @@ async def _extract_url(url: str, cfg: ContentCoreConfig) -> ExtractionOutput:
         | set(SUPPORTED_EPUB_TYPES)
         | set(SUPPORTED_OFFICE_TYPES)
     )
-    if DOCLING_AVAILABLE:
+    if cfg.document_engine in {"auto", "docling"} and (
+        DOCLING_AVAILABLE or cfg.docling_api_url
+    ):
         downloadable |= set(DOCLING_SUPPORTED)
     downloadable.discard("text/html")  # HTML is treated as web content, not downloaded
 
@@ -125,13 +127,40 @@ def _route_for_mime(mime: str, cfg: ContentCoreConfig) -> str | None:
     "audio", "text") or ``None`` if the type is unsupported.
     """
     engine = cfg.document_engine
-    docling_enabled = bool(cfg.docling_api_url) or DOCLING_AVAILABLE
-    if engine == "docling" or (
-        engine == "auto" and docling_enabled and mime in DOCLING_SUPPORTED
+
+    # Remote Docling Serve must only handle Docling-supported document MIME types.
+    if (
+        cfg.document_engine in {"auto", "docling"}
+        and cfg.docling_api_url
+        and mime in DOCLING_SUPPORTED
     ):
-        if (cfg.docling_api_url or DOCLING_AVAILABLE) and extract_docling is not None:
+        if extract_docling is not None:
             return "docling"
 
+    # Local Docling behavior (auto/docling engine) remains unchanged.
+    if engine == "docling" or (
+        engine == "auto" and DOCLING_AVAILABLE and mime in DOCLING_SUPPORTED
+    ):
+        if DOCLING_AVAILABLE and extract_docling is not None:
+            return "docling"
+
+    if mime in SUPPORTED_PDF_TYPES:
+        return "pdf"
+    if mime in SUPPORTED_EPUB_TYPES:
+        return "epub"
+    if mime in SUPPORTED_OFFICE_TYPES:
+        return "office"
+    if mime.startswith("video/"):
+        return "video"
+    if mime.startswith("audio/"):
+        return "audio"
+    if mime == "text/plain":
+        return "text"
+    return None
+
+
+def _route_standard_for_mime(mime: str) -> str | None:
+    """Return non-Docling processor route for a MIME type."""
     if mime in SUPPORTED_PDF_TYPES:
         return "pdf"
     if mime in SUPPORTED_EPUB_TYPES:
@@ -215,12 +244,26 @@ async def _extract_file(
         # Docling routing (if enabled and supported)
         if route == "docling":
             used_docling = True
-            result = await extract_docling(path, cfg)
-            if not result.title:
-                result.title = os.path.basename(path)
-            result.identified_type = mime
-            result.source_type = "file"
-            return result
+            try:
+                result = await extract_docling(path, cfg)
+            except ImportError as exc:
+                if cfg.docling_api_url or cfg.document_engine == "docling":
+                    raise
+                logger.warning(
+                    "Docling import failed at runtime; falling back to standard processor."
+                )
+                used_docling = False
+                route = _route_standard_for_mime(mime)
+                if route is None:
+                    raise UnsupportedTypeException(
+                        f"Unsupported file type: {mime}"
+                    ) from exc
+            else:
+                if not result.title:
+                    result.title = os.path.basename(path)
+                result.identified_type = mime
+                result.source_type = "file"
+                return result
 
         # Standard processors
         if route == "pdf":

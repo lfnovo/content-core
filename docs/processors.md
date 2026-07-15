@@ -110,12 +110,14 @@ The `document_engine` setting controls document processing. When set to `auto` (
 
 - File: `document/docling.py`
 - Supports two backends selected per request config:
-  - Remote Docling Serve via `DOCLING_API_URL` / `docling_api_url`
+  - Remote Docling Serve via `docling_api_url`, `DOCLING_API_URL`, or `CCORE_DOCLING_API_URL`
   - Local Docling via `pip install content-core[docling]`
 - Supports PDF, DOCX, PPTX, XLSX, Markdown, AsciiDoc, HTML, CSV, and images
 - Remote Docling Serve currently returns markdown from the synchronous `POST /v1/convert/file` API
 - Local Docling preserves configurable output format: markdown (default), HTML, or JSON
 - Provides richer structural parsing than the simple engine
+- Remote routing is considered only when `document_engine` is `auto` or `docling`
+- `document_engine=simple` bypasses Docling entirely (remote and local)
 - Routing precedence is remote API first, then local Docling, then the existing simple fallback
 
 ## Media Processors

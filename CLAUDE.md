@@ -130,9 +130,11 @@ from content_core import ContentCoreConfig
 config = ContentCoreConfig(url_engine="firecrawl", audio_concurrency=5)
 ```
 
-Key settings: `url_engine`, `document_engine`, `audio_provider`, `audio_model`, `firecrawl_api_url`, `youtube_languages`, `llm_provider`, `llm_model`, `docling_ocr`, `docling_formulas`, `docling_vision`
+Key settings: `url_engine`, `document_engine`, `audio_provider`, `audio_model`, `firecrawl_api_url`, `youtube_languages`, `llm_provider`, `llm_model`, `docling_ocr`, `docling_formulas`, `docling_vision`, `docling_api_url`, `docling_api_key`, `docling_timeout`
 
 Docling enrichment flags (`docling_ocr`, `docling_formulas`, `docling_vision`) control OCR, formula extraction, and image/chart processing when `document_engine="docling"`. These are also exposed as CLI flags (`--formulas`, `--pictures`, `--no-ocr`) and MCP parameters.
+
+Remote Docling Serve can be configured with `docling_api_url`, `docling_api_key`, and `docling_timeout`. The settings model accepts both the `CCORE_`-prefixed names and the standard `DOCLING_API_URL` / `DOCLING_API_KEY` environment variables.
 
 Priority: constructor args > env vars (`CCORE_*`) > config file (`~/.content-core/config.toml`) > defaults
 

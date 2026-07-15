@@ -128,10 +128,10 @@ def config():
       crawl4ai_api_url     Crawl4AI Docker API URL (default: none, uses local mode)
       audio_model          Override STT model
       audio_provider       Override STT provider
-    docling_api_key      Docling Serve API key (default: none)
-    docling_api_url      Docling Serve base URL (default: none, uses local Docling if installed)
+        docling_api_key      Docling Serve API key (default: none)
+        docling_api_url      Docling Serve base URL (default: none, uses local Docling if installed)
       docling_output_format  Docling output format (default: markdown)
-    docling_timeout      Docling Serve request timeout in seconds (default: 300)
+        docling_timeout      Docling Serve request timeout in seconds (default: 300)
       document_engine      Document extraction engine (auto, simple, docling)
       firecrawl_api_url    Firecrawl API URL
       firecrawl_proxy      Firecrawl proxy mode: auto, basic, stealth (default: auto)
@@ -154,9 +154,9 @@ def config():
 @config.command("list")
 def config_list_cmd():
     """List all config values from the config file."""
-    from content_core.config import config_list, CONFIG_FILE
+    from content_core.config import config_list_redacted, CONFIG_FILE
 
-    data = config_list()
+    data = config_list_redacted()
     if not data:
         click.echo(
             "No values set. Use 'content-core config set <key> <value>' to configure."

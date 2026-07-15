@@ -335,6 +335,18 @@ class TestDoclingServeHelpers:
             ("do_chart_extraction", "true"),
         ]
 
+    def test_optional_form_fields_omitted_when_disabled(self):
+        config = ContentCoreConfig(
+            docling_ocr=True,
+            docling_formulas=False,
+            docling_vision=False,
+        )
+        assert _docling_form_fields(config) == [
+            ("to_formats", "md"),
+            ("do_ocr", "true"),
+            ("abort_on_error", "true"),
+        ]
+
 
 class TestRemoteDoclingServe:
     async def test_remote_success(self, tmp_path):
@@ -392,6 +404,27 @@ class TestRemoteDoclingServe:
         ):
             with pytest.raises(DocumentExtractionError, match="timed out"):
                 await extract_docling(str(source), config)
+
+    async def test_remote_sends_do_ocr_false_when_disabled(self, tmp_path):
+        source = tmp_path / "report.pdf"
+        source.write_bytes(b"pdf")
+        config = ContentCoreConfig(
+            docling_api_url="https://docling.example",
+            docling_ocr=False,
+        )
+        payload = {"document": {"md_content": "# Converted"}}
+        session = FakeSession(response=FakeResponse(body=json.dumps(payload)))
+
+        with patch(
+            "content_core.processors.document.docling.aiohttp.ClientSession",
+            return_value=session,
+        ):
+            await extract_docling(str(source), config)
+
+        _, kwargs = session.post_calls[0]
+        fields = kwargs["data"]._fields
+        form_values = {field[0].get("name"): field[2] for field in fields}
+        assert form_values["do_ocr"] == "false"
 
     async def test_remote_connection_failure(self, tmp_path):
         source = tmp_path / "report.pdf"
@@ -465,9 +498,7 @@ class TestRemoteDoclingServe:
             with pytest.raises(DocumentExtractionError, match="conversion failed"):
                 await extract_docling(str(source), config)
 
-    async def test_remote_non_markdown_output_rejected(self, tmp_path):
-        source = tmp_path / "report.pdf"
-        source.write_bytes(b"pdf")
+    async def test_remote_non_markdown_output_rejected(self):
         config = ContentCoreConfig(
             docling_api_url="https://docling.example",
             docling_output_format="html",
@@ -477,4 +508,4 @@ class TestRemoteDoclingServe:
             DocumentExtractionError,
             match="supports only docling_output_format='markdown'",
         ):
-            await extract_docling(str(source), config)
+            await extract_docling("/fake/report.pdf", config)

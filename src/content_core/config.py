@@ -196,7 +196,15 @@ def config_set(key: str, value: str) -> None:
     field = ContentCoreConfig.model_fields[key]
     annotation = field.annotation
     if annotation is int or (hasattr(annotation, "__origin__") and annotation is int):
-        data[key] = int(value)
+        try:
+            coerced = int(value)
+        except ValueError as exc:
+            raise ValueError(f"Invalid integer value for {key}: {value}") from exc
+
+        if key == "docling_timeout" and coerced <= 0:
+            raise ValueError("docling_timeout must be a positive integer")
+
+        data[key] = coerced
     elif annotation is bool:
         data[key] = value.lower() in ("true", "1", "yes")
     elif (
@@ -222,6 +230,19 @@ def config_delete(key: str) -> None:
 def config_list() -> dict:
     """List all config values from the file."""
     return _read_config_file()
+
+
+def redact_config_value(key: str, value: Any) -> Any:
+    """Redact sensitive config values for display purposes."""
+    if key in {"docling_api_key"} and value:
+        return "***"
+    return value
+
+
+def config_list_redacted() -> dict:
+    """List config values with sensitive fields redacted."""
+    data = _read_config_file()
+    return {k: redact_config_value(k, v) for k, v in data.items()}
 
 
 # ---------------------------------------------------------------------------
@@ -253,14 +274,3 @@ def get_firecrawl_api_url() -> str:
     if env_url:
         return env_url
     return get_default_config().firecrawl_api_url
-
-
-def get_docling_api_url() -> str | None:
-    """Return Docling Serve API URL.
-
-    Checks DOCLING_API_URL first, then falls back to config file / default.
-    """
-    env_url = os.environ.get("DOCLING_API_URL")
-    if env_url:
-        return env_url
-    return get_default_config().docling_api_url

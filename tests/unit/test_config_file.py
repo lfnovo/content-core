@@ -81,6 +81,23 @@ class TestConfigSet:
         with pytest.raises(ValueError, match="Unknown config key"):
             config_set("nonexistent_key", "value")
 
+    def test_set_docling_timeout_zero_rejected_and_not_persisted(self, config_dir):
+        with pytest.raises(ValueError, match="positive integer"):
+            config_set("docling_timeout", "0")
+        assert "docling_timeout" not in config_list()
+
+    def test_set_docling_timeout_negative_rejected_and_not_persisted(self, config_dir):
+        with pytest.raises(ValueError, match="positive integer"):
+            config_set("docling_timeout", "-1")
+        assert "docling_timeout" not in config_list()
+
+    def test_set_docling_timeout_non_integer_rejected_and_not_persisted(
+        self, config_dir
+    ):
+        with pytest.raises(ValueError, match="Invalid integer value"):
+            config_set("docling_timeout", "abc")
+        assert "docling_timeout" not in config_list()
+
     def test_set_overwrites_existing(self, config_dir):
         config_set("llm_provider", "openai")
         config_set("llm_provider", "anthropic")

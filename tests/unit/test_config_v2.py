@@ -163,6 +163,11 @@ class TestEnvVarOverride:
         cfg = ContentCoreConfig()
         assert cfg.docling_api_key == "secret-token"
 
+    def test_docling_api_key_from_prefixed_env(self, monkeypatch):
+        monkeypatch.setenv("CCORE_DOCLING_API_KEY", "secret-token")
+        cfg = ContentCoreConfig()
+        assert cfg.docling_api_key == "secret-token"
+
     def test_docling_timeout_from_prefixed_env(self, monkeypatch):
         monkeypatch.setenv("CCORE_DOCLING_TIMEOUT", "120")
         cfg = ContentCoreConfig()

@@ -151,6 +151,32 @@ async def test_url_pdf_downloads_and_calls_extract_pdf():
         assert result.source_type == "url"
 
 
+@pytest.mark.asyncio
+async def test_url_docling_supported_downloads_when_remote_api_configured():
+    expected = _make_output(source_type="file", identified_type="text/csv")
+    cfg = ContentCoreConfig(docling_api_url="https://docling.example")
+    with patch(
+        "content_core.extraction.detect_remote_mime",
+        new_callable=AsyncMock,
+        return_value="text/csv",
+    ), patch(
+        "content_core.extraction._download_remote_file",
+        new_callable=AsyncMock,
+        return_value="/tmp/fake.csv",
+    ) as mock_download, patch(
+        "content_core.extraction._extract_file",
+        new_callable=AsyncMock,
+        return_value=expected,
+    ) as mock_extract_file, patch(
+        "content_core.extraction.DOCLING_AVAILABLE",
+        False,
+    ):
+        result = await extract_content(url="https://example.com/doc.csv", config=cfg)
+        mock_download.assert_awaited_once()
+        mock_extract_file.assert_awaited_once()
+        assert result.source_type == "url"
+
+
 # ---------------------------------------------------------------------------
 # 5. File with PDF MIME -> extract_pdf_file
 # ---------------------------------------------------------------------------
@@ -195,6 +221,31 @@ async def test_file_pdf_uses_docling_when_remote_api_configured():
 
 
 @pytest.mark.asyncio
+async def test_file_pdf_uses_simple_pdf_when_remote_api_configured_but_engine_is_simple():
+    expected = _make_output(identified_type="application/pdf")
+    cfg = ContentCoreConfig(
+        docling_api_url="https://docling.example",
+        document_engine="simple",
+    )
+    with patch(
+        "content_core.content.identification.get_file_type",
+        new_callable=AsyncMock,
+        return_value="application/pdf",
+    ), patch(
+        "content_core.extraction.extract_docling",
+        new_callable=AsyncMock,
+    ) as mock_docling, patch(
+        "content_core.extraction.extract_pdf_file",
+        new_callable=AsyncMock,
+        return_value=expected,
+    ) as mock_pdf:
+        result = await extract_content(file_path="/tmp/test.pdf", config=cfg)
+        mock_pdf.assert_awaited_once()
+        mock_docling.assert_not_awaited()
+        assert result is expected
+
+
+@pytest.mark.asyncio
 async def test_file_pdf_uses_simple_pdf_when_remote_url_absent_and_docling_unavailable():
     expected = _make_output(identified_type="application/pdf")
     cfg = ContentCoreConfig(document_engine="auto")
@@ -216,6 +267,32 @@ async def test_file_pdf_uses_simple_pdf_when_remote_url_absent_and_docling_unava
         result = await extract_content(file_path="/tmp/test.pdf", config=cfg)
         mock_pdf.assert_awaited_once()
         mock_docling.assert_not_awaited()
+        assert result is expected
+
+
+@pytest.mark.asyncio
+async def test_file_pdf_falls_back_when_docling_import_fails_in_auto_mode():
+    expected = _make_output(identified_type="application/pdf")
+    cfg = ContentCoreConfig(document_engine="auto")
+    with patch(
+        "content_core.content.identification.get_file_type",
+        new_callable=AsyncMock,
+        return_value="application/pdf",
+    ), patch(
+        "content_core.extraction.DOCLING_AVAILABLE",
+        True,
+    ), patch(
+        "content_core.extraction.extract_docling",
+        new_callable=AsyncMock,
+        side_effect=ImportError("docling import failed"),
+    ) as mock_docling, patch(
+        "content_core.extraction.extract_pdf_file",
+        new_callable=AsyncMock,
+        return_value=expected,
+    ) as mock_pdf:
+        result = await extract_content(file_path="/tmp/test.pdf", config=cfg)
+        mock_docling.assert_awaited_once()
+        mock_pdf.assert_awaited_once()
         assert result is expected
 
 
@@ -298,6 +375,53 @@ async def test_file_audio_calls_transcribe_audio():
     ) as mock:
         result = await extract_content(file_path="/tmp/test.mp3")
         mock.assert_awaited_once()
+        assert result is expected
+
+
+@pytest.mark.asyncio
+async def test_file_audio_with_remote_docling_still_uses_audio_processor():
+    expected = _make_output(identified_type="audio/mp3")
+    cfg = ContentCoreConfig(docling_api_url="https://docling.example")
+    with patch(
+        "content_core.content.identification.get_file_type",
+        new_callable=AsyncMock,
+        return_value="audio/mp3",
+    ), patch(
+        "content_core.extraction.transcribe_audio",
+        new_callable=AsyncMock,
+        return_value=expected,
+    ) as mock_audio, patch(
+        "content_core.extraction.extract_docling",
+        new_callable=AsyncMock,
+    ) as mock_docling:
+        result = await extract_content(file_path="/tmp/test.mp3", config=cfg)
+        mock_audio.assert_awaited_once()
+        mock_docling.assert_not_awaited()
+        assert result is expected
+
+
+@pytest.mark.asyncio
+async def test_url_docling_supported_does_not_download_when_engine_is_simple():
+    expected = _make_output(source_type="url", identified_type="html")
+    cfg = ContentCoreConfig(
+        docling_api_url="https://docling.example",
+        document_engine="simple",
+    )
+    with patch(
+        "content_core.extraction.detect_remote_mime",
+        new_callable=AsyncMock,
+        return_value="text/csv",
+    ), patch(
+        "content_core.extraction._download_remote_file",
+        new_callable=AsyncMock,
+    ) as mock_download, patch(
+        "content_core.extraction.extract_from_url",
+        new_callable=AsyncMock,
+        return_value=expected,
+    ) as mock_extract_url:
+        result = await extract_content(url="https://example.com/doc.csv", config=cfg)
+        mock_download.assert_not_awaited()
+        mock_extract_url.assert_awaited_once()
         assert result is expected
 
 
