@@ -18,9 +18,40 @@ from content_core.common.state import ExtractionOutput
 DOCLING_AVAILABLE = find_spec("docling") is not None
 
 
+_DOCLING_CAPABLE: bool | None = None
+
+
+def is_docling_capable() -> bool:
+    """Return whether local Docling is actually importable.
+
+    Checks once (cached) by attempting the real imports.
+    """
+    global _DOCLING_CAPABLE
+    if _DOCLING_CAPABLE is not None:
+        return _DOCLING_CAPABLE
+
+    if find_spec("docling") is None:
+        _DOCLING_CAPABLE = False
+        return False
+
+    try:
+        _load_docling_classes()
+        _DOCLING_CAPABLE = True
+        return True
+    except Exception:
+        _DOCLING_CAPABLE = False
+        return False
+
+
+def _reset_docling_capable() -> None:
+    """Reset the cached capability flag. For testing only."""
+    global _DOCLING_CAPABLE
+    _DOCLING_CAPABLE = None
+
+
 def _load_docling_classes():
     """Import local Docling lazily so module import stays cheap."""
-    if not DOCLING_AVAILABLE:
+    if find_spec("docling") is None:
         raise ImportError(
             "Docling not installed. Install with: pip install content-core[docling] "
             "or use CCORE_DOCUMENT_ENGINE=simple to skip docling."
@@ -215,26 +246,23 @@ async def _extract_docling_remote(
 async def _extract_docling_local(
     source: str, config: ContentCoreConfig
 ) -> ExtractionOutput:
-    if DOCLING_AVAILABLE:
-        (
-            InputFormat,
-            PdfPipelineOptions,
-            DocumentConverter,
-            PdfFormatOption,
-        ) = _load_docling_classes()
-        pipeline_options = PdfPipelineOptions(
-            do_ocr=config.docling_ocr,
-            do_formula_enrichment=config.docling_formulas,
-            do_picture_description=config.docling_vision,
-            do_chart_extraction=config.docling_vision,
-        )
-        converter = DocumentConverter(
-            format_options={
-                InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options),
-            }
-        )
-    else:
-        _load_docling_classes()
+    (
+        InputFormat,
+        PdfPipelineOptions,
+        DocumentConverter,
+        PdfFormatOption,
+    ) = _load_docling_classes()
+    pipeline_options = PdfPipelineOptions(
+        do_ocr=config.docling_ocr,
+        do_formula_enrichment=config.docling_formulas,
+        do_picture_description=config.docling_vision,
+        do_chart_extraction=config.docling_vision,
+    )
+    converter = DocumentConverter(
+        format_options={
+            InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options),
+        }
+    )
 
     result = converter.convert(source)
     doc = result.document

@@ -15,6 +15,8 @@ from content_core.processors.document.docling import (
     _docling_headers,
     _normalize_docling_api_url,
     extract_docling,
+    is_docling_capable,
+    _reset_docling_capable,
 )
 
 
@@ -187,8 +189,6 @@ class TestExtractDocling:
         mock_input_format = MagicMock()
         mock_document_converter_cls = MagicMock()
         with patch(
-            "content_core.processors.document.docling.DOCLING_AVAILABLE", True
-        ), patch(
             "content_core.processors.document.docling._load_docling_classes",
             return_value=(
                 mock_input_format,
@@ -221,8 +221,6 @@ class TestExtractDocling:
         mock_input_format = MagicMock()
         mock_document_converter_cls = MagicMock()
         with patch(
-            "content_core.processors.document.docling.DOCLING_AVAILABLE", True
-        ), patch(
             "content_core.processors.document.docling._load_docling_classes",
             return_value=(
                 mock_input_format,
@@ -279,6 +277,44 @@ class TestExtractDocling:
         assert result is local_result
         mock_local.assert_awaited_once_with(str(source), config)
         mock_remote.assert_not_called()
+
+
+class TestDoclingCapability:
+    @pytest.fixture(autouse=True)
+    def reset_cache(self):
+        _reset_docling_capable()
+        yield
+        _reset_docling_capable()
+
+    def test_false_when_find_spec_returns_none(self):
+        with patch(
+            "content_core.processors.document.docling.find_spec",
+            return_value=None,
+        ):
+            assert is_docling_capable() is False
+
+    def test_false_when_import_fails_after_find_spec_succeeds(self):
+        with patch(
+            "content_core.processors.document.docling.find_spec",
+            return_value=MagicMock(),
+        ), patch(
+            "content_core.processors.document.docling._load_docling_classes",
+            side_effect=ImportError("broken docling"),
+        ):
+            assert is_docling_capable() is False
+
+    def test_caches_result(self):
+        with patch(
+            "content_core.processors.document.docling.find_spec",
+            return_value=None,
+        ):
+            assert is_docling_capable() is False
+            # Second call should not re-check
+            with patch(
+                "content_core.processors.document.docling.find_spec",
+                side_effect=RuntimeError("should not be called"),
+            ):
+                assert is_docling_capable() is False
 
 
 class TestDoclingServeHelpers:

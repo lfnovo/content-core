@@ -30,14 +30,16 @@ from content_core.processors.url.youtube import extract_youtube
 # Optional docling
 try:
     from content_core.processors.document.docling import (
-        DOCLING_AVAILABLE,
         DOCLING_SUPPORTED,
         extract_docling,
+        is_docling_capable,
     )
 except ImportError:
-    DOCLING_AVAILABLE = False
     DOCLING_SUPPORTED = set()
     extract_docling = None  # type: ignore
+
+    def is_docling_capable() -> bool:
+        return False
 
 
 async def extract_content(
@@ -97,7 +99,7 @@ async def _extract_url(url: str, cfg: ContentCoreConfig) -> ExtractionOutput:
         | set(SUPPORTED_OFFICE_TYPES)
     )
     if cfg.document_engine in {"auto", "docling"} and (
-        DOCLING_AVAILABLE or cfg.docling_api_url
+        is_docling_capable() or cfg.docling_api_url
     ):
         downloadable |= set(DOCLING_SUPPORTED)
     downloadable.discard("text/html")  # HTML is treated as web content, not downloaded
@@ -139,24 +141,12 @@ def _route_for_mime(mime: str, cfg: ContentCoreConfig) -> str | None:
 
     # Local Docling behavior (auto/docling engine) remains unchanged.
     if engine == "docling" or (
-        engine == "auto" and DOCLING_AVAILABLE and mime in DOCLING_SUPPORTED
+        engine == "auto" and is_docling_capable() and mime in DOCLING_SUPPORTED
     ):
-        if DOCLING_AVAILABLE and extract_docling is not None:
+        if is_docling_capable() and extract_docling is not None:
             return "docling"
 
-    if mime in SUPPORTED_PDF_TYPES:
-        return "pdf"
-    if mime in SUPPORTED_EPUB_TYPES:
-        return "epub"
-    if mime in SUPPORTED_OFFICE_TYPES:
-        return "office"
-    if mime.startswith("video/"):
-        return "video"
-    if mime.startswith("audio/"):
-        return "audio"
-    if mime == "text/plain":
-        return "text"
-    return None
+    return _route_standard_for_mime(mime)
 
 
 def _route_standard_for_mime(mime: str) -> str | None:
