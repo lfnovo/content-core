@@ -99,7 +99,7 @@ async def _extract_url(url: str, cfg: ContentCoreConfig) -> ExtractionOutput:
         | set(SUPPORTED_OFFICE_TYPES)
     )
     if cfg.document_engine in {"auto", "docling"} and (
-        is_docling_capable() or cfg.docling_api_url
+        cfg.docling_api_url or is_docling_capable()
     ):
         downloadable |= set(DOCLING_SUPPORTED)
     downloadable.discard("text/html")  # HTML is treated as web content, not downloaded

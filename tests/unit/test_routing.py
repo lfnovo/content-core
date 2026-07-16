@@ -296,36 +296,7 @@ async def test_file_pdf_falls_back_when_docling_import_fails_in_auto_mode():
         assert result is expected
 
 
-@pytest.mark.asyncio
-async def test_file_pdf_auto_falls_back_when_find_spec_succeeds_but_imports_fail():
-    """Simulate find_spec succeeding but _load_docling_classes raising ImportError
-    at runtime, verifying auto mode falls back to simple processor."""
-    expected = _make_output(identified_type="application/pdf")
-    cfg = ContentCoreConfig(document_engine="auto")
-    with patch(
-        "content_core.content.identification.get_file_type",
-        new_callable=AsyncMock,
-        return_value="application/pdf",
-    ), patch(
-        "content_core.extraction.is_docling_capable",
-        return_value=True,
-    ), patch(
-        "content_core.extraction.extract_docling",
-        new_callable=AsyncMock,
-        side_effect=ImportError("broken docling"),
-    ) as mock_docling, patch(
-        "content_core.extraction.extract_pdf_file",
-        new_callable=AsyncMock,
-        return_value=expected,
-    ) as mock_pdf:
-        result = await extract_content(file_path="/tmp/test.pdf", config=cfg)
-        mock_docling.assert_awaited_once()
-        mock_pdf.assert_awaited_once()
-        assert result is expected
-
-
-@pytest.mark.asyncio
-async def test_standard_routing_agrees_with_docling_fallback():
+def test_standard_routing_agrees_with_docling_fallback():
     """Routing via _route_for_mime(fallback) and _route_standard_for_mime must
     produce the same route for every standard MIME type when Docling is unavailable."""
     cfg = ContentCoreConfig(document_engine="simple")

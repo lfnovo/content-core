@@ -15,9 +15,6 @@ from content_core.common.exceptions import DocumentExtractionError
 from content_core.config import ContentCoreConfig
 from content_core.common.state import ExtractionOutput
 
-DOCLING_AVAILABLE = find_spec("docling") is not None
-
-
 _DOCLING_CAPABLE: bool | None = None
 
 
