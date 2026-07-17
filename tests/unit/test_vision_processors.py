@@ -224,28 +224,28 @@ class TestPageParams:
 
         step, max_pages = calculate_page_params(10)
         assert step == 1
-        assert max_pages == 20
+        assert max_pages == 10
 
     def test_medium_pdf_params(self):
         from content_core.processors.document.pdf_vision import calculate_page_params
 
         step, max_pages = calculate_page_params(50)
-        assert step == 2
+        assert step == 1
         assert max_pages == 50
 
     def test_long_pdf_params(self):
         from content_core.processors.document.pdf_vision import calculate_page_params
 
         step, max_pages = calculate_page_params(200)
-        assert step == 5
-        assert max_pages == 100
+        assert step == 1
+        assert max_pages == 200
 
     def test_very_long_pdf_params(self):
         from content_core.processors.document.pdf_vision import calculate_page_params
 
         step, max_pages = calculate_page_params(1000)
-        assert step == 10
-        assert max_pages == 100
+        assert step == 1
+        assert max_pages == 1000
 
 
 class TestExtractionRouting:

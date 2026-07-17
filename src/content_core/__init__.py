@@ -5,9 +5,9 @@ load_dotenv()
 
 from content_core.config import ContentCoreConfig
 from content_core.content.summary import summarize
-from content_core.extraction import extract_content
+from content_core.extraction import check_file_support, extract_content
 from content_core.logging import configure_logging
-from content_core.common.state import ExtractionInput, ExtractionOutput
+from content_core.common.state import ExtractionInput, ExtractionOutput, FileSupport
 
 # Convenience alias
 extract = extract_content
@@ -18,8 +18,10 @@ configure_logging(debug=False)
 __all__ = [
     "extract_content",
     "extract",
+    "check_file_support",
     "summarize",
     "ContentCoreConfig",
     "ExtractionInput",
     "ExtractionOutput",
+    "FileSupport",
 ]
