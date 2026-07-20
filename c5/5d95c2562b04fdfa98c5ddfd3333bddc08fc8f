@@ -1,0 +1,23 @@
+.github/workflows/package.yml
+  s_4399c6f2aeef22::t_4ba7cb2352e118 1-119
+.github/workflows/publish.yml
+  s_4399c6f2aeef22::t_acf9c048d9270f 10-12,14
+.github/workflows/test.yml
+  s_4399c6f2aeef22::t_64fe1cc93d2f86 38-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "c55d95c2562b04fdfa98c5ddfd3333bddc08fc8f",
+  "prompts": {},
+  "sessions": {
+    "s_4399c6f2aeef22": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6217a26d-888b-4924-bc77-ecdf46f01d52",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Luis Novo <lfnovo@gmail.com>"
+    }
+  }
+}
