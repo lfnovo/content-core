@@ -17,8 +17,9 @@ def _get_version():
 @click.option("--debug", is_flag=True, help="Enable debug logging")
 def cli(debug):
     """Content Core — Extract and summarize content from any source."""
-    if debug:
-        configure_logging(debug=True)
+    # The CLI is an application, so it may configure logging. The library keeps
+    # itself disabled by default; this re-enables it for CLI runs.
+    configure_logging(debug=debug)
 
 
 @cli.command()

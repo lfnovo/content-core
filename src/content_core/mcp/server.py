@@ -1,12 +1,8 @@
 """Content Core MCP Server — extract and summarize content."""
-import sys
-
 from fastmcp import FastMCP
 from loguru import logger
 
-# Configure loguru for MCP (stderr only, no stdout interference)
-logger.remove()
-logger.add(sys.stderr, level="INFO")
+from content_core.logging import configure_logging
 
 mcp = FastMCP("Content Core")
 
@@ -99,6 +95,9 @@ async def summarize_content(
 
 def main():
     """Entry point for the MCP server."""
+    # Configure logging here, not at import time: stderr only, so nothing ever
+    # contaminates the stdout JSON-RPC stream.
+    configure_logging()
     logger.info("Starting Content Core MCP Server")
     mcp.run()
 
