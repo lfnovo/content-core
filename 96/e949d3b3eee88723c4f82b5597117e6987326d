@@ -1,0 +1,26 @@
+.github/workflows/publish.yml
+  s_4399c6f2aeef22::t_b81c06bb893b46 13-15,19,25,27-35,37-49
+CLAUDE.md
+  s_4399c6f2aeef22::t_60279fdf5c6d52 40
+.github/workflows/package.yml
+  s_4399c6f2aeef22::t_c72f6a092324d4 21-23
+  s_4399c6f2aeef22::t_ad7f31db21f98d 35-40
+  s_4399c6f2aeef22::t_bbff2825e71dd1 136-146
+  s_4399c6f2aeef22::t_18c0f39d9fab7f 7-9,12-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "96e949d3b3eee88723c4f82b5597117e6987326d",
+  "prompts": {},
+  "sessions": {
+    "s_4399c6f2aeef22": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6217a26d-888b-4924-bc77-ecdf46f01d52",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Luis Novo <lfnovo@gmail.com>"
+    }
+  }
+}
