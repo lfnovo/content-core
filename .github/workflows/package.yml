@@ -1,0 +1,119 @@
+name: Package
+
+# Reusable packaging gate: builds the wheel and exercises all three consumer
+# surfaces (library, CLI, MCP server) from the built artifact, with the repo
+# off the path. Called by test.yml (PRs / main) and by publish.yml (tags), so
+# a tag can never publish an artifact that failed this gate.
+on:
+  workflow_call:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+
+    - name: Build wheel and sdist
+      run: |
+        rm -rf dist
+        uv build
+        ls -la dist/
+
+    - name: Assert runtime assets are inside the wheel
+      run: |
+        python - <<'PY'
+        import glob, pathlib, sys, zipfile
+
+        src = pathlib.Path("src/content_core")
+        expected = sorted(
+            f"content_core/{p.relative_to(src).as_posix()}"
+            for p in src.rglob("*")
+            if p.is_file()
+            and p.suffix != ".py"
+            and "__pycache__" not in p.parts
+            and p.name != ".DS_Store"
+        )
+        if not expected:
+            sys.exit("no non-.py runtime assets found on disk - check the glob")
+
+        wheels = glob.glob("dist/content_core-*.whl")
+        if len(wheels) != 1:
+            sys.exit(f"expected exactly one wheel, got {wheels}")
+        with zipfile.ZipFile(wheels[0]) as zf:
+            names = set(zf.namelist())
+
+        missing = [name for name in expected if name not in names]
+        if missing:
+            sys.exit(f"runtime assets missing from wheel: {missing}")
+        print("runtime assets present in wheel:", expected)
+        PY
+
+    - name: Bare-install import from the wheel (no extras)
+      run: |
+        uv run --isolated --no-project --with dist/content_core-*.whl \
+          python -c "import content_core; print(content_core.__name__, 'import OK')"
+        uv run --isolated --no-project --with dist/content_core-*.whl \
+          python -c "from content_core import extract_content, summarize, ContentCoreConfig; print('public API OK')"
+
+    - name: CLI smoke from the wheel
+      run: |
+        uv run --isolated --no-project --with dist/content_core-*.whl \
+          content-core --help
+        uv run --isolated --no-project --with dist/content_core-*.whl \
+          content-core extract tests/input_content/file.txt
+        uv run --isolated --no-project --with dist/content_core-*.whl \
+          content-core extract tests/input_content/file.pdf --format json
+
+    - name: MCP stdio handshake from the wheel
+      run: |
+        cat > "$RUNNER_TEMP/mcp_smoke.py" <<'PY'
+        import json, subprocess
+
+        req = {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+            "protocolVersion": "2024-11-05", "capabilities": {},
+            "clientInfo": {"name": "ci-package-gate", "version": "1"}}}
+        p = subprocess.run(["content-core-mcp"], input=json.dumps(req) + "\n",
+                           capture_output=True, text=True, timeout=120)
+        line = next((l for l in p.stdout.splitlines() if '"result"' in l), None)
+        assert line, f"no MCP response.\nstdout={p.stdout[:500]}\nstderr={p.stderr[-800:]}"
+        print("MCP handshake OK:", json.loads(line)["result"]["serverInfo"])
+        PY
+        uv run --isolated --no-project --with dist/content_core-*.whl \
+          python "$RUNNER_TEMP/mcp_smoke.py"
+
+    - name: Wheel version matches pyproject version
+      run: |
+        python - <<'PY'
+        import glob, pathlib, re, sys
+
+        # tomllib is 3.11+, this job runs on 3.10 - read the [project] version directly.
+        text = pathlib.Path("pyproject.toml").read_text()
+        project = re.split(r"(?m)^\[", text)
+        section = next((s for s in project if s.startswith("project]")), None)
+        if section is None:
+            sys.exit("no [project] section in pyproject.toml")
+        found = re.search(r'(?m)^version\s*=\s*"([^"]+)"', section)
+        if not found:
+            sys.exit("no version key in [project] section of pyproject.toml")
+        expected = found.group(1)
+
+        wheels = glob.glob("dist/content_core-*.whl")
+        if len(wheels) != 1:
+            sys.exit(f"expected exactly one wheel, got {wheels}")
+        name = pathlib.Path(wheels[0]).name
+        match = re.match(r"content_core-([^-]+)-", name)
+        if not match:
+            sys.exit(f"could not parse version from wheel name {name!r}")
+        if match.group(1) != expected:
+            sys.exit(f"wheel version {match.group(1)!r} != pyproject version {expected!r}")
+        print(f"version match OK: {expected}")
+        PY
