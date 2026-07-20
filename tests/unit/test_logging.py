@@ -95,6 +95,59 @@ def test_configure_logging_does_not_duplicate_output():
     assert proc.stderr.count(LIBRARY_LOG) == 2, proc.stderr
 
 
+def test_cli_debug_flag_reaches_mcp_entrypoint():
+    """`content-core --debug mcp` must end up at DEBUG, not be reset to INFO.
+
+    Regression: moving the logging setup into `main()` made it reconfigure at
+    the default level, silently discarding the CLI's --debug flag.
+    """
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys\n"
+            "from unittest.mock import patch\n"
+            "from click.testing import CliRunner\n"
+            "from content_core.cli import cli\n"
+            "with patch('content_core.mcp.server.mcp.run'), \\\n"
+            "     patch('content_core.logging.configure_logging') as cfg:\n"
+            "    import content_core.mcp.server as srv\n"
+            "    with patch.object(srv, 'configure_logging', cfg):\n"
+            "        res = CliRunner().invoke(cli, ['--debug', 'mcp'])\n"
+            "    assert res.exit_code == 0, res.output\n"
+            "print([c.kwargs.get('debug') for c in cfg.call_args_list])\n",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert proc.returncode == 0, proc.stderr
+    # The MCP entrypoint must have been configured with debug=True.
+    assert "True" in proc.stdout, proc.stdout
+
+
+def test_mcp_entrypoint_configures_itself_without_click_context():
+    """The bare `content-core-mcp` console script still configures logging."""
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from unittest.mock import patch\n"
+            "import content_core.mcp.server as srv\n"
+            "with patch.object(srv, 'mcp'), \\\n"
+            "     patch.object(srv, 'configure_logging') as cfg:\n"
+            "    srv.main()\n"
+            "assert cfg.call_count == 1, cfg.call_args_list\n"
+            "print('debug=', cfg.call_args.kwargs.get('debug'))\n",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "debug= False" in proc.stdout, proc.stdout
+
+
 def test_mcp_server_import_does_not_configure_logging():
     """Importing the MCP server module must not reconfigure logging either."""
     proc = run_host_app(extra="import content_core.mcp.server  # noqa: F401\n")

@@ -15,11 +15,16 @@ def _get_version():
 @click.group()
 @click.version_option(package_name="content-core")
 @click.option("--debug", is_flag=True, help="Enable debug logging")
-def cli(debug):
+@click.pass_context
+def cli(ctx, debug):
     """Content Core — Extract and summarize content from any source."""
     # The CLI is an application, so it may configure logging. The library keeps
     # itself disabled by default; this re-enables it for CLI runs.
     configure_logging(debug=debug)
+    # Stashed so subcommands that hand off to another entrypoint (`mcp`) can
+    # forward the flag instead of letting it be reconfigured away.
+    ctx.ensure_object(dict)
+    ctx.obj["debug"] = debug
 
 
 @cli.command()
@@ -88,11 +93,12 @@ def summarize(content, context):
 
 
 @cli.command()
-def mcp():
+@click.pass_context
+def mcp(ctx):
     """Start the MCP server."""
     from content_core.mcp.server import main
 
-    main()
+    main(debug=ctx.obj.get("debug", False))
 
 
 @cli.group()
