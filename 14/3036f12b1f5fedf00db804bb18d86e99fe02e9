@@ -1,0 +1,24 @@
+tests/unit/test_logging.py
+  s_4399c6f2aeef22::t_b0af27dad0396d 98-150
+src/content_core/cli.py
+  s_4399c6f2aeef22::t_c4e83d63ce2a87 96-97,101
+  s_4399c6f2aeef22::t_8f07e60f70e38d 18-19,24-27
+src/content_core/mcp/server.py
+  s_4399c6f2aeef22::t_c3e7a7dedd8f02 96-103,106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "143036f12b1f5fedf00db804bb18d86e99fe02e9",
+  "prompts": {},
+  "sessions": {
+    "s_4399c6f2aeef22": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6217a26d-888b-4924-bc77-ecdf46f01d52",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Luis Novo <lfnovo@gmail.com>"
+    }
+  }
+}
