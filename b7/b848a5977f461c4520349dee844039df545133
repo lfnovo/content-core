@@ -1,0 +1,34 @@
+.claude/agent-smith-index.json
+  s_f0125352c55a0b::t_2739cb3bb8c1e7 1-28
+.claude/skills/release/test-matrix.md
+  s_f0125352c55a0b::t_aaee10dc9c8c90 1-94
+.claude/skills/release/SKILL.md
+  s_f0125352c55a0b::t_323eabefd27d4e 1-2,4-217
+  s_f0125352c55a0b::t_4994c7da15ad5e 3
+.claude/skills/release/gates.md
+  s_f0125352c55a0b::t_5a9e1512003095 1-55
+.claude/skills/release/runbook.md
+  s_f0125352c55a0b::t_9abb8769981288 57
+  s_f0125352c55a0b::t_0224abd67d4116 172
+  s_f0125352c55a0b::t_ddab35af4a2bca 86-88,90-100,104,106-108
+  s_f0125352c55a0b::t_364d2eefeb6a8b 1-56,58-85,89,101-103,105,109-171,173-219,225-227
+  s_f0125352c55a0b::t_c06cbcff614fd7 220-224
+.claude/skills/release/comms-templates.md
+  s_f0125352c55a0b::t_c7ca90a7d4fa22 1-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "b7b848a5977f461c4520349dee844039df545133",
+  "prompts": {},
+  "sessions": {
+    "s_f0125352c55a0b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "936776f3-ce0f-4fef-81e2-22df7da47b2e",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Luis Novo <lfnovo@gmail.com>"
+    }
+  }
+}
