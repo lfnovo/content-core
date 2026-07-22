@@ -28,7 +28,6 @@ dependencies = [
     "readability-lxml>=0.8.4.1",
     "firecrawl-py>=4.13.0",
     "pillow>=12.0.0",
-    "asciidoc>=10.2.1",
     "pytubefix>=10.0.0",
     "fastmcp>=3.0.0",
     "tenacity>=9.0.0",

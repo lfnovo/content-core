@@ -289,15 +289,6 @@ wheels = [
 ]
 
 [[package]]
-name = "asciidoc"
-version = "10.2.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/1d/e7/315a82f2d256e9270977aa3c15e8fe281fd7c40b8e2a0b97e0cb61ca8fa0/asciidoc-10.2.1.tar.gz", hash = "sha256:d9f13c285981b3c7eb660d02ca0a2779981e88d48105de81bb40445e60dddb83", size = 230179, upload-time = "2024-07-17T03:12:52.681Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/75/1f/87941eaa96e86aa22086064f67e4187e2710fb76c147312979ea29278dac/asciidoc-10.2.1-py2.py3-none-any.whl", hash = "sha256:3f277a636b617c9ce7e0b87bcaea51f144500e9a5c8a6488421ee24594850d40", size = 272433, upload-time = "2024-07-17T03:12:49.012Z" },
-]
-
-[[package]]
 name = "asttokens"
 version = "3.0.1"
 source = { registry = "https://pypi.org/simple" }
@@ -780,7 +771,6 @@ source = { editable = "." }
 dependencies = [
     { name = "ai-prompter" },
     { name = "aiohttp" },
-    { name = "asciidoc" },
     { name = "bs4" },
     { name = "click" },
     { name = "esperanto" },
@@ -839,7 +829,6 @@ dev = [
 requires-dist = [
     { name = "ai-prompter", specifier = ">=0.4.0" },
     { name = "aiohttp", specifier = ">=3.13" },
-    { name = "asciidoc", specifier = ">=10.2.1" },
     { name = "bs4", specifier = ">=0.0.2" },
     { name = "click", specifier = ">=8.3.0" },
     { name = "crawl4ai", marker = "extra == 'crawl4ai'", specifier = ">=0.7.0" },
