@@ -1,0 +1,36 @@
+.claude-plugin/marketplace.json
+  s_bb84872206464c::t_c85863c001feac 1-20
+.codex-plugin/plugin.json
+  s_bb84872206464c::t_0b03bcd8ac84d3 1-6
+.agents/plugins/marketplace.json
+  s_bb84872206464c::t_f2f255be8af622 1-11,15-18
+  s_bb84872206464c::t_4ed3e99523d275 12-14
+.agent-smith/index.json
+  s_bb84872206464c::t_31192cc9cd2a98 1-2,4-62
+  s_bb84872206464c::t_34eb6a5bf73fd0 3
+README.md
+  s_bb84872206464c::t_5f9bd0e5f79475 180,182-193,197,200
+  s_bb84872206464c::t_62497fce6a35c1 88,209
+CHANGELOG.md
+  s_bb84872206464c::t_aedb76d53d13e7 10-15
+skills/content-core/SKILL.md
+  s_bb84872206464c::t_7f70e963f80bdd 1-176
+.claude-plugin/plugin.json
+  s_bb84872206464c::t_acd0ead11c5a55 1-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "1215453f59094169b8ae9cab021848733a093d3a",
+  "prompts": {},
+  "sessions": {
+    "s_bb84872206464c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "581a4856-6936-47f8-9103-d8930ed665f0",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Luis Novo <lfnovo@gmail.com>"
+    }
+  }
+}
