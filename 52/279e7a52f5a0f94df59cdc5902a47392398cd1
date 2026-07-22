@@ -1,0 +1,21 @@
+CHANGELOG.md
+  s_bb84872206464c::t_2e557fbe6c48aa 11
+.claude-plugin/marketplace.json
+  s_bb84872206464c::t_7ad76b7add1413 7-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "52279e7a52f5a0f94df59cdc5902a47392398cd1",
+  "prompts": {},
+  "sessions": {
+    "s_bb84872206464c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "581a4856-6936-47f8-9103-d8930ed665f0",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Luis Novo <lfnovo@gmail.com>"
+    }
+  }
+}
