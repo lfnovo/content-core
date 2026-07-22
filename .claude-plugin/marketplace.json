@@ -4,10 +4,8 @@
     "name": "Luis Novo",
     "email": "lfnovo@gmail.com"
   },
-  "metadata": {
-    "description": "Content Core — content extraction toolkit for AI agents",
-    "version": "1.0.0"
-  },
+  "description": "Content Core — content extraction toolkit for AI agents",
+  "version": "1.0.0",
   "plugins": [
     {
       "name": "content-core",
