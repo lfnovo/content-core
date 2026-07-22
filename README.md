@@ -85,7 +85,7 @@ content-core mcp
 ```bash
 # Set persistent config
 content-core config set llm_provider anthropic
-content-core config set llm_model claude-sonnet-4-20250514
+content-core config set llm_model claude-sonnet-5
 
 # List current config
 content-core config list
@@ -177,17 +177,27 @@ The MCP server exposes two tools: `extract_content` and `summarize_content`. Bot
 
 For detailed setup, see the [MCP documentation](docs/mcp.md).
 
-## Claude Code Skill
+## Agent Skill (Claude Code & Codex)
 
-Content Core includes a [`SKILL.md`](SKILL.md) that teaches AI agents how to use it for extracting content from external sources. To make it available in your Claude Code project, copy it to your skills directory:
+Content Core ships an [Agent Skill](skills/content-core/SKILL.md) that teaches AI agents how to use it for extracting content from external sources. This repository is also a plugin marketplace, so the skill installs natively in both harnesses.
 
-```bash
-# Download the skill
-curl -o .claude/skills/content-core/SKILL.md --create-dirs \
-  https://raw.githubusercontent.com/lfnovo/content-core/main/SKILL.md
+**Claude Code** — add the marketplace and install the plugin:
+
+```
+/plugin marketplace add lfnovo/content-core
+/plugin install content-core@content-core
 ```
 
-Once installed, Claude Code can use content-core to extract content from URLs, documents, and media files — either via CLI (`uvx content-core`) or MCP if configured.
+**Codex** — the repository carries a Codex plugin manifest (`.codex-plugin/plugin.json`) and marketplace catalog (`.agents/plugins/marketplace.json`) pointing at the same skill.
+
+**Manual fallback** — copy the skill file directly into your project:
+
+```bash
+curl -o .claude/skills/content-core/SKILL.md --create-dirs \
+  https://raw.githubusercontent.com/lfnovo/content-core/main/skills/content-core/SKILL.md
+```
+
+Once installed, the agent can use content-core to extract content from URLs, documents, and media files — either via CLI (`uvx content-core`) or MCP if configured.
 
 ## AI Providers
 
@@ -196,7 +206,7 @@ Content Core uses [Esperanto](https://github.com/lfnovo/esperanto) to support mu
 ```bash
 # Use Anthropic for summarization
 content-core config set llm_provider anthropic
-content-core config set llm_model claude-sonnet-4-20250514
+content-core config set llm_model claude-sonnet-5
 
 # Use Groq for transcription
 content-core config set stt_provider groq

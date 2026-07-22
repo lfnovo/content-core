@@ -1,0 +1,6 @@
+{
+  "name": "content-core",
+  "version": "2.0.4",
+  "description": "Extract text content from URLs, documents, YouTube videos, Reddit posts, and audio/video files — via CLI (uvx) or MCP.",
+  "skills": "./skills/"
+}

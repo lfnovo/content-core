@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Plugin marketplace support for Claude Code and Codex: the repository now carries `.claude-plugin/` (plugin + marketplace manifests) and `.codex-plugin/` + `.agents/plugins/` manifests, so the agent skill installs natively via `/plugin marketplace add lfnovo/content-core` (Claude Code) or via the Codex marketplace catalog
+
+### Changed
+- Agent skill moved from the repository root (`SKILL.md`) to `skills/content-core/SKILL.md` and refreshed: Reddit capability documented, YouTube `live`/`shorts` URL forms, portable frontmatter, `--version`, updated model examples. The old raw-file URL no longer resolves — the README documents the new path and the marketplace install
+
 ## [2.0.4] - 2026-07-12
 
 ### Added

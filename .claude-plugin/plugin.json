@@ -1,0 +1,13 @@
+{
+  "name": "content-core",
+  "version": "2.0.4",
+  "description": "Extract text content from URLs, documents, YouTube videos, Reddit posts, and audio/video files — via CLI (uvx) or MCP.",
+  "author": {
+    "name": "Luis Novo",
+    "email": "lfnovo@gmail.com"
+  },
+  "homepage": "https://github.com/lfnovo/content-core",
+  "repository": "https://github.com/lfnovo/content-core",
+  "license": "MIT",
+  "keywords": ["extraction", "content", "pdf", "youtube", "transcription", "mcp"]
+}
