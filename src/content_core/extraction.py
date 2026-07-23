@@ -17,10 +17,13 @@ from content_core.common.state import ExtractionOutput, FileSupport
 from content_core.processors.media.audio import transcribe_audio
 from content_core.processors.document import SUPPORTED_OFFICE_TYPES, extract_office
 from content_core.processors.document.pdf import SUPPORTED_PDF_TYPES, extract_pdf_file
+from content_core.processors.document.pdf_vision import extract_pdf_with_vision
 from content_core.processors.document.epub import SUPPORTED_EPUB_TYPES, extract_epub_file
+from content_core.processors.document.image import extract_image
 from content_core.processors.text import extract_text_file, process_text
 from content_core.processors.url import detect_remote_mime, extract_from_url
 from content_core.processors.media.video import extract_video
+from content_core.processors.media.video_vision import extract_video_with_vision
 from content_core.processors.url.reddit import extract_reddit, is_reddit_post
 from content_core.processors.url.youtube import extract_youtube
 
@@ -35,6 +38,11 @@ except ImportError:
     DOCLING_AVAILABLE = False
     DOCLING_SUPPORTED = set()
     extract_docling = None  # type: ignore
+
+
+def _has_vision(cfg: ContentCoreConfig) -> bool:
+    """True when both vision_provider and vision_model are configured."""
+    return bool(cfg.vision_provider and cfg.vision_model)
 
 
 async def extract_content(
@@ -113,11 +121,21 @@ def _route_for_mime(mime: str, cfg: ContentCoreConfig) -> str | None:
     the pre-flight answer can never disagree with what extraction really does.
 
     Returns the processor name ("docling", "pdf", "epub", "office", "video",
-    "audio", "text") or ``None`` if the type is unsupported.
+    "audio", "image", "text") or ``None`` if the type is unsupported.
     """
     engine = cfg.document_engine
-    if engine == "docling" or (
-        engine == "auto" and DOCLING_AVAILABLE and mime in DOCLING_SUPPORTED
+    # When vision is configured + engine="auto" + mime is vision-routable
+    # (PDF/image/video), prefer the vision processor over auto-docling.
+    # Explicit engine="docling" still runs docling.
+    vision_routable = (
+        mime in SUPPORTED_PDF_TYPES
+        or mime.startswith("image/")
+        or mime.startswith("video/")
+    )
+    skip_auto_docling = engine == "auto" and _has_vision(cfg) and vision_routable
+    if not skip_auto_docling and (
+        engine == "docling"
+        or (engine == "auto" and DOCLING_AVAILABLE and mime in DOCLING_SUPPORTED)
     ):
         if DOCLING_AVAILABLE and extract_docling is not None:
             return "docling"
@@ -132,6 +150,8 @@ def _route_for_mime(mime: str, cfg: ContentCoreConfig) -> str | None:
         return "video"
     if mime.startswith("audio/"):
         return "audio"
+    if mime.startswith("image/"):
+        return "image"
     if mime == "text/plain":
         return "text"
     return None
@@ -214,15 +234,23 @@ async def _extract_file(
 
         # Standard processors
         if route == "pdf":
-            result = await extract_pdf_file(path, cfg)
+            if _has_vision(cfg):
+                result = await extract_pdf_with_vision(path, cfg)
+            else:
+                result = await extract_pdf_file(path, cfg)
         elif route == "epub":
             result = await extract_epub_file(path, cfg)
         elif route == "office":
             result = await extract_office(path, mime, cfg)
         elif route == "video":
-            result = await extract_video(path, cfg)
+            if _has_vision(cfg):
+                result = await extract_video_with_vision(path, cfg)
+            else:
+                result = await extract_video(path, cfg)
         elif route == "audio":
             result = await transcribe_audio(path, cfg)
+        elif route == "image":
+            result = await extract_image(path, cfg)
         elif route == "text":
             result = await extract_text_file(path, cfg)
         else:
