@@ -10,32 +10,44 @@ jobs:
   package:
     uses: ./.github/workflows/package.yml
 
+  # Publishes the exact artifact the packaging gate validated - it is downloaded
+  # from the package job rather than rebuilt here, so a green gate always covers
+  # the files that reach PyPI (uploads are immutable, a rebuild could differ).
   publish:
     needs: package
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.10"
-    
-    - name: Install uv
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-        
-    - name: Install dependencies and build tools
-      run: |
-        uv venv
-        rm -rf dist
-        uv sync
 
-    - name: Build package
-      run: uv build
-    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+
+    - name: Download validated dist
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ needs.package.outputs.artifact-name }}
+        path: dist
+
+    - name: Verify downloaded dist
+      run: |
+        set -euo pipefail
+        ls -la dist/
+        python - <<'PY'
+        import glob, sys
+
+        wheels = glob.glob("dist/content_core-*.whl")
+        sdists = glob.glob("dist/content_core-*.tar.gz")
+        if len(wheels) != 1:
+            sys.exit(f"expected exactly one wheel in dist/, got {wheels}")
+        if len(sdists) != 1:
+            sys.exit(f"expected exactly one sdist in dist/, got {sdists}")
+        print("dist/ OK:", wheels + sdists)
+        PY
+
     - name: Publish to PyPI
       env:
         PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
