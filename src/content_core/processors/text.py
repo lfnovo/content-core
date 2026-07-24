@@ -1,4 +1,5 @@
 import asyncio
+import html
 import re
 
 from markdownify import markdownify as md
@@ -31,6 +32,21 @@ def detect_html(content: str) -> bool:
     """
     matches = HTML_STRUCTURAL_TAGS.findall(content)
     return len(matches) >= HTML_DETECTION_THRESHOLD
+
+
+TITLE_RE = re.compile(
+    r"<title[^>]*>(.*?)</title>",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def extract_html_title(content: str) -> str:
+    """Extract the HTML document title."""
+    match = TITLE_RE.search(content)
+    if not match:
+        return ""
+
+    return html.unescape(match.group(1)).strip()
 
 
 async def extract_text_file(file_path: str, config: ContentCoreConfig) -> ExtractionOutput:
@@ -66,9 +82,11 @@ async def process_text(content: str, config: ContentCoreConfig) -> ExtractionOut
     if detect_html(content):
         logger.debug("HTML detected in content, converting to markdown")
         try:
+            title = extract_html_title(content)
             converted = md(content, heading_style="ATX", bullets="-")
             return ExtractionOutput(
                 content=converted,
+                title=title,
                 source_type="text",
                 identified_type="text/plain",
             )
