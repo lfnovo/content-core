@@ -43,11 +43,9 @@ async def extract_text_file(file_path: str, config: ContentCoreConfig) -> Extrac
     try:
         content = await asyncio.get_event_loop().run_in_executor(None, _read_file)
         logger.debug(f"Extracted text from {file_path}: {content[:100]}")
-        return ExtractionOutput(
-            content=content,
-            source_type="file",
-            identified_type="text/plain",
-        )
+        result = await process_text(content, config)
+        result.source_type = "file"
+        return result
     except FileNotFoundError:
         raise FileNotFoundError(f"File not found at {file_path}")
     except Exception as e:
