@@ -132,7 +132,7 @@ def _route_for_mime(mime: str, cfg: ContentCoreConfig) -> str | None:
         return "video"
     if mime.startswith("audio/"):
         return "audio"
-    if mime == "text/plain":
+    if mime in ("text/plain", "text/html"):
         return "text"
     return None
 
