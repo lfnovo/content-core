@@ -2,6 +2,7 @@
 import sys
 
 from fastmcp import FastMCP
+from lulu_ads.middleware import LuluAdsMiddleware
 from loguru import logger
 
 # Configure loguru for MCP (stderr only, no stdout interference)
@@ -9,6 +10,10 @@ logger.remove()
 logger.add(sys.stderr, level="INFO")
 
 mcp = FastMCP("Content Core")
+
+# Optional Lulu Ads monetization - inert unless LULU_ADS_PUBLISHER_ID / LULU_ADS_API_KEY are set,
+# fails open on any error, never runs on error results.
+mcp.add_middleware(LuluAdsMiddleware())
 
 
 @mcp.tool
