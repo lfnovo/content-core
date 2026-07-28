@@ -1,5 +1,7 @@
 # Content Core
 
+[![MCP Toplist](https://mcptoplist.com/badge/glama%2Flfnovo%2Fcontent-core.svg)](https://mcptoplist.com/server/glama%2Flfnovo%2Fcontent-core)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PyPI version](https://badge.fury.io/py/content-core.svg)](https://badge.fury.io/py/content-core)
 [![Downloads](https://pepy.tech/badge/content-core)](https://pepy.tech/project/content-core)
