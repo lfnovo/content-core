@@ -58,3 +58,66 @@ class TestFileDetectorPDF:
         # Should be fast (under 100ms for signature-based detection)
         detection_time = (end_time - start_time) * 1000  # Convert to ms
         assert detection_time < 100, f"PDF detection took {detection_time:.2f}ms, expected < 100ms"
+
+
+def _ogg_page(codec_id: bytes) -> bytes:
+    """Build a minimal Ogg page carrying a codec identification header.
+
+    Enough for signature detection, which only inspects the leading bytes.
+    """
+    page_header = (
+        b"OggS"           # capture pattern
+        + b"\x00"         # stream structure version
+        + b"\x02"         # header type: beginning of stream
+        + b"\x00" * 8     # granule position
+        + b"\x01\x00\x00\x00"  # bitstream serial number
+        + b"\x00" * 4     # page sequence number
+        + b"\x00" * 4     # checksum
+        + b"\x01"         # page segments
+        + b"\x1e"         # segment table
+    )
+    return page_header + codec_id + b"\x00" * 64
+
+
+class TestFileDetectorOgg:
+    """Ogg container detection: Opus, Vorbis and Theora share the same magic bytes."""
+
+    @pytest.fixture
+    def detector(self):
+        return FileDetector()
+
+    @pytest.mark.asyncio
+    async def test_detect_opus_by_signature(self, detector, tmp_path):
+        """An Ogg/Opus file is audio, detected from its codec header."""
+        opus_path = tmp_path / "voice_note.opus"
+        opus_path.write_bytes(_ogg_page(b"OpusHead"))
+
+        assert await detector.detect(str(opus_path)) == "audio/ogg"
+
+    @pytest.mark.asyncio
+    async def test_detect_opus_by_extension(self, detector, tmp_path):
+        """The .opus extension maps to audio/ogg even when sniffing finds nothing.
+
+        Regression: .opus was missing from the extension mapping, so these files
+        raised UnsupportedTypeException.
+        """
+        opus_path = tmp_path / "voice_note.opus"
+        opus_path.write_bytes(b"\x00" * 64)
+
+        assert await detector.detect(str(opus_path)) == "audio/ogg"
+
+    @pytest.mark.asyncio
+    async def test_detect_ogg_vorbis_still_audio(self, detector, tmp_path):
+        """Existing Ogg/Vorbis behavior is unchanged."""
+        ogg_path = tmp_path / "clip.ogg"
+        ogg_path.write_bytes(_ogg_page(b"\x01vorbis"))
+
+        assert await detector.detect(str(ogg_path)) == "audio/ogg"
+
+    @pytest.mark.asyncio
+    async def test_ogg_theora_routes_as_video(self, detector, tmp_path):
+        """Ogg video must not be mistaken for audio just by its container."""
+        ogv_path = tmp_path / "clip.ogv"
+        ogv_path.write_bytes(_ogg_page(b"\x80theora"))
+
+        assert await detector.detect(str(ogv_path)) == "video/ogg"

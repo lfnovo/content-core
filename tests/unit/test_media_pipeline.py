@@ -153,6 +153,44 @@ class TestTranscribeAudio:
             assert result.metadata["segments_count"] == 3
             assert mock_extract.call_count == 3
 
+    async def test_split_segments_keep_source_extension(self):
+        """Segments are stream-copied, so the container must match the source.
+
+        Naming an Opus segment .mp3 makes ffmpeg refuse to mux it.
+        """
+        config = ContentCoreConfig(
+            stt_provider="openai",
+            stt_model="whisper-1",
+            audio_provider="openai",
+            audio_model=None,
+        )
+
+        mock_stt_model = MagicMock()
+        mock_result = MagicMock()
+        mock_result.text = "segment"
+        mock_stt_model.atranscribe = AsyncMock(return_value=mock_result)
+
+        with (
+            patch("esperanto.AIFactory") as mock_factory,
+            patch(
+                "content_core.processors.media.audio.get_audio_duration",
+                new_callable=AsyncMock,
+                return_value=1500.0,  # 25 minutes → 3 segments
+            ),
+            patch(
+                "content_core.processors.media.audio.extract_audio"
+            ) as mock_extract,
+        ):
+            mock_factory.create_speech_to_text.return_value = mock_stt_model
+
+            from content_core.processors.media.audio import transcribe_audio
+
+            await transcribe_audio("/fake/voice_note.opus", config)
+
+            output_paths = [call.args[1] for call in mock_extract.call_args_list]
+            assert len(output_paths) == 3
+            assert all(path.endswith(".opus") for path in output_paths)
+
 
 class TestGetAudioDuration:
     async def test_returns_duration_from_ffprobe(self):

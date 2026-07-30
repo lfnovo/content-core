@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Agent skill moved from the repository root (`SKILL.md`) to `skills/content-core/SKILL.md` and refreshed: Reddit capability documented, YouTube `live`/`shorts` URL forms, portable frontmatter, `--version`, updated model examples. The old raw-file URL no longer resolves — the README documents the new path and the marketplace install
+- Minimum `esperanto` version raised to 2.26.0, which fixes every non-Whisper OpenAI and Azure transcription model: `verbose_json` was requested for anything that didn't match a narrow `gpt-4o-*-transcribe` name shape, so `gpt-transcribe` and friends failed before transcription started
+
+### Fixed
+- `.opus` files (the common export format for WhatsApp voice messages) raised `UnsupportedTypeException` instead of being transcribed — the extension was missing from the MIME mapping, and the Ogg container had no magic-byte signature at all. Ogg files are now detected by content as well as extension, with Opus/Vorbis/FLAC routed to audio and Theora to video
+- Audio longer than 10 minutes failed for any non-MP3 source, including the already-supported `.flac` and `.ogg`: segments were stream-copied but named `.mp3`, so ffmpeg refused to mux them. Segments now keep the source container
 
 ## [2.0.4] - 2026-07-12
 
