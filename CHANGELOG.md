@@ -7,16 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.5] - 2026-07-30
+
 ### Added
-- Plugin marketplace support for Claude Code and Codex: the repository now carries `.claude-plugin/` (plugin + marketplace manifests) and `.codex-plugin/` + `.agents/plugins/` manifests, so the agent skill installs natively via `/plugin marketplace add lfnovo/content-core` (Claude Code) or via the Codex marketplace catalog
+- Plugin marketplace support for Claude Code and Codex (#63): the repository now carries `.claude-plugin/` (plugin + marketplace manifests) and `.codex-plugin/` + `.agents/plugins/` manifests, so the agent skill installs natively via `/plugin marketplace add lfnovo/content-core` (Claude Code) or via the Codex marketplace catalog
 
 ### Changed
-- Agent skill moved from the repository root (`SKILL.md`) to `skills/content-core/SKILL.md` and refreshed: Reddit capability documented, YouTube `live`/`shorts` URL forms, portable frontmatter, `--version`, updated model examples. The old raw-file URL no longer resolves — the README documents the new path and the marketplace install
-- Minimum `esperanto` version raised to 2.26.0, which fixes every non-Whisper OpenAI and Azure transcription model: `verbose_json` was requested for anything that didn't match a narrow `gpt-4o-*-transcribe` name shape, so `gpt-transcribe` and friends failed before transcription started
+- Agent skill moved from the repository root (`SKILL.md`) to `skills/content-core/SKILL.md` and refreshed (#63): Reddit capability documented, YouTube `live`/`shorts` URL forms, portable frontmatter, `--version`, updated model examples. The old raw-file URL no longer resolves — the README documents the new path and the marketplace install
+- Minimum `esperanto` version raised to 2.26.0 (#70), which fixes every non-Whisper OpenAI and Azure transcription model: `verbose_json` was requested for anything that didn't match a narrow `gpt-4o-*-transcribe` name shape, so `gpt-transcribe` and friends failed before transcription started
 
 ### Fixed
-- `.opus` files (the common export format for WhatsApp voice messages) raised `UnsupportedTypeException` instead of being transcribed — the extension was missing from the MIME mapping, and the Ogg container had no magic-byte signature at all. Ogg files are now detected by content as well as extension, with Opus/Vorbis/FLAC routed to audio and Theora to video
-- Audio longer than 10 minutes failed for any non-MP3 source, including the already-supported `.flac` and `.ogg`: segments were stream-copied but named `.mp3`, so ffmpeg refused to mux them. Segments now keep the source container
+- `.opus` files (the common export format for WhatsApp voice messages) raised `UnsupportedTypeException` instead of being transcribed (#69) — the extension was missing from the MIME mapping, and the Ogg container had no magic-byte signature at all. Ogg files are now detected by content as well as extension, with Opus/Vorbis/FLAC routed to audio and Theora to video
+- Audio longer than 10 minutes failed for any non-MP3 source, including the already-supported `.flac` and `.ogg` (#69): segments were stream-copied but named `.mp3`, so ffmpeg refused to mux them. Segments now keep the source container
 
 ## [2.0.4] - 2026-07-12
 
