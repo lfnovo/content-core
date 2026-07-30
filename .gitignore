@@ -29,3 +29,5 @@ node_modules/
 claude-logs
 specs/
 .claude/
+# Intermediate audio extracted from test videos (see processors/media/video.py)
+tests/input_content/*_audio.mp3
