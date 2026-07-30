@@ -80,11 +80,15 @@ async def split_audio(input_file, segment_length_minutes=15, output_prefix=None)
         total_segments = math.ceil(duration / segment_length_s)
         logger.debug(f"Splitting file: {input_file_abs} into {total_segments} segments")
 
+        # Segments are stream-copied, so they must keep the source container:
+        # muxing e.g. an Opus stream into a .mp3 output makes ffmpeg fail.
+        source_ext = os.path.splitext(input_file_abs)[1] or ".mp3"
+
         output_files = []
         for i in range(total_segments):
             start_time = i * segment_length_s
             end_time = min((i + 1) * segment_length_s, duration)
-            output_filename = f"{output_prefix}_{str(i + 1).zfill(3)}.mp3"
+            output_filename = f"{output_prefix}_{str(i + 1).zfill(3)}{source_ext}"
             output_path = os.path.join(output_dir, output_filename)
 
             split_audio_segment(input_file_abs, output_path, start_time, end_time)
@@ -146,6 +150,10 @@ async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> Extract
             segment_length_s = 10 * 60
             output_files = []
 
+            # Segments are stream-copied, so they must keep the source container:
+            # muxing e.g. an Opus stream into a .mp3 output makes ffmpeg fail.
+            source_ext = os.path.splitext(file_path)[1] or ".mp3"
+
             if duration_s > segment_length_s:
                 logger.info(
                     f"Audio is longer than 10 minutes ({duration_s:.0f}s), splitting into "
@@ -155,7 +163,7 @@ async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> Extract
                 for i in range(math.ceil(duration_s / segment_length_s)):
                     start_time = i * segment_length_s
                     end_time = min((i + 1) * segment_length_s, duration_s)
-                    output_filename = f"{output_prefix}_{str(i + 1).zfill(3)}.mp3"
+                    output_filename = f"{output_prefix}_{str(i + 1).zfill(3)}{source_ext}"
                     output_path = os.path.join(temp_dir, output_filename)
                     await loop.run_in_executor(
                         None, partial(extract_audio, file_path, output_path, start_time, end_time)
