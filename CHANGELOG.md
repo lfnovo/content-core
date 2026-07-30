@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.6] - 2026-07-30
+
+### Fixed
+- `.opus` audio still failed on 2.0.5, one step later in the pipeline (#69): OpenAI validates transcription uploads by filename extension and rejects `opus` while accepting `ogg`/`oga`, even though `.opus` is Opus-in-Ogg and the bytes are identical. Confirmed by varying only the filename with the `Content-Type` held constant. Ogg-family audio is now presented to the provider under an accepted extension — via a symlink for unsplit files, so the user's own file is never renamed or copied
+
 ## [2.0.5] - 2026-07-30
 
 ### Added
