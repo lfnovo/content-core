@@ -1,0 +1,27 @@
+.codex-plugin/plugin.json
+  s_6c22c9f97824eb::t_fe30db3e8a7889 3
+.claude-plugin/plugin.json
+  s_6c22c9f97824eb::t_fe30db3e8a7889 3
+pyproject.toml
+  s_6c22c9f97824eb::t_fe30db3e8a7889 3
+CHANGELOG.md
+  s_6c22c9f97824eb::t_28047acc27f9aa 10-11,13,16-17,20-21
+uv.lock
+  s_6c22c9f97824eb::t_4470338ff3a706 778
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.17",
+  "base_commit_sha": "d59f3d8547de53b7ab76be0f0729ea4b4bb4904d",
+  "prompts": {},
+  "sessions": {
+    "s_6c22c9f97824eb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f5231484-97fb-49f6-b69b-8c66c5da187f",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Luis Novo <lfnovo@gmail.com>"
+    }
+  }
+}
