@@ -1,0 +1,25 @@
+src/content_core/processors/media/audio.py
+  s_6c22c9f97824eb::t_4e25db1ca81d89 16-44
+  s_6c22c9f97824eb::t_55f9900f9dd4d1 5
+  s_6c22c9f97824eb::t_94be5a8677443f 204-206
+  s_6c22c9f97824eb::t_ff142e2d870ccf 185-187
+tests/unit/test_media_pipeline.py
+  s_6c22c9f97824eb::t_a0501004c580bb 194-270
+  s_6c22c9f97824eb::t_f952f4d879c0bd 4-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.17",
+  "base_commit_sha": "834dc64d3d3d530a506d102e24c601596036a484",
+  "prompts": {},
+  "sessions": {
+    "s_6c22c9f97824eb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f5231484-97fb-49f6-b69b-8c66c5da187f",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Luis Novo <lfnovo@gmail.com>"
+    }
+  }
+}
