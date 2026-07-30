@@ -1,0 +1,36 @@
+src/content_core/content/identification/file_detector.py
+  s_6c22c9f97824eb::t_bceb85c4d0aeb3 236-241
+  s_6c22c9f97824eb::t_88d0128e6cb7f7 130
+  s_6c22c9f97824eb::t_e4c928558f4114 271-284
+  s_6c22c9f97824eb::t_4f667d7d1ba6d6 62
+tests/unit/test_file_detector.py
+  s_6c22c9f97824eb::t_cd7b67c9d4fc05 60-123
+CHANGELOG.md
+  s_6c22c9f97824eb::t_f3343aafedd3a4 15-19
+pyproject.toml
+  s_6c22c9f97824eb::t_747380f5f22530 14
+tests/unit/test_media_pipeline.py
+  s_6c22c9f97824eb::t_56cf65ac6af8bd 156-193
+src/content_core/processors/media/audio.py
+  s_6c22c9f97824eb::t_4762c122429d92 153-156
+  s_6c22c9f97824eb::t_64a542ca7e3b3e 83-86,91
+  s_6c22c9f97824eb::t_8362c81bc52afe 166
+uv.lock
+  s_6c22c9f97824eb::t_44fd883bb2debc 847,1338,1344,1346
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.17",
+  "base_commit_sha": "761a583522a7dd7b1300504fb36287ebc3679d83",
+  "prompts": {},
+  "sessions": {
+    "s_6c22c9f97824eb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f5231484-97fb-49f6-b69b-8c66c5da187f",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Luis Novo <lfnovo@gmail.com>"
+    }
+  }
+}
