@@ -34,7 +34,7 @@ def cli(debug):
 @click.option(
     "--engine",
     default=None,
-    help="Override extraction engine (URL: firecrawl, jina, crawl4ai, simple; Document: docling, simple)",
+    help="Override extraction engine (URL: firecrawl, crw, jina, crawl4ai, simple; Document: docling, simple)",
 )
 @click.option("--formulas", is_flag=True, default=False, help="Enable formula extraction (Docling only)")
 @click.option("--pictures", is_flag=True, default=False, help="Enable image description + chart extraction (Docling only)")
@@ -106,6 +106,9 @@ def config():
       audio_provider       Override STT provider
       docling_output_format  Docling output format (default: markdown)
       document_engine      Document extraction engine (auto, simple, docling)
+      crw_api_url          CRW API URL (default: https://api.fastcrw.com)
+      crw_render_js        CRW: force the JS renderer (default: false)
+      crw_wait_for         CRW wait time in ms before extraction (default: 0)
       firecrawl_api_url    Firecrawl API URL
       firecrawl_proxy      Firecrawl proxy mode: auto, basic, stealth (default: auto)
       firecrawl_wait_for   Firecrawl wait time in ms before extraction (default: 3000)
@@ -115,7 +118,7 @@ def config():
       stt_provider         Speech-to-text provider (default: openai)
       stt_timeout          STT API timeout in seconds (default: 3600)
       summary_model        Override LLM model for summarization
-      url_engine           URL extraction engine (auto, simple, firecrawl, jina, crawl4ai)
+      url_engine           URL extraction engine (auto, simple, firecrawl, crw, jina, crawl4ai)
       youtube_languages    Transcript languages, comma-separated (default: en,es,pt)
       docling_formulas     Enable formula extraction (default: false)
       docling_ocr          Enable OCR for scanned PDFs (default: true)
@@ -206,7 +209,7 @@ def _build_config(inp, engine, formulas=False, pictures=False, no_ocr=False):
 
     from content_core.config import ContentCoreConfig
 
-    VALID_URL_ENGINES = {"auto", "simple", "firecrawl", "jina", "crawl4ai"}
+    VALID_URL_ENGINES = {"auto", "simple", "firecrawl", "crw", "jina", "crawl4ai"}
     VALID_DOC_ENGINES = {"auto", "simple", "docling"}
 
     kwargs = {**docling_overrides}

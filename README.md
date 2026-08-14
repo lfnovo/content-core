@@ -223,13 +223,16 @@ Content Core uses `ContentCoreConfig` powered by pydantic-settings. Settings are
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `CCORE_URL_ENGINE` | URL extraction engine (`auto`, `simple`, `firecrawl`, `jina`, `crawl4ai`) | `auto` |
+| `CCORE_URL_ENGINE` | URL extraction engine (`auto`, `simple`, `firecrawl`, `crw`, `jina`, `crawl4ai`) | `auto` |
 | `CCORE_DOCUMENT_ENGINE` | Document extraction engine (`auto`, `simple`, `docling`) | `auto` |
 | `CCORE_AUDIO_CONCURRENCY` | Concurrent audio transcriptions (1-10) | `3` |
 | `CRAWL4AI_API_URL` | Crawl4AI Docker API URL (omit for local browser mode) | - |
 | `FIRECRAWL_API_URL` | Custom Firecrawl API URL for self-hosted instances | - |
 | `CCORE_FIRECRAWL_PROXY` | Firecrawl proxy mode (`auto`, `basic`, `stealth`) | `auto` |
 | `CCORE_FIRECRAWL_WAIT_FOR` | Wait time in ms before extraction | `3000` |
+| `CRW_API_URL` | Custom CRW API URL for self-hosted instances | `https://api.fastcrw.com` |
+| `CCORE_CRW_RENDER_JS` | CRW: force the JS renderer instead of auto-escalation | `false` |
+| `CCORE_CRW_WAIT_FOR` | CRW wait time in ms before extraction | `0` |
 | `CCORE_LLM_PROVIDER` | LLM provider for summarization | - |
 | `CCORE_LLM_MODEL` | LLM model for summarization | - |
 | `CCORE_STT_PROVIDER` | Speech-to-text provider | - |
@@ -237,7 +240,7 @@ Content Core uses `ContentCoreConfig` powered by pydantic-settings. Settings are
 | `CCORE_STT_TIMEOUT` | Speech-to-text timeout in seconds | - |
 | `CCORE_YOUTUBE_LANGUAGES` | Preferred YouTube transcript languages | - |
 
-API keys for external services are set via their standard environment variables (e.g., `OPENAI_API_KEY`, `FIRECRAWL_API_KEY`, `JINA_API_KEY`).
+API keys for external services are set via their standard environment variables (e.g., `OPENAI_API_KEY`, `FIRECRAWL_API_KEY`, `CRW_API_KEY`, `JINA_API_KEY`).
 
 ### Proxy Configuration
 

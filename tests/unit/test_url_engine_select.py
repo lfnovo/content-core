@@ -97,6 +97,23 @@ async def test_simple_engine():
 # ---------------------------------------------------------------------------
 # 5. jina engine -> uses jina directly
 # ---------------------------------------------------------------------------
+# crw engine
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_crw_engine():
+    cfg = ContentCoreConfig(url_engine="crw")
+    with patch(
+        "content_core.processors.url.extract_url_crw",
+        new_callable=AsyncMock,
+        return_value={"title": "CRW", "content": "CRW Content"},
+    ) as mock_crw:
+        result = await extract_from_url("https://example.com", cfg)
+        mock_crw.assert_awaited_once_with("https://example.com", cfg)
+        assert result.content == "CRW Content"
+        assert result.title == "CRW"
+
+
+# ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_jina_engine():
     cfg = ContentCoreConfig(url_engine="jina")

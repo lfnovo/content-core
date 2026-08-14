@@ -64,6 +64,11 @@ class ContentCoreConfig(BaseSettings):
     # Crawl4AI
     crawl4ai_api_url: Optional[str] = None
 
+    # CRW
+    crw_api_url: str = "https://api.fastcrw.com"
+    crw_render_js: bool = False
+    crw_wait_for: int = 0
+
     # Firecrawl
     firecrawl_api_url: str = "https://api.firecrawl.dev"
     firecrawl_proxy: Optional[str] = "auto"
@@ -202,6 +207,7 @@ def config_list() -> dict:
 # ---------------------------------------------------------------------------
 
 DEFAULT_FIRECRAWL_API_URL = "https://api.firecrawl.dev"
+DEFAULT_CRW_API_URL = "https://api.fastcrw.com"
 
 
 def get_crawl4ai_api_url() -> str | None:
@@ -214,6 +220,18 @@ def get_crawl4ai_api_url() -> str | None:
     if env_url:
         return env_url
     return get_default_config().crawl4ai_api_url
+
+
+def get_crw_api_url() -> str:
+    """Return CRW API URL.
+
+    Checks CRW_API_URL env var first (standard CRW convention, matching
+    CRW_API_KEY), then falls back to config file / default.
+    """
+    env_url = os.environ.get("CRW_API_URL")
+    if env_url:
+        return env_url
+    return get_default_config().crw_api_url
 
 
 def get_firecrawl_api_url() -> str:

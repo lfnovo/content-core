@@ -18,6 +18,7 @@ from content_core.processors.url.firecrawl import (
     _fetch_url_firecrawl,
     extract_url_firecrawl,
 )
+from content_core.processors.url.crw import _fetch_url_crw, extract_url_crw
 from content_core.processors.url.crawl4ai import extract_url_crawl4ai
 
 
@@ -83,6 +84,8 @@ async def _extract_url_with_engine(url: str, engine: str, config: ContentCoreCon
         return await extract_url_bs4(url)
     elif engine == "firecrawl":
         return await extract_url_firecrawl(url, config)
+    elif engine == "crw":
+        return await extract_url_crw(url, config)
     elif engine == "jina":
         return await extract_url_jina(url)
     elif engine == "crawl4ai":
@@ -135,9 +138,11 @@ __all__ = [
     "_fetch_url_html",
     "_fetch_url_jina",
     "_fetch_url_firecrawl",
+    "_fetch_url_crw",
     "extract_url_bs4",
     "extract_url_jina",
     "extract_url_firecrawl",
+    "extract_url_crw",
     "extract_url_crawl4ai",
     "detect_remote_mime",
     "_extract_url_with_engine",

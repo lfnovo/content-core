@@ -170,7 +170,7 @@ content-core config delete llm_provider
 | `stt_provider` | Speech-to-text provider | `openai` |
 | `stt_timeout` | STT API timeout in seconds | `3600` |
 | `summary_model` | Override LLM model for summarization | — |
-| `url_engine` | URL extraction engine (`auto`, `simple`, `firecrawl`, `jina`, `crawl4ai`) | `auto` |
+| `url_engine` | URL extraction engine (`auto`, `simple`, `firecrawl`, `crw`, `jina`, `crawl4ai`) | `auto` |
 | `youtube_languages` | Transcript languages, comma-separated | `en,es,pt` |
 
 Run `content-core config --help` to see this list in the terminal.
@@ -222,7 +222,7 @@ export OPENAI_API_KEY=sk-...
 ### Engine flag
 
 The `--engine` flag is routed automatically based on input type:
-- **URLs** → overrides `url_engine` (options: `firecrawl`, `jina`, `crawl4ai`, `simple`)
+- **URLs** → overrides `url_engine` (options: `firecrawl`, `crw`, `jina`, `crawl4ai`, `simple`)
 - **Files** → overrides `document_engine` (options: `docling`, `simple`)
 
 See [Usage documentation](usage.md) for all configuration options.
