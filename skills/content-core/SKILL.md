@@ -1,18 +1,14 @@
 ---
 name: content-core
 description: >
-  Extract text content from external sources — URLs, PDFs, documents, YouTube videos, and audio/video files.
-  Use when you need to read, analyze, or summarize content from a URL, file, or media source.
-allowed-tools:
-  - Read
-  - Bash
-  - Grep
-  - Glob
+  Extract text content from external sources — URLs, PDFs, documents, YouTube videos,
+  Reddit posts, and audio/video files. Use when you need to read, analyze, or summarize
+  content from a URL, file, or media source.
 ---
 
 ## Purpose
 
-Content Core extracts text from external sources so you can read, analyze, or summarize them. Use it whenever you need content from a URL, PDF, document, YouTube video, or audio/video file.
+Content Core extracts text from external sources so you can read, analyze, or summarize them. Use it whenever you need content from a URL, PDF, document, YouTube video, Reddit post, or audio/video file.
 
 Most extraction works without API keys. Only audio/video transcription and summarization require an LLM API key (e.g., `OPENAI_API_KEY`).
 
@@ -40,7 +36,8 @@ After installation, the user may need to restart their shell or run `source ~/.b
 | Source | Examples | API Key Needed |
 |--------|----------|----------------|
 | Web pages | Any URL | No |
-| YouTube | Video transcript | No |
+| YouTube | Video transcript (`watch`, `live`, `shorts` URLs) | No |
+| Reddit | Post + comments via public JSON | No |
 | Documents | PDF, DOCX, PPTX, XLSX, EPUB, Markdown | No |
 | Audio | MP3, WAV, M4A, FLAC, OGG | Yes (STT) |
 | Video | MP4, AVI, MOV, MKV | Yes (STT) |
@@ -49,6 +46,11 @@ After installation, the user may need to restart their shell or run `source ~/.b
 ## CLI Usage
 
 All commands use `uvx content-core` which runs without installation.
+
+```bash
+# Check the installed version
+uvx content-core --version
+```
 
 ### Extract content
 
@@ -59,8 +61,11 @@ uvx content-core extract "https://example.com"
 # From a file
 uvx content-core extract document.pdf
 
-# From a YouTube video
+# From a YouTube video (watch, live, and shorts URLs all work)
 uvx content-core extract "https://www.youtube.com/watch?v=VIDEO_ID"
+
+# From a Reddit post
+uvx content-core extract "https://www.reddit.com/r/sub/comments/POST_ID/title/"
 
 # JSON output (includes title, content, metadata)
 uvx content-core extract --format json "https://example.com"
@@ -106,7 +111,7 @@ uvx content-core config list
 
 # Set persistent defaults
 uvx content-core config set llm_provider anthropic
-uvx content-core config set llm_model claude-sonnet-4-20250514
+uvx content-core config set llm_model claude-sonnet-5
 uvx content-core config set url_engine firecrawl
 
 # Delete a config value
@@ -133,7 +138,7 @@ extract_content(url="https://example.com")
 extract_content(file_path="/path/to/document.pdf")
 extract_content(url="https://youtube.com/watch?v=ID")
 
-# With engine override
+# With engine override (firecrawl, jina, crawl4ai, simple, docling)
 extract_content(file_path="paper.pdf", engine="docling")
 
 # With Docling enrichment
@@ -153,8 +158,8 @@ If summarization fails with an API key error, fall back to `extract_content` and
 ## Guidelines
 
 - For small/medium content (articles, short pages): prefer MCP tools if available — they are async and more efficient
-- For large content (long documents, full books, lengthy transcripts): prefer the CLI via Bash, redirecting output to a file (`uvx content-core extract "URL" > output.md`). This avoids flooding the agent's context window with large payloads. Read only the relevant sections from the file as needed.
-- If MCP is not available, always use the CLI via Bash with `uvx content-core`
+- For large content (long documents, full books, lengthy transcripts): prefer the CLI via a shell, redirecting output to a file (`uvx content-core extract "URL" > output.md`). This avoids flooding the agent's context window with large payloads. Read only the relevant sections from the file as needed.
+- If MCP is not available, always use the CLI via a shell with `uvx content-core`
 - For URLs: extraction works without any API key
 - For audio/video: requires `OPENAI_API_KEY` (or another STT provider key)
 - For summarization: requires an LLM API key

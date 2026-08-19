@@ -1,6 +1,8 @@
 """Unit tests for content_core.processors.media (audio + video)."""
 
 import json
+import os
+import tempfile
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -152,6 +154,120 @@ class TestTranscribeAudio:
             assert result.content == "segment segment segment"
             assert result.metadata["segments_count"] == 3
             assert mock_extract.call_count == 3
+
+    async def test_split_segments_keep_source_extension(self):
+        """Segments are stream-copied, so the container must match the source.
+
+        Naming an Opus segment .mp3 makes ffmpeg refuse to mux it.
+        """
+        config = ContentCoreConfig(
+            stt_provider="openai",
+            stt_model="whisper-1",
+            audio_provider="openai",
+            audio_model=None,
+        )
+
+        mock_stt_model = MagicMock()
+        mock_result = MagicMock()
+        mock_result.text = "segment"
+        mock_stt_model.atranscribe = AsyncMock(return_value=mock_result)
+
+        with (
+            patch("esperanto.AIFactory") as mock_factory,
+            patch(
+                "content_core.processors.media.audio.get_audio_duration",
+                new_callable=AsyncMock,
+                return_value=1500.0,  # 25 minutes → 3 segments
+            ),
+            patch(
+                "content_core.processors.media.audio.extract_audio"
+            ) as mock_extract,
+        ):
+            mock_factory.create_speech_to_text.return_value = mock_stt_model
+
+            from content_core.processors.media.audio import transcribe_audio
+
+            await transcribe_audio("/fake/voice_note.opus", config)
+
+            output_paths = [call.args[1] for call in mock_extract.call_args_list]
+            assert len(output_paths) == 3
+            # .ogg, not .opus: same container, but OpenAI rejects the `.opus`
+            # extension on upload. Stream copy stays valid across the alias.
+            assert all(path.endswith(".ogg") for path in output_paths)
+
+    async def test_short_opus_is_uploaded_under_accepted_extension(self):
+        """A short .opus is sent as-is, so it needs an accepted name.
+
+        OpenAI validates the upload by filename extension and rejects `opus`,
+        even though the bytes are Opus-in-Ogg and `.ogg` is accepted.
+        """
+        config = ContentCoreConfig(
+            stt_provider="openai",
+            stt_model="whisper-1",
+            audio_provider="openai",
+            audio_model=None,
+        )
+
+        mock_stt_model = MagicMock()
+        mock_result = MagicMock()
+        mock_result.text = "voice note"
+        mock_stt_model.atranscribe = AsyncMock(return_value=mock_result)
+
+        with tempfile.TemporaryDirectory() as source_dir:
+            source = os.path.join(source_dir, "voice_note.opus")
+            with open(source, "wb") as f:
+                f.write(b"OggS" + b"\x00" * 32)
+
+            with (
+                patch("esperanto.AIFactory") as mock_factory,
+                patch(
+                    "content_core.processors.media.audio.get_audio_duration",
+                    new_callable=AsyncMock,
+                    return_value=120.0,  # under the split threshold
+                ),
+            ):
+                mock_factory.create_speech_to_text.return_value = mock_stt_model
+
+                from content_core.processors.media.audio import transcribe_audio
+
+                result = await transcribe_audio(source, config)
+
+            assert result.content == "voice note"
+            uploaded = mock_stt_model.atranscribe.call_args.args[0]
+            assert uploaded.endswith(".ogg")
+            # The user's own file must be left exactly as it was
+            assert os.path.exists(source)
+            assert uploaded != source
+
+    async def test_mp3_is_uploaded_untouched(self):
+        """Formats providers already accept are passed through unchanged."""
+        config = ContentCoreConfig(
+            stt_provider="openai",
+            stt_model="whisper-1",
+            audio_provider="openai",
+            audio_model=None,
+        )
+
+        mock_stt_model = MagicMock()
+        mock_result = MagicMock()
+        mock_result.text = "clip"
+        mock_stt_model.atranscribe = AsyncMock(return_value=mock_result)
+
+        with (
+            patch("esperanto.AIFactory") as mock_factory,
+            patch(
+                "content_core.processors.media.audio.get_audio_duration",
+                new_callable=AsyncMock,
+                return_value=120.0,
+            ),
+        ):
+            mock_factory.create_speech_to_text.return_value = mock_stt_model
+
+            from content_core.processors.media.audio import transcribe_audio
+
+            await transcribe_audio("/fake/clip.mp3", config)
+
+        assert mock_stt_model.atranscribe.call_args.args[0] == "/fake/clip.mp3"
 
 
 class TestGetAudioDuration:

@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "2.0",
+  "topology": "marketplace",
+  "targets": ["claude", "codex"],
+  "canonicalPaths": {
+    "skills": "skills",
+    "index": ".agent-smith/index.json"
+  },
+  "lastUpdated": "2026-07-22T00:00:00Z",
+  "components": [
+    {
+      "id": "skill:content-core",
+      "type": "skill",
+      "name": "content-core",
+      "canonicalPath": "skills/content-core/SKILL.md",
+      "description": "Extract text content from URLs, documents, YouTube videos, Reddit posts, and audio/video files"
+    }
+  ],
+  "adapters": [
+    {
+      "componentId": "skill:content-core",
+      "harness": "claude",
+      "status": "shared",
+      "path": "skills/content-core/SKILL.md",
+      "sourcePath": "skills/content-core"
+    },
+    {
+      "componentId": "skill:content-core",
+      "harness": "codex",
+      "status": "shared",
+      "path": "skills/content-core/SKILL.md",
+      "sourcePath": "skills/content-core"
+    }
+  ],
+  "gaps": [],
+  "marketplaces": [
+    {
+      "harness": "claude",
+      "manifestPath": ".claude-plugin/marketplace.json",
+      "plugins": [
+        {
+          "name": "content-core",
+          "sourceType": "local",
+          "path": ".",
+          "managed": true
+        }
+      ]
+    },
+    {
+      "harness": "codex",
+      "manifestPath": ".agents/plugins/marketplace.json",
+      "plugins": [
+        {
+          "name": "content-core",
+          "sourceType": "local",
+          "path": ".",
+          "managed": true
+        }
+      ]
+    }
+  ]
+}
