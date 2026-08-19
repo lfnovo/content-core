@@ -85,6 +85,25 @@ The `document_engine` setting controls document processing. When set to `auto` (
   - Automatic table detection and conversion to markdown
   - Text cleaning (ligatures, whitespace, hyphenation normalization)
 
+### PDF (Vision Engine)
+
+- File: `document/pdf_vision.py`
+- Activated automatically when `vision_provider` and `vision_model` are configured (overrides simple/auto-Docling routing for PDFs; explicit `document_engine="docling"` still wins)
+- Pipeline:
+  1. Render pages to PNG with `pdftoppm` (poppler) at 150 DPI
+  2. Adaptive page sampling — keeps prompt cost bounded for long PDFs
+  3. Analyze pages in parallel with the vision model (semaphore=5)
+  4. Combine page descriptions into a single document under `## Page N` headings
+- Adaptive sampling table:
+
+  | Total Pages | Step       | Max Pages Analyzed |
+  |-------------|------------|--------------------|
+  | ≤ 20        | every page | 20                 |
+  | 21 – 100    | every 2nd  | 50                 |
+  | 101 – 500   | every 5th  | 100                |
+  | > 500       | every 10th | 100                |
+- Requires the `pdftoppm` binary on PATH
+
 ### EPUB
 
 - File: `document/epub.py`
@@ -105,6 +124,13 @@ The `document_engine` setting controls document processing. When set to `auto` (
 
 - File: `document/xlsx.py`
 - Extracts data from Excel spreadsheets
+
+### Image (Vision Engine)
+
+- File: `document/image.py`
+- Activated for `image/*` MIME types (jpeg, png, gif, webp, tiff, bmp) when `vision_provider` and `vision_model` are configured
+- Sends the image to the vision model via Esperanto's `create_image_message` and returns a markdown description
+- Without vision configured, image extraction is unsupported (the file is skipped/placeholdered)
 
 ### Docling (Optional)
 
@@ -136,6 +162,25 @@ Located in `src/content_core/processors/media/`.
 - Extracts audio from video files, then transcribes using the audio processor
 - Supported formats: MP4, AVI, MOV, MKV
 - Uses ffmpeg/ffprobe for audio stream selection and extraction
+
+### Video (Vision Engine)
+
+- File: `media/video_vision.py`
+- Activated automatically when `vision_provider` and `vision_model` are configured
+- Pipeline:
+  1. Probe duration with `ffprobe`
+  2. Extract frames with `ffmpeg` using adaptive fps (see table below)
+  3. Analyze frames in parallel with the vision model (semaphore=5)
+  4. Best audio stream is extracted and transcribed via the standard audio processor — this step is non-fatal: if it fails, only the visual section is returned
+  5. Output combines `## Visual Content` (frame-by-frame with `[HH:MM:SS]` timestamps) with `## Audio Transcript` when available
+- Adaptive frame sampling table:
+
+  | Duration       | Sample Rate | Max Frames |
+  |----------------|-------------|------------|
+  | ≤ 60s          | 1.0 fps     | 60         |
+  | 61s – 5 min    | 0.5 fps     | 150        |
+  | 5 min – 15 min | 0.2 fps     | 180        |
+  | > 15 min       | 0.1 fps     | 180        |
 
 ## YouTube Processor
 

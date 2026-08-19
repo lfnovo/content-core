@@ -61,6 +61,11 @@ class ContentCoreConfig(BaseSettings):
     audio_model: Optional[str] = None
     audio_concurrency: int = Field(default=3, ge=1, le=10)
 
+    # Vision (image / pdf-vision / video-vision extraction)
+    vision_provider: Optional[str] = None
+    vision_model: Optional[str] = None
+    vision_config: Optional[dict] = None
+
     # Crawl4AI
     crawl4ai_api_url: Optional[str] = None
 

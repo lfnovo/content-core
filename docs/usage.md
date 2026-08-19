@@ -366,6 +366,83 @@ extract_content(file_path="paper.pdf", engine="docling", formulas=true, pictures
 
 > **Note:** Enrichment flags are only applied when `document_engine="docling"`. A warning is logged if flags are set without the Docling engine.
 
+## Vision Processing
+
+Vision processing uses a multimodal LLM (via [Esperanto](https://github.com/lfnovo/esperanto)) to analyze PDFs, images, and video frames. It is opt-in: extraction behavior is unchanged unless both `vision_provider` and `vision_model` are configured.
+
+### What it enables
+
+| MIME / file type | Without vision config       | With vision config                                           |
+|------------------|------------------------------|--------------------------------------------------------------|
+| PDF              | pdfplumber text extraction   | Per-page rendered images analyzed by the vision model        |
+| `image/*`        | Unsupported (placeholder)    | Image description from the vision model                      |
+| `video/*`        | Audio-only transcription     | Frame-by-frame visual analysis + audio transcript (combined) |
+
+For `document_engine="auto"`, vision takes precedence over auto-Docling on PDF / image / video MIME types. Explicit `document_engine="docling"` still routes to Docling.
+
+### Configuration
+
+```python
+from content_core import ContentCoreConfig
+
+config = ContentCoreConfig(
+    vision_provider="openai",
+    vision_model="gpt-4o-mini",
+    # vision_config is optional — passed straight to AIFactory.create_language(...)
+    vision_config={"temperature": 0.0},
+)
+```
+
+Or via environment variables:
+
+```bash
+CCORE_VISION_PROVIDER=openai
+CCORE_VISION_MODEL=gpt-4o-mini
+```
+
+Or via the config file:
+
+```bash
+content-core config set vision_provider openai
+content-core config set vision_model gpt-4o-mini
+```
+
+### Usage examples
+
+```python
+import content_core
+from content_core import ContentCoreConfig
+
+config = ContentCoreConfig(vision_provider="openai", vision_model="gpt-4o-mini")
+
+# Image — described by the vision model
+result = await content_core.extract_content(file_path="diagram.png", config=config)
+
+# PDF — pages rendered with pdftoppm and analyzed in parallel
+result = await content_core.extract_content(file_path="paper.pdf", config=config)
+
+# Video — frames analyzed visually + audio transcribed (combined output)
+result = await content_core.extract_content(file_path="lecture.mp4", config=config)
+```
+
+### Adaptive sampling
+
+To keep cost bounded on large inputs, the PDF and video pipelines sub-sample before sending content to the vision model:
+
+- **PDFs** — every page up to 20, every 2nd up to 100, every 5th up to 500, every 10th beyond.
+- **Videos** — 1.0 fps for ≤60s, 0.5 fps for ≤5 min, 0.2 fps for ≤15 min, 0.1 fps beyond. Capped at 180 frames.
+
+Both pipelines analyze pages/frames concurrently with a semaphore of 5.
+
+### System dependencies
+
+- **PDFs**: `pdftoppm` (from poppler) on PATH.
+- **Videos**: `ffmpeg` and `ffprobe` on PATH (already required for the standard audio/video pipeline).
+
+### Failure modes
+
+All vision processors degrade gracefully — if rendering, frame extraction, or the model call fails, the processor returns an `ExtractionOutput` with a placeholder message rather than raising. For videos, audio transcription failure is non-fatal: the visual analysis is still returned.
+
 ## Proxy Configuration
 
 Content Core uses standard HTTP proxy environment variables:
