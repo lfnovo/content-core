@@ -130,7 +130,8 @@ _SECRET_KEY_MARKERS = ("token", "key", "secret", "password")
 
 def _display_value(key: str, value):
     """Mask credential-like config values so they never land on stdout."""
-    if isinstance(value, str) and value and any(m in key for m in _SECRET_KEY_MARKERS):
+    lowered = key.lower()
+    if isinstance(value, str) and value and any(m in lowered for m in _SECRET_KEY_MARKERS):
         return "****" + value[-4:] if len(value) > 8 else "****"
     return value
 

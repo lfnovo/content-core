@@ -239,6 +239,17 @@ class TestConfigCommands:
         result = runner.invoke(cli, ["config", "set", "llm_provider", "anthropic"])
         assert "llm_provider = anthropic" in result.output
 
+    def test_config_list_masks_uppercase_secret_keys(self, tmp_path):
+        # Keys written by hand into the TOML may be uppercase; still masked.
+        (tmp_path / "config.toml").write_text(
+            'CRAWL4AI_API_TOKEN = "hand-written-secret-token"\n'
+        )
+        runner = CliRunner()
+        result = runner.invoke(cli, ["config", "list"])
+        assert result.exit_code == 0
+        assert "hand-written-secret-token" not in result.output
+        assert "CRAWL4AI_API_TOKEN = ****oken" in result.output
+
     def test_config_set_invalid_key(self):
         runner = CliRunner()
         result = runner.invoke(cli, ["config", "set", "fake_key", "value"])
