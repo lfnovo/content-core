@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import subprocess
+import tempfile
 from functools import partial
 
 from content_core.config import ContentCoreConfig
@@ -128,9 +129,6 @@ async def extract_video(file_path: str, config: ContentCoreConfig) -> Extraction
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Input file not found: {file_path}")
 
-    base_name = os.path.splitext(file_path)[0]
-    output_file = f"{base_name}_audio.mp3"
-
     # Get all audio streams
     streams = await get_audio_streams(file_path)
     if not streams:
@@ -151,21 +149,24 @@ async def extract_video(file_path: str, config: ContentCoreConfig) -> Extraction
             metadata={"error": "Could not determine best audio stream"},
         )
 
-    # Extract the selected stream
+    # Extract the selected stream into a temporary directory: never write
+    # next to the user's source file (collisions, read-only dirs, concurrency).
     stream_index = streams.index(best_stream)
-    success = await extract_audio_from_video(file_path, output_file, stream_index)
+    base_name = os.path.splitext(os.path.basename(file_path))[0]
+    with tempfile.TemporaryDirectory() as temp_dir:
+        output_file = os.path.join(temp_dir, f"{base_name}_audio.mp3")
+        success = await extract_audio_from_video(file_path, output_file, stream_index)
 
-    if not success:
-        return ExtractionOutput(
-            content="",
-            source_type="file",
-            identified_type="video/*",
-            metadata={"error": "Failed to extract audio from video"},
-        )
+        if not success:
+            return ExtractionOutput(
+                content="",
+                source_type="file",
+                identified_type="video/*",
+                metadata={"error": "Failed to extract audio from video"},
+            )
 
-    logger.debug(f"Successfully extracted audio to: {output_file}")
+        logger.debug(f"Successfully extracted audio to: {output_file}")
 
-    try:
         result = await transcribe_audio(output_file, config)
         return ExtractionOutput(
             content=result.content,
@@ -173,8 +174,3 @@ async def extract_video(file_path: str, config: ContentCoreConfig) -> Extraction
             identified_type="video/*",
             metadata=result.metadata,
         )
-    finally:
-        try:
-            os.remove(output_file)
-        except OSError:
-            pass
