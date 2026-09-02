@@ -1,0 +1,33 @@
+docs/cli.md
+  s_3de2ab54ae19d9::t_53c1182e431561 158
+docs/processors.md
+  s_3de2ab54ae19d9::t_53c1182e431561 65-66
+src/content_core/config.py
+  s_3de2ab54ae19d9::t_53c1182e431561 66
+src/content_core/cli.py
+  s_3de2ab54ae19d9::t_53c1182e431561 105
+docs/usage.md
+  s_3de2ab54ae19d9::t_53c1182e431561 176
+README.md
+  s_3de2ab54ae19d9::t_53c1182e431561 230
+src/content_core/processors/url/crawl4ai.py
+  s_3de2ab54ae19d9::t_53c1182e431561 12-21,100,105
+tests/unit/test_crawl4ai_docker.py
+  s_3de2ab54ae19d9::t_d74739cc73633d 1-133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "55e17c5ccbe5d360ad1f2734afe71fa29a186514",
+  "prompts": {},
+  "sessions": {
+    "s_3de2ab54ae19d9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34dc540a-c7ff-4eeb-ba68-b0dc5b63b5a1",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Luis Novo <lfnovo@gmail.com>"
+    }
+  }
+}
