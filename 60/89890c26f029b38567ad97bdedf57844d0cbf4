@@ -1,0 +1,21 @@
+tests/unit/test_media_pipeline.py
+  s_3de2ab54ae19d9::t_0b0eff9dd25d6a 388-449
+src/content_core/processors/media/video.py
+  s_3de2ab54ae19d9::t_0b0eff9dd25d6a 5,152-153,155-158,160-166,168
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "6089890c26f029b38567ad97bdedf57844d0cbf4",
+  "prompts": {},
+  "sessions": {
+    "s_3de2ab54ae19d9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34dc540a-c7ff-4eeb-ba68-b0dc5b63b5a1",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Luis Novo <lfnovo@gmail.com>"
+    }
+  }
+}
