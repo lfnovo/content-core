@@ -9,9 +9,16 @@ from content_core.logging import logger
 
 
 @retry_url_api()
-async def _fetch_url_crawl4ai_docker(url: str, api_url: str) -> dict:
-    """Fetch URL content via Crawl4AI Docker API."""
-    async with aiohttp.ClientSession(trust_env=True) as session:
+async def _fetch_url_crawl4ai_docker(
+    url: str, api_url: str, api_token: Optional[str] = None
+) -> dict:
+    """Fetch URL content via Crawl4AI Docker API.
+
+    Crawl4AI >= 0.9.0 requires a bearer token for external connections by
+    default; when ``api_token`` is set it is sent as ``Authorization: Bearer``.
+    """
+    headers = {"Authorization": f"Bearer {api_token}"} if api_token else None
+    async with aiohttp.ClientSession(trust_env=True, headers=headers) as session:
         async with session.post(
             f"{api_url.rstrip('/')}/crawl",
             json={"urls": [url], "priority": 10},
@@ -90,11 +97,12 @@ async def extract_url_crawl4ai(url: str, config: Optional[ContentCoreConfig] = N
     """
     cfg = config or get_default_config()
     api_url = os.environ.get("CRAWL4AI_API_URL") or cfg.crawl4ai_api_url
+    api_token = os.environ.get("CRAWL4AI_API_TOKEN") or cfg.crawl4ai_api_token
 
     try:
         if api_url:
             logger.debug(f"Using Crawl4AI Docker API at: {api_url}")
-            return await _fetch_url_crawl4ai_docker(url, api_url)
+            return await _fetch_url_crawl4ai_docker(url, api_url, api_token)
         else:
             logger.debug("Using Crawl4AI local browser automation")
             return await _fetch_url_crawl4ai_local(url)
