@@ -219,6 +219,26 @@ class TestConfigCommands:
         assert result.exit_code == 0
         assert "llm_provider = anthropic" in result.output
 
+    def test_config_secret_values_are_masked(self):
+        runner = CliRunner()
+        token = "crawl4ai-super-secret-token"
+        result = runner.invoke(cli, ["config", "set", "crawl4ai_api_token", token])
+        assert result.exit_code == 0
+        assert token not in result.output
+        assert "crawl4ai_api_token = ****oken" in result.output
+
+        result = runner.invoke(cli, ["config", "list"])
+        assert result.exit_code == 0
+        assert token not in result.output
+        assert "crawl4ai_api_token = ****oken" in result.output
+
+        # Short secrets are fully masked; non-secret keys are untouched
+        result = runner.invoke(cli, ["config", "set", "crawl4ai_api_token", "abc"])
+        assert "crawl4ai_api_token = ****" in result.output
+        assert "abc" not in result.output
+        result = runner.invoke(cli, ["config", "set", "llm_provider", "anthropic"])
+        assert "llm_provider = anthropic" in result.output
+
     def test_config_set_invalid_key(self):
         runner = CliRunner()
         result = runner.invoke(cli, ["config", "set", "fake_key", "value"])

@@ -125,6 +125,16 @@ def config():
     pass
 
 
+_SECRET_KEY_MARKERS = ("token", "key", "secret", "password")
+
+
+def _display_value(key: str, value):
+    """Mask credential-like config values so they never land on stdout."""
+    if isinstance(value, str) and value and any(m in key for m in _SECRET_KEY_MARKERS):
+        return "****" + value[-4:] if len(value) > 8 else "****"
+    return value
+
+
 @config.command("list")
 def config_list_cmd():
     """List all config values from the config file."""
@@ -137,7 +147,7 @@ def config_list_cmd():
         click.echo("Run 'content-core config --help' to see available keys.")
         return
     for key, value in sorted(data.items()):
-        click.echo(f"{key} = {value}")
+        click.echo(f"{key} = {_display_value(key, value)}")
 
 
 @config.command("set")
@@ -157,7 +167,7 @@ def config_set_cmd(key, value):
 
     try:
         config_set(key, value)
-        click.echo(f"{key} = {value}")
+        click.echo(f"{key} = {_display_value(key, value)}")
     except ValueError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
