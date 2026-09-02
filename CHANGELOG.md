@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.7] - 2026-09-02
+
+### Added
+- `crawl4ai_api_token` setting (env var `CRAWL4AI_API_TOKEN`, mirroring `CRAWL4AI_API_URL`) for the Crawl4AI Docker API (#80)
+
+### Fixed
+- Crawl4AI Docker mode was rejected by any Crawl4AI >= 0.9.0 instance (#80): the client posted to `/crawl` with no `Authorization` header, and recent versions require a bearer token for external connections by default. The token is now sent as `Authorization: Bearer <token>` when configured; unset keeps the previous unauthenticated behavior
+
 ## [2.0.6] - 2026-07-30
 
 ### Fixed
