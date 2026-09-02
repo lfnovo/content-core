@@ -1,0 +1,22 @@
+.claude-plugin/plugin.json
+  h_b951d72cb60ead 3
+.codex-plugin/plugin.json
+  h_b951d72cb60ead 3
+CHANGELOG.md
+  h_b951d72cb60ead 10-17
+pyproject.toml
+  h_b951d72cb60ead 3
+uv.lock
+  h_b951d72cb60ead 778
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "ec7a9d1c9377f7daf3043668486c5557289f548a",
+  "prompts": {},
+  "humans": {
+    "h_b951d72cb60ead": {
+      "author": "Luis Novo <lfnovo@gmail.com>"
+    }
+  }
+}
