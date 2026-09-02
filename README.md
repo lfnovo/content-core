@@ -227,6 +227,7 @@ Content Core uses `ContentCoreConfig` powered by pydantic-settings. Settings are
 | `CCORE_DOCUMENT_ENGINE` | Document extraction engine (`auto`, `simple`, `docling`) | `auto` |
 | `CCORE_AUDIO_CONCURRENCY` | Concurrent audio transcriptions (1-10) | `3` |
 | `CRAWL4AI_API_URL` | Crawl4AI Docker API URL (omit for local browser mode) | - |
+| `CRAWL4AI_API_TOKEN` | Bearer token for the Crawl4AI Docker API (required by Crawl4AI >= 0.9.0) | - |
 | `FIRECRAWL_API_URL` | Custom Firecrawl API URL for self-hosted instances | - |
 | `CCORE_FIRECRAWL_PROXY` | Firecrawl proxy mode (`auto`, `basic`, `stealth`) | `auto` |
 | `CCORE_FIRECRAWL_WAIT_FOR` | Wait time in ms before extraction | `3000` |

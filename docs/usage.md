@@ -173,6 +173,7 @@ CCORE_FIRECRAWL_PROXY=auto
 CCORE_FIRECRAWL_WAIT_FOR=3000
 FIRECRAWL_API_URL=http://localhost:3002
 CRAWL4AI_API_URL=http://localhost:11235
+CRAWL4AI_API_TOKEN=your-crawl4ai-token
 ```
 
 API keys for external services use their standard variable names:

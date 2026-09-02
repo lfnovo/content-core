@@ -63,6 +63,7 @@ class ContentCoreConfig(BaseSettings):
 
     # Crawl4AI
     crawl4ai_api_url: Optional[str] = None
+    crawl4ai_api_token: Optional[str] = None
 
     # Firecrawl
     firecrawl_api_url: str = "https://api.firecrawl.dev"
