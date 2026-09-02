@@ -1,0 +1,21 @@
+src/content_core/cli.py
+  s_3de2ab54ae19d9::t_336e3538ef0d35 133-134
+tests/unit/test_cli.py
+  s_3de2ab54ae19d9::t_d1bac914c98e7f 242-252
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "4f02b28420f2d5d2fa40edf4afb59c4c1be3fadc",
+  "prompts": {},
+  "sessions": {
+    "s_3de2ab54ae19d9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34dc540a-c7ff-4eeb-ba68-b0dc5b63b5a1",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Luis Novo <lfnovo@gmail.com>"
+    }
+  }
+}
