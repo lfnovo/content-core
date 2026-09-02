@@ -385,6 +385,68 @@ class TestExtractVideo:
             with pytest.raises(FileNotFoundError):
                 await extract_video("/no/such/video.mp4", config)
 
+    async def test_intermediate_audio_lives_outside_source_dir(self, config):
+        """Regression for #74: the intermediate .mp3 must not be written next
+        to the source video, and a user's <name>_audio.mp3 must survive."""
+        streams = [{"bit_rate": "128000", "channels": 2, "sample_rate": "44100"}]
+
+        with tempfile.TemporaryDirectory() as source_dir:
+            video_path = os.path.join(source_dir, "interview.mp4")
+            user_audio = os.path.join(source_dir, "interview_audio.mp3")
+            with open(video_path, "wb") as f:
+                f.write(b"fake video")
+            with open(user_audio, "wb") as f:
+                f.write(b"user's own audio")
+
+            seen = {}
+
+            async def fake_extract(input_file, output_file, stream_index):
+                seen["output_file"] = output_file
+                with open(output_file, "wb") as f:
+                    f.write(b"extracted")
+                return True
+
+            async def fake_transcribe(audio_path, cfg):
+                seen["transcribed"] = audio_path
+                assert os.path.exists(audio_path)
+                return ExtractionOutput(
+                    content="ok", source_type="file", identified_type="audio/*"
+                )
+
+            with (
+                patch(
+                    "content_core.processors.media.video.get_audio_streams",
+                    new_callable=AsyncMock,
+                    return_value=streams,
+                ),
+                patch(
+                    "content_core.processors.media.video.select_best_audio_stream",
+                    new_callable=AsyncMock,
+                    return_value=streams[0],
+                ),
+                patch(
+                    "content_core.processors.media.video.extract_audio_from_video",
+                    side_effect=fake_extract,
+                ),
+                patch(
+                    "content_core.processors.media.audio.transcribe_audio",
+                    side_effect=fake_transcribe,
+                ),
+            ):
+                result = await extract_video(video_path, config)
+
+            assert result.content == "ok"
+            assert seen["transcribed"] == seen["output_file"]
+            # Intermediate is not derived from the source directory
+            assert os.path.dirname(seen["output_file"]) != source_dir
+            assert not seen["output_file"].startswith(source_dir + os.sep)
+            # Intermediate is cleaned up after extraction
+            assert not os.path.exists(seen["output_file"])
+            # Source directory is untouched: same files, user's audio intact
+            assert sorted(os.listdir(source_dir)) == ["interview.mp4", "interview_audio.mp3"]
+            with open(user_audio, "rb") as f:
+                assert f.read() == b"user's own audio"
+
 
 class TestSelectBestAudioStream:
     async def test_picks_best_quality(self):
