@@ -1,0 +1,23 @@
+CHANGELOG.md
+  s_3de2ab54ae19d9::t_c493250b706bdc 16
+src/content_core/cli.py
+  s_3de2ab54ae19d9::t_c493250b706bdc 128-137,150,170
+tests/unit/test_cli.py
+  s_3de2ab54ae19d9::t_c493250b706bdc 222-241
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "5f2c5a44b1781c88492cd0358933e17a4580f03b",
+  "prompts": {},
+  "sessions": {
+    "s_3de2ab54ae19d9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34dc540a-c7ff-4eeb-ba68-b0dc5b63b5a1",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Luis Novo <lfnovo@gmail.com>"
+    }
+  }
+}
