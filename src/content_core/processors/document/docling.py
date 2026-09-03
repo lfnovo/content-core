@@ -36,7 +36,8 @@ except ImportError:
 DOCLING_SUPPORTED = {
     "application/pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    # XLSX stays on the openpyxl office path: Docling often drops early worksheets
+    # from multi-sheet workbooks (see open-notebook#1257).
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     "text/markdown",
     # "text/plain", #docling currently not supporting txt

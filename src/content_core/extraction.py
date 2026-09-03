@@ -116,8 +116,11 @@ def _route_for_mime(mime: str, cfg: ContentCoreConfig) -> str | None:
     "audio", "text") or ``None`` if the type is unsupported.
     """
     engine = cfg.document_engine
-    if engine == "docling" or (
-        engine == "auto" and DOCLING_AVAILABLE and mime in DOCLING_SUPPORTED
+    # Only hand MIME types Docling actually supports well. XLSX stays on the
+    # openpyxl office path so multi-sheet workbooks keep every worksheet.
+    if mime in DOCLING_SUPPORTED and (
+        engine == "docling"
+        or (engine == "auto" and DOCLING_AVAILABLE)
     ):
         if DOCLING_AVAILABLE and extract_docling is not None:
             return "docling"
