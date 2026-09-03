@@ -1,6 +1,8 @@
 """Content Core MCP Server — extract and summarize content."""
 import sys
 
+from importlib.metadata import PackageNotFoundError, version
+
 from fastmcp import FastMCP
 from loguru import logger
 
@@ -8,7 +10,15 @@ from loguru import logger
 logger.remove()
 logger.add(sys.stderr, level="INFO")
 
-mcp = FastMCP("Content Core")
+
+def _package_version() -> str:
+    try:
+        return version("content-core")
+    except PackageNotFoundError:
+        return "0.0.0"
+
+
+mcp = FastMCP("Content Core", version=_package_version())
 
 
 @mcp.tool
