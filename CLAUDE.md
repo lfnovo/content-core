@@ -51,7 +51,7 @@ If you believe a task genuinely requires lint or type cleanup, do it as a *separ
 
 - Single processor changes (`processors/url/*.py`, `processors/document/*.py`, `processors/media/*.py`) are the natural unit of work — keep changes confined to one file plus its matching test in `tests/unit/`.
 - Avoid touching `extraction.py` (orchestrator) or `config.py` unless the task explicitly targets routing or configuration.
-- New processors should follow the `Processor` protocol in `src/content_core/processors/protocol.py`.
+- New processors follow the function contract documented in `ARCHITECTURE.md` ("Two-layer contract"): a module-level `async def extract_<fmt>_file(file_path, config) -> ExtractionOutput` that raises on failure, with per-unit degradation in the inner parsing layer.
 
 ## Codebase Structure
 
@@ -76,7 +76,6 @@ src/content_core/
 │   └── identification/      # File type detection (pure Python)
 │
 ├── processors/
-│   ├── protocol.py          # Processor Protocol definition
 │   ├── text.py              # Plain text + HTML-to-markdown (also .html/.htm files, <title> extraction)
 │   ├── url/                 # URL extraction engines
 │   │   ├── __init__.py      # Engine router + fallback chain
@@ -200,7 +199,7 @@ tests/
 │   ├── test_mcp_v2.py             # MCP tools: extract + summarize
 │   ├── test_cli.py                # CLI: _build_input, commands, config subcommands
 │   ├── test_config_file.py        # TOML config file: read/write, set/delete, precedence
-│   ├── test_models_v2.py          # ExtractionInput/Output, Processor Protocol
+│   ├── test_models_v2.py          # ExtractionInput/Output data models
 │   ├── test_retry.py              # Retry decorators, exception classification
 │   └── test_file_detector*.py     # MIME detection, performance, edge cases
 │

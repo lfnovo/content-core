@@ -1,10 +1,8 @@
-"""Tests for content_core.common.state and content_core.processors.protocol."""
+"""Tests for content_core.common.state."""
 from __future__ import annotations
 
 
-from content_core.config import ContentCoreConfig
 from content_core.common.state import ExtractionInput, ExtractionOutput
-from content_core.processors.protocol import Processor
 
 
 # --- ExtractionInput ---
@@ -67,23 +65,3 @@ class TestExtractionOutput:
         out2 = ExtractionOutput()
         out1.metadata["key"] = "value"
         assert "key" not in out2.metadata
-
-
-# --- Processor Protocol ---
-
-
-class TestProcessorProtocol:
-    def test_valid_processor_satisfies_protocol(self):
-        class MyProcessor:
-            async def extract(
-                self, source: str, config: ContentCoreConfig
-            ) -> ExtractionOutput:
-                return ExtractionOutput(content=source)
-
-        assert isinstance(MyProcessor(), Processor)
-
-    def test_missing_extract_does_not_satisfy_protocol(self):
-        class NotAProcessor:
-            pass
-
-        assert not isinstance(NotAProcessor(), Processor)

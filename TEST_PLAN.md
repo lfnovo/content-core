@@ -175,7 +175,6 @@ Status: 285 collected (263 unit + 22 integration), 12 e2e tests
 
 - [x] ExtractionInput: no fields, url, file_path, content
 - [x] ExtractionOutput: defaults, all fields, metadata isolation
-- [x] Processor Protocol: conforming class passes, non-conforming fails
 
 ---
 
