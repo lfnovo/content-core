@@ -62,6 +62,19 @@ class TestDetectHtml:
         html = "<div>Section</div><p>Text</p><ul><li>Item</li></ul>"
         assert detect_html(html) is True
 
+    def test_doctype_document_detected_regardless_of_tag_count(self):
+        html = "<!DOCTYPE html><html><head><title>T</title></head><body><p>Hi</p></body></html>"
+        assert detect_html(html) is True
+
+    def test_html_root_tag_detected(self):
+        assert detect_html("<html><body>bare</body></html>") is True
+
+    def test_leading_comment_before_doctype_detected(self):
+        assert detect_html("<!-- generated -->\n<!doctype html><html></html>") is True
+
+    def test_html_mentioned_mid_text_not_detected(self):
+        assert detect_html("the <html> tag is where a document starts") is False
+
 
 class TestExtractTextFile:
     async def test_reads_file_content(self, config):

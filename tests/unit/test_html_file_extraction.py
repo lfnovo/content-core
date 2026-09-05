@@ -81,3 +81,42 @@ async def test_txt_file_unchanged(tmp_path, config):
     assert result.identified_type == "text/plain"
     assert result.title == "note.txt"
     assert result.content == text
+
+
+@pytest.mark.asyncio
+async def test_minimal_html_file_still_gets_title(tmp_path, config):
+    """A page whose body has fewer than two structural tags is still HTML."""
+    page = tmp_path / "tiny.html"
+    page.write_text(
+        "<!DOCTYPE html><html><head><title>Tiny</title></head><body><p>Hi</p></body></html>",
+        encoding="utf-8",
+    )
+
+    result = await extract_content(file_path=str(page), config=config)
+
+    assert result.title == "Tiny"
+    assert result.content.strip() == "Hi"
+
+
+@pytest.mark.asyncio
+async def test_legacy_charset_html_file_decodes_declared_encoding(tmp_path, config):
+    page = tmp_path / "legacy.html"
+    page.write_bytes(
+        "<html><head><meta charset=\"windows-1252\"><title>Café</title></head>"
+        "<body><p>Crème brûlée</p></body></html>".encode("cp1252")
+    )
+
+    result = await extract_content(file_path=str(page), config=config)
+
+    assert result.title == "Café"
+    assert "Crème brûlée" in result.content
+
+
+@pytest.mark.asyncio
+async def test_non_utf8_without_declared_charset_does_not_raise(tmp_path, config):
+    page = tmp_path / "latin.html"
+    page.write_bytes("<html><body><p>Ação</p><p>ok</p></body></html>".encode("latin-1"))
+
+    result = await extract_content(file_path=str(page), config=config)
+
+    assert "Ação" in result.content

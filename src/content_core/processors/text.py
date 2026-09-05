@@ -20,6 +20,31 @@ HTML_STRUCTURAL_TAGS = re.compile(
 )
 
 
+# A document that opens with a doctype or <html> tag is HTML regardless of how
+# many structural tags its body has (a one-paragraph page is still a page).
+HTML_DOCUMENT_START = re.compile(r"\s*(?:<!--.*?-->\s*)*<(?:!doctype\s+html|html)\b", re.IGNORECASE | re.DOTALL)
+
+# Declared charset in an HTML head, used only when the file is not valid UTF-8.
+HTML_CHARSET_RE = re.compile(rb"<meta[^>]+charset=[\"']?\s*([\w.:-]+)", re.IGNORECASE)
+
+
+def _decode_text_file(raw: bytes) -> str:
+    """Decode a text/HTML file: strict UTF-8 first, then the declared charset,
+    then cp1252 (superset of latin-1, the usual legacy encoding) with replacement."""
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        pass
+    match = HTML_CHARSET_RE.search(raw[:4096])
+    if match:
+        codec = match.group(1).decode("ascii", "ignore")
+        try:
+            return raw.decode(codec, errors="replace")
+        except LookupError:
+            logger.debug(f"Unknown declared charset {codec!r}, falling back to cp1252")
+    return raw.decode("cp1252", errors="replace")
+
+
 def detect_html(content: str) -> bool:
     """
     Detect if content contains meaningful HTML structure.
@@ -30,6 +55,8 @@ def detect_html(content: str) -> bool:
     Returns:
         True if at least HTML_DETECTION_THRESHOLD structural tags are found
     """
+    if HTML_DOCUMENT_START.match(content):
+        return True
     matches = HTML_STRUCTURAL_TAGS.findall(content)
     return len(matches) >= HTML_DETECTION_THRESHOLD
 
@@ -62,8 +89,8 @@ async def extract_text_file(file_path: str, config: ContentCoreConfig) -> Extrac
     """Extract content from a plain text file."""
 
     def _read_file():
-        with open(file_path, "r", encoding="utf-8") as file:
-            return file.read()
+        with open(file_path, "rb") as file:
+            return _decode_text_file(file.read())
 
     try:
         content = await asyncio.get_event_loop().run_in_executor(None, _read_file)
