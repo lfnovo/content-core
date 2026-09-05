@@ -5,7 +5,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from content_core.config import ContentCoreConfig
-from content_core.processors.text import detect_html, extract_text_file, process_text
+from content_core.processors.text import (
+    detect_html,
+    extract_html_title,
+    extract_text_file,
+    process_text,
+    strip_html_head,
+)
 
 
 @pytest.fixture
@@ -81,3 +87,40 @@ class TestExtractTextFile:
 
             with pytest.raises(FileNotFoundError):
                 await extract_text_file("/no/such/file.txt", config)
+
+
+class TestExtractHtmlTitle:
+    def test_title_extracted(self):
+        assert extract_html_title("<html><head><title>My Page</title></head></html>") == "My Page"
+
+    def test_title_whitespace_stripped(self):
+        html = "<html><head><title>\n   Spaced   Title \n</title></head></html>"
+        assert extract_html_title(html) == "Spaced   Title"
+
+    def test_title_entities_decoded(self):
+        html = "<title>Tom &amp; Jerry&#39;s</title>"
+        assert extract_html_title(html) == "Tom & Jerry's"
+
+    def test_missing_title_returns_empty(self):
+        assert extract_html_title("<html><body><p>No title</p></body></html>") == ""
+
+    def test_empty_title_returns_empty(self):
+        assert extract_html_title("<title>   </title>") == ""
+
+
+class TestStripHtmlHead:
+    def test_head_block_removed(self):
+        html = "<html><HEAD><title>T</title>\n<style>p{}</style></HEAD><body><p>x</p></body></html>"
+        assert strip_html_head(html) == "<html><body><p>x</p></body></html>"
+
+    def test_no_head_unchanged(self):
+        html = "<html><body><p>x</p></body></html>"
+        assert strip_html_head(html) == html
+
+    async def test_title_does_not_leak_into_content(self, config):
+        html = "<html><head><title>Leaky</title></head><body><h1>Heading</h1><p>Body</p></body></html>"
+        result = await process_text(html, config)
+        assert result.title == "Leaky"
+        assert not result.content.lstrip().startswith("Leaky")
+        assert "Leaky" not in result.content
+        assert "Heading" in result.content
