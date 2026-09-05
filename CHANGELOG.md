@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `ConfigurationError` is now exported from `content_core`, so callers can catch an engine choice that could not be honored explicitly (#50)
+- The whole exception taxonomy is now public (#52): `ContentCoreError`, `UnsupportedTypeException`, `InvalidInputError`, `ConfigurationError`, `NotFoundError`, `NoTranscriptFound`, `NetworkError`, `ExternalServiceError` and `FileOperationError` are importable from `content_core`, so a consumer can `except content_core.ContentCoreError` (or a specific subtype) without reaching into a private module. `extract_content`'s docstring now lists what it raises
+
+### Removed
+- `DatabaseOperationError`, `AuthenticationError` and `RateLimitError` (#52) — none had a raise site. There is no database in a content extractor, and provider auth and rate-limit failures are `ExternalServiceError`: the caller's remedy is the same (check the provider) and the message carries the detail. No `except` clause can be affected, since none of the three was ever raised; only a direct import from the private `content_core.common.exceptions` module breaks
 
 ### Fixed
 - An explicit `document_engine="docling"` with docling not installed fell back **silently** to the simple engine (#50), which is indistinguishable from success at a very different output quality. It now raises `ConfigurationError` naming both the install command and the `CCORE_DOCUMENT_ENGINE=simple` escape hatch. `document_engine="auto"` is unchanged — `auto` is a preference and may still degrade. `check_file_support` reports the same condition as `supported=False` with that message as the reason, rather than raising

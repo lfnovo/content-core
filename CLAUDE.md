@@ -174,6 +174,7 @@ When you change a specific processor or module, run only the relevant tests for 
 | `mcp/server.py` | `uv run pytest -k "mcp"` |
 | `cli.py` | `uv run pytest -k "cli"` |
 | `common/retry.py` | `uv run pytest -k "retry"` |
+| `common/exceptions.py` | `uv run pytest -k "exceptions"` |
 | `content/identification/` | `uv run pytest -k "file_detector"` |
 | `common/state.py` (models) | `uv run pytest -k "models"` |
 
@@ -201,6 +202,7 @@ tests/
 │   ├── test_config_file.py        # TOML config file: read/write, set/delete, precedence
 │   ├── test_models_v2.py          # ExtractionInput/Output data models
 │   ├── test_retry.py              # Retry decorators, exception classification
+│   ├── test_exceptions.py         # Exception taxonomy + public exports
 │   └── test_file_detector*.py     # MIME detection, performance, edge cases
 │
 ├── integration/       # Local files, no network (~22 tests)

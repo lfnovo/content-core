@@ -1,8 +1,13 @@
 """Common utilities and shared code for content-core."""
 
 from .exceptions import (
+    ConfigurationError,
     ContentCoreError,
+    ExternalServiceError,
+    FileOperationError,
     InvalidInputError,
+    NetworkError,
+    NoTranscriptFound,
     NotFoundError,
     UnsupportedTypeException,
 )
@@ -21,10 +26,16 @@ from .state import (
 )
 
 __all__ = [
+    # Exceptions
     "ContentCoreError",
     "UnsupportedTypeException",
     "InvalidInputError",
+    "ConfigurationError",
     "NotFoundError",
+    "NoTranscriptFound",
+    "NetworkError",
+    "ExternalServiceError",
+    "FileOperationError",
     "ExtractionInput",
     "ExtractionOutput",
     # Retry decorators

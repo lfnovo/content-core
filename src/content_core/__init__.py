@@ -4,7 +4,17 @@ from loguru import logger
 
 load_dotenv()
 
-from content_core.common.exceptions import ConfigurationError
+from content_core.common.exceptions import (
+    ConfigurationError,
+    ContentCoreError,
+    ExternalServiceError,
+    FileOperationError,
+    InvalidInputError,
+    NetworkError,
+    NoTranscriptFound,
+    NotFoundError,
+    UnsupportedTypeException,
+)
 from content_core.config import ContentCoreConfig
 from content_core.content.summary import summarize
 from content_core.extraction import check_file_support, extract_content
@@ -26,8 +36,17 @@ __all__ = [
     "check_file_support",
     "summarize",
     "ContentCoreConfig",
-    "ConfigurationError",
     "ExtractionInput",
     "ExtractionOutput",
     "FileSupport",
+    # Exceptions -- every failure escaping extract_content is one of these
+    "ContentCoreError",
+    "UnsupportedTypeException",
+    "InvalidInputError",
+    "ConfigurationError",
+    "NotFoundError",
+    "NoTranscriptFound",
+    "NetworkError",
+    "ExternalServiceError",
+    "FileOperationError",
 ]

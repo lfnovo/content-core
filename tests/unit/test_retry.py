@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 import aiohttp
 import pytest
 
-from content_core.common.exceptions import NoTranscriptFound, NotFoundError
+from content_core import NoTranscriptFound, NotFoundError
 from content_core.common.retry import (
     is_retryable_exception,
     log_retry_attempt,
