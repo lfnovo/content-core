@@ -59,6 +59,22 @@ async def extract_content(
 
     Returns:
         ExtractionOutput with extracted content
+
+    Raises:
+        InvalidInputError: no source provided, or the input is malformed.
+        UnsupportedTypeException: the file/MIME type is not one we route.
+        ConfigurationError: a configuration cannot be honored (e.g.
+            ``document_engine="docling"`` with the extra not installed).
+        NotFoundError: a requested resource does not exist.
+        NoTranscriptFound: a YouTube video has no usable transcript.
+        NetworkError: connection, timeout, or DNS failure.
+        ExternalServiceError: an external provider failed (Firecrawl, Jina,
+            STT, LLM) -- including its auth and rate-limit responses.
+        FileOperationError: the file is routed but parsing or processing
+            failed.
+
+        All of these derive from ``ContentCoreError``, so a caller that
+        wants one handler can catch that.
     """
     cfg = config or get_default_config()
 
