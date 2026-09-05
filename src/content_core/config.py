@@ -162,6 +162,10 @@ def _write_config_file(data: dict) -> None:
     CONFIG_FILE.write_text("\n".join(lines) + "\n" if lines else "")
 
 
+_TRUE_TOKENS = frozenset({"true", "1", "yes", "on"})
+_FALSE_TOKENS = frozenset({"false", "0", "no", "off"})
+
+
 def _validate_field_value(key: str, value: Any) -> None:
     """Validate a coerced value against the field declared on ContentCoreConfig.
 
@@ -200,7 +204,13 @@ def config_set(key: str, value: str) -> None:
     if annotation is int or (hasattr(annotation, "__origin__") and annotation is int):
         data[key] = int(value)
     elif annotation is bool:
-        data[key] = value.lower() in ("true", "1", "yes")
+        token = value.lower()
+        if token not in _TRUE_TOKENS | _FALSE_TOKENS:
+            raise ValueError(
+                f"Invalid value for {key}: {value!r}. "
+                f"Valid values: {', '.join(sorted(_TRUE_TOKENS | _FALSE_TOKENS))}"
+            )
+        data[key] = token in _TRUE_TOKENS
     elif hasattr(annotation, "__origin__") and getattr(annotation, "__origin__", None) is list:
         data[key] = [v.strip() for v in value.split(",")]
     else:

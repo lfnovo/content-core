@@ -1,9 +1,11 @@
 import os
+from typing import get_args
 
 import aiohttp
 
 from content_core.common.exceptions import ConfigurationError
 from content_core.common.retry import retry_url_network
+from content_core.common.types import UrlEngine
 from content_core.config import ContentCoreConfig
 from content_core.logging import logger
 from content_core.common.state import ExtractionOutput
@@ -92,8 +94,23 @@ async def _extract_url_with_engine(url: str, engine: str, config: ContentCoreCon
         raise ValueError(f"Unknown engine: {engine}")
 
 
+VALID_URL_ENGINES = frozenset(get_args(UrlEngine))
+
+
 async def extract_from_url(url: str, config: ContentCoreConfig) -> ExtractionOutput:
-    """Extract content from a URL using configured engine with fallback chain."""
+    """Extract content from a URL using configured engine with fallback chain.
+
+    Raises:
+        ConfigurationError: if ``url_engine`` is not a known engine. Literal
+            validation on the config field makes this unreachable through the
+            model; it catches callers that assign the field directly.
+    """
+    if config.url_engine not in VALID_URL_ENGINES:
+        raise ConfigurationError(
+            f"Unknown URL engine: {config.url_engine!r}. "
+            f"Valid values: {', '.join(get_args(UrlEngine))}"
+        )
+
     try:
         result = await _extract_url_with_engine(
             url, config.url_engine, config
@@ -110,10 +127,10 @@ async def extract_from_url(url: str, config: ContentCoreConfig) -> ExtractionOut
             source_type="url",
             identified_type="article",
         )
-    except (ValueError, ConfigurationError):
-        # Configuration/routing errors are the caller's mistake, not a dead
-        # page: never degrade them into empty content. (The blanket catch
-        # below goes away entirely with the revised raise/degrade boundary.)
+    except ConfigurationError:
+        # A configuration problem is the caller's mistake, not a dead page:
+        # never degrade it into empty content. (The blanket catch below goes
+        # away entirely with the revised raise/degrade boundary.)
         raise
     except Exception as e:
         logger.error(f"URL extraction failed for URL: {url}")
@@ -146,6 +163,7 @@ __all__ = [
     "extract_url_firecrawl",
     "extract_url_crawl4ai",
     "detect_remote_mime",
+    "VALID_URL_ENGINES",
     "_extract_url_with_engine",
     "extract_from_url",
     "extract_reddit",

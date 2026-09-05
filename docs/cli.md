@@ -203,6 +203,13 @@ content-core config set llm_model claude-sonnet-4-20250514
 content-core config set url_engine firecrawl
 ```
 
+`config set` rejects a value that the setting does not accept — `url_engine`
+and `document_engine` take only the engine names listed under
+[Engine flag](#engine-flag) — and writes nothing to the file when it does.
+The same closed vocabulary is enforced on constructor arguments, `CCORE_*`
+environment variables and values edited into the TOML by hand: an unknown
+engine name fails immediately instead of surfacing as empty content.
+
 Or edit `~/.content-core/config.toml` directly:
 
 ```toml

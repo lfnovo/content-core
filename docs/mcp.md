@@ -111,7 +111,12 @@ Extracts content from a URL or file. **Does not require an API key** for most so
 **Parameters:**
 - `url` (string, optional) -- URL to extract content from
 - `file_path` (string, optional) -- local file path to extract content from
-- `engine` (string, optional) -- extraction engine override
+- `engine` (string, optional) -- extraction engine override, routed by input type:
+  - with `url`: `auto`, `simple`, `firecrawl`, `jina`, `crawl4ai`
+  - with `file_path`: `auto`, `simple`, `docling`
+  An engine outside the list for that input type is rejected with an error
+  naming the accepted values. `docling` requires the optional extra
+  (`pip install "content-core[docling]"`); without it, use `auto` or `simple`.
 - `formulas` (bool, optional) -- Enable formula extraction via Docling
 - `pictures` (bool, optional) -- Enable image description + chart data extraction via Docling
 - `no_ocr` (bool, optional) -- Disable OCR in Docling

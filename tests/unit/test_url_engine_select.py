@@ -148,7 +148,7 @@ async def test_firecrawl_default_proxy_and_wait():
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_unknown_engine_error_propagates():
-    """The router's defense-in-depth ValueError is not swallowed.
+    """An unknown engine is rejected before extraction, never swallowed.
 
     Literal validation on the config field makes this unreachable through
     normal config, so the bad value is assigned directly — mimicking a
@@ -156,8 +156,29 @@ async def test_unknown_engine_error_propagates():
     """
     cfg = ContentCoreConfig(url_engine="auto")
     cfg.url_engine = "jinaa"
-    with pytest.raises(ValueError, match="Unknown engine: jinaa"):
+    with pytest.raises(ConfigurationError) as exc:
         await extract_from_url("https://example.com", cfg)
+    message = str(exc.value)
+    assert "jinaa" in message
+    for valid in ("auto", "simple", "firecrawl", "jina", "crawl4ai"):
+        assert valid in message
+
+
+@pytest.mark.asyncio
+async def test_engine_parse_failure_still_degrades_to_empty_output():
+    """A ValueError from a processor is not a config error: it still degrades.
+
+    (The revised raise/degrade boundary in #60 changes this; #51 only stops
+    configuration errors from being swallowed.)
+    """
+    cfg = ContentCoreConfig(url_engine="simple")
+    with patch(
+        "content_core.processors.url.extract_url_bs4",
+        new_callable=AsyncMock,
+        side_effect=ValueError("No content extracted by readability"),
+    ):
+        result = await extract_from_url("https://example.com", cfg)
+    assert result.content == ""
 
 
 @pytest.mark.asyncio

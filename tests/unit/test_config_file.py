@@ -99,6 +99,18 @@ class TestConfigSet:
         assert data["url_engine"] == "firecrawl"
         assert data["document_engine"] == "docling"
 
+    def test_set_misspelled_bool_raises_and_writes_nothing(self, config_dir):
+        _, config_file = config_dir
+        with pytest.raises(ValueError, match="Invalid value for docling_ocr"):
+            config_set("docling_ocr", "flase")
+        assert not config_file.exists()
+
+    def test_set_bool_accepts_known_tokens(self, config_dir):
+        config_set("docling_ocr", "no")
+        assert config_list()["docling_ocr"] is False
+        config_set("docling_ocr", "ON")
+        assert config_list()["docling_ocr"] is True
+
     def test_set_out_of_range_int_raises(self, config_dir):
         with pytest.raises(ValueError, match="Invalid value for audio_concurrency"):
             config_set("audio_concurrency", "99")

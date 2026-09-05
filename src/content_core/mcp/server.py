@@ -62,17 +62,12 @@ async def extract_content(
                 )
             kwargs["document_engine"] = engine
         else:
-            if engine not in VALID_URL_ENGINES | VALID_DOC_ENGINES:
+            if engine not in VALID_URL_ENGINES:
                 return (
-                    f"Error: Invalid engine '{engine}'. Choose from: "
-                    f"{', '.join(sorted(VALID_URL_ENGINES | VALID_DOC_ENGINES))}"
+                    f"Error: Invalid URL engine '{engine}'. "
+                    f"Choose from: {', '.join(sorted(VALID_URL_ENGINES))}"
                 )
-            # A URL may resolve to a document, so an engine valid for either
-            # side is applied to that side only.
-            if engine in VALID_URL_ENGINES:
-                kwargs["url_engine"] = engine
-            if engine in VALID_DOC_ENGINES:
-                kwargs["document_engine"] = engine
+            kwargs["url_engine"] = engine
     if formulas:
         kwargs["docling_formulas"] = True
     if pictures:
