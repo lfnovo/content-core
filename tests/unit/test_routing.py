@@ -7,7 +7,7 @@ import pytest
 
 from content_core.common.exceptions import InvalidInputError, UnsupportedTypeException
 from content_core.config import ContentCoreConfig
-from content_core.extraction import check_file_support, extract_content
+from content_core.extraction import _route_for_mime, check_file_support, extract_content
 from content_core.common.state import ExtractionOutput, FileSupport
 
 
@@ -407,3 +407,41 @@ async def test_check_file_support_agrees_with_extraction():
         # extraction of the same type raises, confirming the verdict
         with pytest.raises(UnsupportedTypeException):
             await extract_content(file_path="/tmp/test.bin", config=cfg)
+
+
+# ---------------------------------------------------------------------------
+# 15. text/html routes to the text processor on the simple/no-docling path
+# ---------------------------------------------------------------------------
+def test_route_for_mime_html_goes_to_text():
+    cfg = ContentCoreConfig(document_engine="simple")
+    assert _route_for_mime("text/html", cfg) == "text"
+
+
+@pytest.mark.asyncio
+async def test_file_html_calls_extract_text_file():
+    expected = _make_output(identified_type="text/html")
+    cfg = ContentCoreConfig(document_engine="simple")
+    with patch(
+        "content_core.content.identification.get_file_type",
+        new_callable=AsyncMock,
+        return_value="text/html",
+    ), patch(
+        "content_core.extraction.extract_text_file",
+        new_callable=AsyncMock,
+        return_value=expected,
+    ) as mock:
+        result = await extract_content(file_path="/tmp/page.html", config=cfg)
+        mock.assert_awaited_once()
+        assert result is expected
+        assert result.identified_type == "text/html"
+
+
+@pytest.mark.asyncio
+async def test_check_file_support_html_file(tmp_path):
+    page = tmp_path / "page.html"
+    page.write_text("<html><head><title>T</title></head><body><p>Hi</p></body></html>")
+    cfg = ContentCoreConfig(document_engine="simple")
+    result = await check_file_support(str(page), config=cfg)
+    assert result.supported is True
+    assert result.identified_type == "text/html"
+    assert result.processor == "text"

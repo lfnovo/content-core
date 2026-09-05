@@ -1,4 +1,5 @@
 import asyncio
+import html
 import re
 
 from markdownify import markdownify as md
@@ -19,6 +20,34 @@ HTML_STRUCTURAL_TAGS = re.compile(
 )
 
 
+# A document that opens with a doctype or <html> tag is HTML regardless of how
+# many structural tags its body has (a one-paragraph page is still a page).
+HTML_DOCUMENT_START = re.compile(r"[\s\ufeff]*(?:<!--.*?-->\s*)*<(?:!doctype\s+html|html)\b", re.IGNORECASE | re.DOTALL)
+
+# Declared charset in an HTML head, used only when the file is not valid UTF-8.
+HTML_CHARSET_RE = re.compile(rb"<meta[^>]+charset\s*=\s*[\"']?\s*([\w.:-]+)", re.IGNORECASE)
+
+
+def _decode_text_file(raw: bytes) -> str:
+    """Decode a text/HTML file: UTF-16 by BOM, then strict UTF-8 (BOM stripped),
+    then the declared charset, then cp1252 (superset of latin-1, the usual legacy
+    encoding) with replacement."""
+    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return raw.decode("utf-16", errors="replace")
+    try:
+        return raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        pass
+    match = HTML_CHARSET_RE.search(raw[:4096])
+    if match:
+        codec = match.group(1).decode("ascii", "ignore")
+        try:
+            return raw.decode(codec, errors="replace")
+        except LookupError:
+            logger.debug(f"Unknown declared charset {codec!r}, falling back to cp1252")
+    return raw.decode("cp1252", errors="replace")
+
+
 def detect_html(content: str) -> bool:
     """
     Detect if content contains meaningful HTML structure.
@@ -29,25 +58,49 @@ def detect_html(content: str) -> bool:
     Returns:
         True if at least HTML_DETECTION_THRESHOLD structural tags are found
     """
+    if HTML_DOCUMENT_START.match(content):
+        return True
     matches = HTML_STRUCTURAL_TAGS.findall(content)
     return len(matches) >= HTML_DETECTION_THRESHOLD
+
+
+TITLE_RE = re.compile(
+    r"<title[^>]*>(.*?)</title>",
+    re.IGNORECASE | re.DOTALL,
+)
+
+# <head> carries metadata (title, scripts, styles) that markdownify would
+# otherwise render as text at the top of the body.
+HEAD_RE = re.compile(r"<head[^>]*>.*?</head>", re.IGNORECASE | re.DOTALL)
+
+
+def extract_html_title(content: str) -> str:
+    """Extract the HTML document title."""
+    match = TITLE_RE.search(content)
+    if not match:
+        return ""
+
+    return html.unescape(match.group(1)).strip()
+
+
+def strip_html_head(content: str) -> str:
+    """Remove the <head>...</head> block so its contents don't leak into the body."""
+    return HEAD_RE.sub("", content, count=1)
 
 
 async def extract_text_file(file_path: str, config: ContentCoreConfig) -> ExtractionOutput:
     """Extract content from a plain text file."""
 
     def _read_file():
-        with open(file_path, "r", encoding="utf-8") as file:
-            return file.read()
+        with open(file_path, "rb") as file:
+            return _decode_text_file(file.read())
 
     try:
         content = await asyncio.get_event_loop().run_in_executor(None, _read_file)
         logger.debug(f"Extracted text from {file_path}: {content[:100]}")
-        return ExtractionOutput(
-            content=content,
-            source_type="file",
-            identified_type="text/plain",
-        )
+        result = await process_text(content, config)
+        result.source_type = "file"
+        return result
     except FileNotFoundError:
         raise FileNotFoundError(f"File not found at {file_path}")
     except Exception as e:
@@ -66,9 +119,11 @@ async def process_text(content: str, config: ContentCoreConfig) -> ExtractionOut
     if detect_html(content):
         logger.debug("HTML detected in content, converting to markdown")
         try:
-            converted = md(content, heading_style="ATX", bullets="-")
+            title = extract_html_title(content)
+            converted = md(strip_html_head(content), heading_style="ATX", bullets="-")
             return ExtractionOutput(
                 content=converted,
+                title=title,
                 source_type="text",
                 identified_type="text/plain",
             )
