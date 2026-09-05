@@ -4,12 +4,22 @@ name: Package
 # surfaces (library, CLI, MCP server) from the built artifact, with the repo
 # off the path. Called by test.yml (PRs / main) and by publish.yml (tags), so
 # a tag can never publish an artifact that failed this gate.
+#
+# The validated dist/ is uploaded as an artifact so publish.yml can release the
+# exact files this gate checked, instead of rebuilding on another runner.
 on:
   workflow_call:
+    outputs:
+      artifact-name:
+        description: "Name of the uploaded artifact holding the validated dist/"
+        value: ${{ jobs.package.outputs.artifact-name }}
 
 jobs:
   package:
     runs-on: ubuntu-latest
+
+    outputs:
+      artifact-name: ${{ steps.artifact.outputs.name }}
 
     steps:
     - uses: actions/checkout@v4
@@ -21,6 +31,12 @@ jobs:
 
     - name: Install uv
       uses: astral-sh/setup-uv@v4
+
+    # Unique per run attempt: upload-artifact@v4 rejects a duplicate name within
+    # a run, which would otherwise break "re-run failed jobs".
+    - name: Compute artifact name
+      id: artifact
+      run: echo "name=dist-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
 
     - name: Build wheel and sdist
       run: |
@@ -117,3 +133,14 @@ jobs:
             sys.exit(f"wheel version {match.group(1)!r} != pyproject version {expected!r}")
         print(f"version match OK: {expected}")
         PY
+
+    # Publish.yml downloads this instead of rebuilding, so the released files
+    # are byte-for-byte the ones validated above. On PR runs it is just an
+    # unused short-lived upload.
+    - name: Upload validated dist
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.artifact.outputs.name }}
+        path: dist/
+        if-no-files-found: error
+        retention-days: 1
