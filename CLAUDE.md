@@ -77,7 +77,7 @@ src/content_core/
 │
 ├── processors/
 │   ├── protocol.py          # Processor Protocol definition
-│   ├── text.py              # Plain text + HTML-to-markdown
+│   ├── text.py              # Plain text + HTML-to-markdown (also .html/.htm files, <title> extraction)
 │   ├── url/                 # URL extraction engines
 │   │   ├── __init__.py      # Engine router + fallback chain
 │   │   ├── bs4.py           # BeautifulSoup + readability
@@ -169,7 +169,7 @@ When you change a specific processor or module, run only the relevant tests for 
 | `processors/document/pdf.py` | `uv run pytest -k "pdf"` |
 | `processors/document/docx.py` or `pptx.py` or `xlsx.py` | `uv run pytest -k "office"` |
 | `processors/document/docling.py` | `uv run pytest -k "docling"` |
-| `processors/text.py` | `uv run pytest -k "text_processing"` |
+| `processors/text.py` | `uv run pytest -k "text_processing or html_file"` |
 | `processors/media/audio.py` | `uv run pytest -k "audio or media_pipeline"` |
 | `processors/media/video.py` | `uv run pytest -k "media_pipeline"` |
 | `mcp/server.py` | `uv run pytest -k "mcp"` |
@@ -193,7 +193,8 @@ tests/
 │   ├── test_epub_extraction.py    # EPUB extraction with mocked fast-ebook
 │   ├── test_office_extraction.py  # DOCX/PPTX/XLSX routing and extraction
 │   ├── test_docling_extraction.py # Docling output formats with mocked converter
-│   ├── test_text_processing.py    # HTML detection, markdown conversion
+│   ├── test_text_processing.py    # HTML detection, markdown conversion, <title>/<head> handling
+│   ├── test_html_file_extraction.py # Local .html file → markdown via text processor
 │   ├── test_media_pipeline.py     # Audio transcription, video pipeline, stream selection
 │   ├── test_audio_concurrency.py  # Semaphore, ordering, concurrency limits
 │   ├── test_mcp_v2.py             # MCP tools: extract + summarize
@@ -204,7 +205,7 @@ tests/
 │   └── test_file_detector*.py     # MIME detection, performance, edge cases
 │
 ├── integration/       # Local files, no network (~22 tests)
-│   ├── test_extraction.py   # Real file extraction (PDF, DOCX, PPTX, XLSX, EPUB, etc.)
+│   ├── test_extraction.py   # Real file extraction (PDF, DOCX, PPTX, XLSX, EPUB, HTML, etc.)
 │   └── test_cli_v2.py       # CLI subcommands via CliRunner with real extraction
 │
 └── e2e/

@@ -95,6 +95,14 @@ result = await content_core.extract_content(url="https://www.youtube.com/watch?v
 print(result.content)  # Video transcript
 ```
 
+### Local HTML Files
+
+```python
+# .html/.htm files are converted to markdown by the text processor (no docling needed).
+# The title comes from the <title> tag, falling back to the file name.
+result = await content_core.extract_content(file_path="page.html")
+```
+
 ### Text with HTML Auto-Detection
 
 ```python
@@ -202,12 +210,12 @@ For self-hosted Firecrawl, set `FIRECRAWL_API_URL` to your instance URL.
 
 ### Document Engines
 
-The `document_engine` setting controls how files (PDF, DOCX, PPTX, XLSX) are processed:
+The `document_engine` setting controls how files (PDF, DOCX, PPTX, XLSX, HTML) are processed:
 
 | Engine | Description | Requirements |
 |--------|-------------|-------------|
 | `auto` (default) | Tries Docling first, falls back to simple | Depends on installed extras |
-| `simple` | pdfplumber for PDF, fast-ebook for EPUB, python-docx/openpyxl/python-pptx for Office | None (included) |
+| `simple` | pdfplumber for PDF, fast-ebook for EPUB, python-docx/openpyxl/python-pptx for Office, markdownify for HTML | None (included) |
 | `docling` | Docling library for rich document parsing | `pip install content-core[docling]` |
 
 ## AI Providers
