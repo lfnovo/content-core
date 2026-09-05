@@ -109,6 +109,7 @@ def config():
     Available keys:
       audio_concurrency    Parallel transcription limit (1-10, default: 3)
       crawl4ai_api_url     Crawl4AI Docker API URL (default: none, uses local mode)
+      crawl4ai_api_token   Bearer token for the Crawl4AI Docker API (required by Crawl4AI >= 0.9.0)
       audio_model          Override STT model
       audio_provider       Override STT provider
       docling_output_format  Docling output format (default: markdown)
@@ -131,6 +132,17 @@ def config():
     pass
 
 
+_SECRET_KEY_MARKERS = ("token", "key", "secret", "password")
+
+
+def _display_value(key: str, value):
+    """Mask credential-like config values so they never land on stdout."""
+    lowered = key.lower()
+    if isinstance(value, str) and value and any(m in lowered for m in _SECRET_KEY_MARKERS):
+        return "****" + value[-4:] if len(value) > 8 else "****"
+    return value
+
+
 @config.command("list")
 def config_list_cmd():
     """List all config values from the config file."""
@@ -143,7 +155,7 @@ def config_list_cmd():
         click.echo("Run 'content-core config --help' to see available keys.")
         return
     for key, value in sorted(data.items()):
-        click.echo(f"{key} = {value}")
+        click.echo(f"{key} = {_display_value(key, value)}")
 
 
 @config.command("set")
@@ -163,7 +175,7 @@ def config_set_cmd(key, value):
 
     try:
         config_set(key, value)
-        click.echo(f"{key} = {value}")
+        click.echo(f"{key} = {_display_value(key, value)}")
     except ValueError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)

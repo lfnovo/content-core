@@ -2,6 +2,7 @@ import asyncio
 import json
 import math
 import os
+import shutil
 import subprocess
 import tempfile
 import traceback
@@ -11,6 +12,35 @@ from content_core.common.retry import retry_audio_transcription
 from content_core.config import ContentCoreConfig
 from content_core.logging import logger
 from content_core.common.state import ExtractionOutput
+
+# STT providers validate uploads by filename extension, not by content. OpenAI
+# accepts 'ogg' and 'oga' but rejects 'opus' outright, even though `.opus` *is*
+# Opus-in-Ogg and the bytes are identical — verified with the same file under
+# both names, holding the multipart Content-Type constant. Present such files
+# under an accepted extension; the user's own file is never renamed.
+UPLOAD_EXTENSION_ALIASES = {".opus": ".ogg"}
+
+
+def upload_extension(path: str) -> str:
+    """Return the extension a provider will accept for this file."""
+    ext = os.path.splitext(path)[1].lower()
+    return UPLOAD_EXTENSION_ALIASES.get(ext, ext)
+
+
+def _aliased_upload_path(file_path: str, temp_dir: str) -> str:
+    """Expose `file_path` under a provider-accepted extension, without copying.
+
+    Falls back to a real copy where symlinks are unavailable.
+    """
+    alias = os.path.join(
+        temp_dir, f"{os.path.splitext(os.path.basename(file_path))[0]}{upload_extension(file_path)}"
+    )
+    source = os.path.abspath(file_path)
+    try:
+        os.symlink(source, alias)
+    except (OSError, NotImplementedError):
+        shutil.copy2(source, alias)
+    return alias
 
 
 async def get_audio_duration(input_file: str) -> float:
@@ -80,11 +110,15 @@ async def split_audio(input_file, segment_length_minutes=15, output_prefix=None)
         total_segments = math.ceil(duration / segment_length_s)
         logger.debug(f"Splitting file: {input_file_abs} into {total_segments} segments")
 
+        # Segments are stream-copied, so they must keep the source container:
+        # muxing e.g. an Opus stream into a .mp3 output makes ffmpeg fail.
+        source_ext = os.path.splitext(input_file_abs)[1] or ".mp3"
+
         output_files = []
         for i in range(total_segments):
             start_time = i * segment_length_s
             end_time = min((i + 1) * segment_length_s, duration)
-            output_filename = f"{output_prefix}_{str(i + 1).zfill(3)}.mp3"
+            output_filename = f"{output_prefix}_{str(i + 1).zfill(3)}{source_ext}"
             output_path = os.path.join(output_dir, output_filename)
 
             split_audio_segment(input_file_abs, output_path, start_time, end_time)
@@ -146,6 +180,12 @@ async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> Extract
             segment_length_s = 10 * 60
             output_files = []
 
+            # Segments are stream-copied, so they must keep the source container:
+            # muxing e.g. an Opus stream into a .mp3 output makes ffmpeg fail.
+            # The alias only renames within the same container (.opus -> .ogg),
+            # so stream copy stays valid while the upload becomes acceptable.
+            source_ext = upload_extension(file_path) or ".mp3"
+
             if duration_s > segment_length_s:
                 logger.info(
                     f"Audio is longer than 10 minutes ({duration_s:.0f}s), splitting into "
@@ -155,12 +195,15 @@ async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> Extract
                 for i in range(math.ceil(duration_s / segment_length_s)):
                     start_time = i * segment_length_s
                     end_time = min((i + 1) * segment_length_s, duration_s)
-                    output_filename = f"{output_prefix}_{str(i + 1).zfill(3)}.mp3"
+                    output_filename = f"{output_prefix}_{str(i + 1).zfill(3)}{source_ext}"
                     output_path = os.path.join(temp_dir, output_filename)
                     await loop.run_in_executor(
                         None, partial(extract_audio, file_path, output_path, start_time, end_time)
                     )
                     output_files.append(output_path)
+            elif source_ext != os.path.splitext(file_path)[1].lower():
+                # Short file sent as-is, so it needs the alias to be accepted.
+                output_files = [_aliased_upload_path(file_path, temp_dir)]
             else:
                 output_files = [file_path]
 

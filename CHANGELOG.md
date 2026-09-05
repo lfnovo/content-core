@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.7] - 2026-09-02
+
+### Added
+- `crawl4ai_api_token` setting (env var `CRAWL4AI_API_TOKEN`, mirroring `CRAWL4AI_API_URL`) for the Crawl4AI Docker API (#80)
+
+### Fixed
+- Video extraction wrote its intermediate `<name>_audio.mp3` next to the user's source video and deleted it afterwards (#74), silently destroying a pre-existing file of that name, failing on read-only source directories, and colliding across concurrent extractions. The intermediate now lives in a temporary directory, mirroring audio transcription
+- Crawl4AI Docker mode was rejected by any Crawl4AI >= 0.9.0 instance (#80): the client posted to `/crawl` with no `Authorization` header, and recent versions require a bearer token for external connections by default. The token is now sent as `Authorization: Bearer <token>` when configured; unset keeps the previous unauthenticated behavior
+
+## [2.0.6] - 2026-07-30
+
+### Fixed
+- `.opus` audio still failed on 2.0.5, one step later in the pipeline (#69): OpenAI validates transcription uploads by filename extension and rejects `opus` while accepting `ogg`/`oga`, even though `.opus` is Opus-in-Ogg and the bytes are identical. Confirmed by varying only the filename with the `Content-Type` held constant. Ogg-family audio is now presented to the provider under an accepted extension — via a symlink for unsplit files, so the user's own file is never renamed or copied
+
+## [2.0.5] - 2026-07-30
+
+### Added
+- Plugin marketplace support for Claude Code and Codex (#63): the repository now carries `.claude-plugin/` (plugin + marketplace manifests) and `.codex-plugin/` + `.agents/plugins/` manifests, so the agent skill installs natively via `/plugin marketplace add lfnovo/content-core` (Claude Code) or via the Codex marketplace catalog
+
+### Changed
+- Agent skill moved from the repository root (`SKILL.md`) to `skills/content-core/SKILL.md` and refreshed (#63): Reddit capability documented, YouTube `live`/`shorts` URL forms, portable frontmatter, `--version`, updated model examples. The old raw-file URL no longer resolves — the README documents the new path and the marketplace install
+- Minimum `esperanto` version raised to 2.26.0 (#70), which fixes every non-Whisper OpenAI and Azure transcription model: `verbose_json` was requested for anything that didn't match a narrow `gpt-4o-*-transcribe` name shape, so `gpt-transcribe` and friends failed before transcription started
+
+### Fixed
+- `.opus` files (the common export format for WhatsApp voice messages) raised `UnsupportedTypeException` instead of being transcribed (#69) — the extension was missing from the MIME mapping, and the Ogg container had no magic-byte signature at all. Ogg files are now detected by content as well as extension, with Opus/Vorbis/FLAC routed to audio and Theora to video
+- Audio longer than 10 minutes failed for any non-MP3 source, including the already-supported `.flac` and `.ogg` (#69): segments were stream-copied but named `.mp3`, so ffmpeg refused to mux them. Segments now keep the source container
+
 ## [2.0.4] - 2026-07-12
 
 ### Added

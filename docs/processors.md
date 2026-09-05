@@ -62,8 +62,8 @@ The `url_engine` setting controls which processor handles web URLs. When set to 
 - File: `crawl4ai.py`
 - Two modes: local browser automation or Docker API
 - **Local mode** (default): Requires `pip install content-core[crawl4ai]` and `python -m playwright install --with-deps`
-- **Docker mode**: Set `CRAWL4AI_API_URL` (e.g., `http://localhost:11235`) to use a remote Crawl4AI container — no local Playwright needed
-- No API keys needed; all processing happens locally or on your server
+- **Docker mode**: Set `CRAWL4AI_API_URL` (e.g., `http://localhost:11235`) to use a remote Crawl4AI container — no local Playwright needed. Crawl4AI >= 0.9.0 requires a bearer token for external connections: set `CRAWL4AI_API_TOKEN` (or `crawl4ai_api_token` in the config file) and it is sent as `Authorization: Bearer <token>`; leave it unset for older or unauthenticated instances
+- No third-party API keys needed; all processing happens locally or on your server
 - Handles JavaScript-heavy sites well
 
 ## Document Processors
