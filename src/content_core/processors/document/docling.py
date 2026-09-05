@@ -3,6 +3,7 @@ Docling-based document extraction processor.
 """
 
 from content_core.config import ContentCoreConfig
+from content_core.common.messages import DOCLING_MISSING_MESSAGE
 from content_core.common.state import ExtractionOutput
 
 DOCLING_AVAILABLE = False
@@ -21,16 +22,10 @@ except ImportError:
         """Stub when docling is not installed."""
 
         def __init__(self, **kwargs):
-            raise ImportError(
-                "Docling not installed. Install with: pip install content-core[docling] "
-                "or use CCORE_DOCUMENT_ENGINE=simple to skip docling."
-            )
+            raise ImportError(DOCLING_MISSING_MESSAGE)
 
         def convert(self, source: str):
-            raise ImportError(
-                "Docling not installed. Install with: pip install content-core[docling] "
-                "or use CCORE_DOCUMENT_ENGINE=simple to skip docling."
-            )
+            raise ImportError(DOCLING_MISSING_MESSAGE)
 
 # Supported MIME types for Docling extraction
 DOCLING_SUPPORTED = {

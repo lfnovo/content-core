@@ -109,7 +109,8 @@ The `document_engine` setting controls document processing. When set to `auto` (
 ### Docling (Optional)
 
 - File: `document/docling.py`
-- Requires `pip install content-core[docling]`
+- Requires `pip install content-core[docling]`; selecting `document_engine="docling"` without it
+  raises `ConfigurationError` (use `auto` or `simple` to proceed without Docling)
 - Supports PDF, DOCX, PPTX, XLSX, Markdown, AsciiDoc, HTML, CSV, and images
 - Configurable output format: markdown (default), HTML, or JSON
 - Provides richer structural parsing than the simple engine
