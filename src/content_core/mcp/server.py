@@ -1,6 +1,5 @@
 """Content Core MCP Server — extract and summarize content."""
 import sys
-
 from importlib.metadata import PackageNotFoundError, version
 
 from fastmcp import FastMCP
