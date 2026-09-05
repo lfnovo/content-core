@@ -6,8 +6,10 @@ one of these; degradation only exists within a single source.
 The taxonomy is complete, its raise sites are not yet: ``NotFoundError``,
 ``NetworkError``, ``ExternalServiceError`` and ``FileOperationError`` have
 no raise site in this release -- the failures they name still escape as
-untyped exceptions until the migration in #60 lands. Catch
-``ContentCoreError`` if you want one handler that covers the library today.
+untyped exceptions (an ``aiohttp.ClientError`` out of a download, say)
+until the migration in #60 lands. ``ContentCoreError`` catches every typed
+failure, so it is the right single handler -- but it does not yet cover the
+whole library.
 """
 
 
