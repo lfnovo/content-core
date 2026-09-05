@@ -65,16 +65,18 @@ async def extract_content(
         UnsupportedTypeException: the file/MIME type is not one we route.
         ConfigurationError: a configuration cannot be honored (e.g.
             ``document_engine="docling"`` with the extra not installed).
-        NotFoundError: a requested resource does not exist.
         NoTranscriptFound: a YouTube video has no usable transcript.
-        NetworkError: connection, timeout, or DNS failure.
-        ExternalServiceError: an external provider failed (Firecrawl, Jina,
-            STT, LLM) -- including its auth and rate-limit responses.
-        FileOperationError: the file is routed but parsing or processing
-            failed.
 
-        All of these derive from ``ContentCoreError``, so a caller that
-        wants one handler can catch that.
+        These four are raised today. The rest of the taxonomy in
+        ``common/exceptions.py`` -- ``NotFoundError``, ``NetworkError``,
+        ``ExternalServiceError`` and ``FileOperationError`` -- is declared
+        and exported but has no raise site yet: those failures still escape
+        untyped until #60 migrates the raise sites. Handlers for them are
+        safe to write now, but will not fire until then.
+
+        Everything typed derives from ``ContentCoreError``, so a caller that
+        wants a single handler can catch that -- though note that untyped
+        exceptions can still escape until #60.
     """
     cfg = config or get_default_config()
 

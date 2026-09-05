@@ -1,8 +1,13 @@
-"""Typed exceptions that can escape ``extract_content``.
+"""The public exception taxonomy for ``extract_content``.
 
-Every class here has a real raise site (or is the base callers catch). Per
-the raise/degrade boundary in ``ARCHITECTURE.md``, total failure raises one
-of these; degradation only exists within a single source.
+Per the raise/degrade boundary in ``ARCHITECTURE.md``, total failure raises
+one of these; degradation only exists within a single source.
+
+The taxonomy is complete, its raise sites are not yet: ``NotFoundError``,
+``NetworkError``, ``ExternalServiceError`` and ``FileOperationError`` have
+no raise site in this release -- the failures they name still escape as
+untyped exceptions until the migration in #60 lands. Catch
+``ContentCoreError`` if you want one handler that covers the library today.
 """
 
 
