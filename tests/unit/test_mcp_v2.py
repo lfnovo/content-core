@@ -58,7 +58,27 @@ class TestExtractContent:
 
             mock_extract.return_value = ExtractionOutput(content="text")
             await extract_content_fn(url="https://example.com", engine="firecrawl")
-            mock_config.assert_called_once_with(url_engine="firecrawl", document_engine="firecrawl")
+            mock_config.assert_called_once_with(url_engine="firecrawl")
+
+    @pytest.mark.asyncio
+    async def test_invalid_engine_returns_error(self):
+        result = await extract_content_fn(url="https://example.com", engine="jinaa")
+        assert "Error" in result
+        assert "jina" in result
+
+    @pytest.mark.asyncio
+    async def test_document_engine_over_url_not_applied_to_url_engine(self):
+        """docling is a document engine only: a URL keeps its url_engine default."""
+        from content_core.common.state import ExtractionOutput
+
+        with patch(
+            "content_core.extraction.extract_content", new_callable=AsyncMock
+        ) as mock:
+            mock.return_value = ExtractionOutput(content="ok")
+            await extract_content_fn(url="https://example.com/a.pdf", engine="docling")
+            _, kwargs = mock.call_args
+            assert kwargs["config"].document_engine == "docling"
+            assert kwargs["config"].url_engine == "auto"
 
     @pytest.mark.asyncio
     async def test_extract_error(self):

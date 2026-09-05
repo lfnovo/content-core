@@ -2,6 +2,7 @@ import os
 
 import aiohttp
 
+from content_core.common.exceptions import ConfigurationError
 from content_core.common.retry import retry_url_network
 from content_core.config import ContentCoreConfig
 from content_core.logging import logger
@@ -109,6 +110,11 @@ async def extract_from_url(url: str, config: ContentCoreConfig) -> ExtractionOut
             source_type="url",
             identified_type="article",
         )
+    except (ValueError, ConfigurationError):
+        # Configuration/routing errors are the caller's mistake, not a dead
+        # page: never degrade them into empty content. (The blanket catch
+        # below goes away entirely with the revised raise/degrade boundary.)
+        raise
     except Exception as e:
         logger.error(f"URL extraction failed for URL: {url}")
         logger.exception(e)

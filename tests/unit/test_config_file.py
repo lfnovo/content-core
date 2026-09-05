@@ -72,6 +72,37 @@ class TestConfigSet:
         with pytest.raises(ValueError, match="Unknown config key"):
             config_set("nonexistent_key", "value")
 
+    def test_set_invalid_engine_value_raises_and_writes_nothing(self, config_dir):
+        _, config_file = config_dir
+        with pytest.raises(ValueError, match="Invalid value for url_engine"):
+            config_set("url_engine", "jinaa")
+        assert not config_file.exists()
+        assert "url_engine" not in config_list()
+
+    def test_set_invalid_engine_message_lists_valid_values(self, config_dir):
+        with pytest.raises(ValueError) as exc:
+            config_set("document_engine", "doclingg")
+        message = str(exc.value)
+        for valid in ("auto", "simple", "docling"):
+            assert valid in message
+
+    def test_set_invalid_engine_keeps_previous_value(self, config_dir):
+        config_set("url_engine", "jina")
+        with pytest.raises(ValueError):
+            config_set("url_engine", "jinaa")
+        assert config_list()["url_engine"] == "jina"
+
+    def test_set_valid_engine_values_written(self, config_dir):
+        config_set("url_engine", "firecrawl")
+        config_set("document_engine", "docling")
+        data = config_list()
+        assert data["url_engine"] == "firecrawl"
+        assert data["document_engine"] == "docling"
+
+    def test_set_out_of_range_int_raises(self, config_dir):
+        with pytest.raises(ValueError, match="Invalid value for audio_concurrency"):
+            config_set("audio_concurrency", "99")
+
     def test_set_overwrites_existing(self, config_dir):
         config_set("llm_provider", "openai")
         config_set("llm_provider", "anthropic")

@@ -1,10 +1,15 @@
 """Content Core MCP Server — extract and summarize content."""
 from importlib.metadata import PackageNotFoundError, version
+from typing import get_args
 
 from fastmcp import FastMCP
 from loguru import logger
 
+from content_core.common.types import DocumentEngine, UrlEngine
 from content_core.logging import configure_logging
+
+VALID_URL_ENGINES = frozenset(get_args(UrlEngine))
+VALID_DOC_ENGINES = frozenset(get_args(DocumentEngine))
 
 
 def _package_version() -> str:
@@ -50,10 +55,24 @@ async def extract_content(
     kwargs = {}
     if engine:
         if file_path:
+            if engine not in VALID_DOC_ENGINES:
+                return (
+                    f"Error: Invalid document engine '{engine}'. "
+                    f"Choose from: {', '.join(sorted(VALID_DOC_ENGINES))}"
+                )
             kwargs["document_engine"] = engine
         else:
-            kwargs["url_engine"] = engine
-            kwargs["document_engine"] = engine
+            if engine not in VALID_URL_ENGINES | VALID_DOC_ENGINES:
+                return (
+                    f"Error: Invalid engine '{engine}'. Choose from: "
+                    f"{', '.join(sorted(VALID_URL_ENGINES | VALID_DOC_ENGINES))}"
+                )
+            # A URL may resolve to a document, so an engine valid for either
+            # side is applied to that side only.
+            if engine in VALID_URL_ENGINES:
+                kwargs["url_engine"] = engine
+            if engine in VALID_DOC_ENGINES:
+                kwargs["document_engine"] = engine
     if formulas:
         kwargs["docling_formulas"] = True
     if pictures:
