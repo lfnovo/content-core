@@ -39,6 +39,10 @@ TITLE_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 
+# <head> carries metadata (title, scripts, styles) that markdownify would
+# otherwise render as text at the top of the body.
+HEAD_RE = re.compile(r"<head[^>]*>.*?</head>", re.IGNORECASE | re.DOTALL)
+
 
 def extract_html_title(content: str) -> str:
     """Extract the HTML document title."""
@@ -47,6 +51,11 @@ def extract_html_title(content: str) -> str:
         return ""
 
     return html.unescape(match.group(1)).strip()
+
+
+def strip_html_head(content: str) -> str:
+    """Remove the <head>...</head> block so its contents don't leak into the body."""
+    return HEAD_RE.sub("", content, count=1)
 
 
 async def extract_text_file(file_path: str, config: ContentCoreConfig) -> ExtractionOutput:
@@ -81,7 +90,7 @@ async def process_text(content: str, config: ContentCoreConfig) -> ExtractionOut
         logger.debug("HTML detected in content, converting to markdown")
         try:
             title = extract_html_title(content)
-            converted = md(content, heading_style="ATX", bullets="-")
+            converted = md(strip_html_head(content), heading_style="ATX", bullets="-")
             return ExtractionOutput(
                 content=converted,
                 title=title,
