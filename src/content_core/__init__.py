@@ -4,6 +4,7 @@ from loguru import logger
 
 load_dotenv()
 
+from content_core.common.exceptions import ConfigurationError
 from content_core.config import ContentCoreConfig
 from content_core.content.summary import summarize
 from content_core.extraction import check_file_support, extract_content
@@ -25,6 +26,7 @@ __all__ = [
     "check_file_support",
     "summarize",
     "ContentCoreConfig",
+    "ConfigurationError",
     "ExtractionInput",
     "ExtractionOutput",
     "FileSupport",

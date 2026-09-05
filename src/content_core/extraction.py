@@ -7,7 +7,11 @@ from urllib.parse import urlparse
 
 import aiohttp
 
-from content_core.common.exceptions import InvalidInputError, UnsupportedTypeException
+from content_core.common.exceptions import (
+    ConfigurationError,
+    InvalidInputError,
+    UnsupportedTypeException,
+)
 from content_core.common.retry import retry_download
 from content_core.config import ContentCoreConfig, get_default_config
 from content_core.logging import logger
@@ -28,6 +32,7 @@ from content_core.processors.url.youtube import extract_youtube
 try:
     from content_core.processors.document.docling import (
         DOCLING_AVAILABLE,
+        DOCLING_MISSING_MESSAGE,
         DOCLING_SUPPORTED,
         extract_docling,
     )
@@ -35,6 +40,10 @@ except ImportError:
     DOCLING_AVAILABLE = False
     DOCLING_SUPPORTED = set()
     extract_docling = None  # type: ignore
+    DOCLING_MISSING_MESSAGE = (
+        "Docling not installed. Install with: pip install content-core[docling] "
+        "or use CCORE_DOCUMENT_ENGINE=simple to skip docling."
+    )
 
 
 async def extract_content(
@@ -114,13 +123,23 @@ def _route_for_mime(mime: str, cfg: ContentCoreConfig) -> str | None:
 
     Returns the processor name ("docling", "pdf", "epub", "office", "video",
     "audio", "text") or ``None`` if the type is unsupported.
+
+    Raises:
+        ConfigurationError: if ``document_engine="docling"`` was named
+            explicitly but docling is not installed. An explicit engine is a
+            requirement, not a preference: it is honored or it raises, never
+            silently substituted (see ARCHITECTURE.md).
     """
     engine = cfg.document_engine
-    if engine == "docling" or (
-        engine == "auto" and DOCLING_AVAILABLE and mime in DOCLING_SUPPORTED
-    ):
-        if DOCLING_AVAILABLE and extract_docling is not None:
-            return "docling"
+    docling_usable = DOCLING_AVAILABLE and extract_docling is not None
+
+    if engine == "docling":
+        if not docling_usable:
+            raise ConfigurationError(DOCLING_MISSING_MESSAGE)
+        return "docling"
+
+    if engine == "auto" and docling_usable and mime in DOCLING_SUPPORTED:
+        return "docling"
 
     if mime in SUPPORTED_PDF_TYPES:
         return "pdf"
@@ -177,7 +196,21 @@ async def check_file_support(
             reason=str(exc),
         )
 
-    processor = _route_for_mime(mime, cfg)
+    # An explicitly named engine that cannot be honored (e.g. docling requested
+    # but not installed) raises from routing. Here it is a verdict, not an
+    # error: pre-flight answers "no, and here is why" instead of raising.
+    try:
+        processor = _route_for_mime(mime, cfg)
+    except ConfigurationError as exc:
+        return FileSupport(
+            supported=False,
+            file_path=file_path,
+            identified_type=mime,
+            document_engine=cfg.document_engine,
+            processor=None,
+            reason=str(exc),
+        )
+
     supported = processor is not None
     return FileSupport(
         supported=supported,

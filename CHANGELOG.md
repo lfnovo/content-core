@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `ConfigurationError` is now exported from `content_core`, so callers can catch an unhonorable engine choice explicitly (#50)
+
+### Fixed
+- An explicit `document_engine="docling"` with docling not installed fell back **silently** to the simple engine (#50), which is indistinguishable from success at a very different output quality. It now raises `ConfigurationError` naming both the install command and the `CCORE_DOCUMENT_ENGINE=simple` escape hatch. `document_engine="auto"` is unchanged — `auto` is a preference and may still degrade. `check_file_support` reports the same condition as `supported=False` with that message as the reason, rather than raising
+
 ## [2.0.7] - 2026-09-02
 
 ### Added

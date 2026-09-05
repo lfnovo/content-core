@@ -5,7 +5,11 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from content_core.common.exceptions import InvalidInputError, UnsupportedTypeException
+from content_core.common.exceptions import (
+    ConfigurationError,
+    InvalidInputError,
+    UnsupportedTypeException,
+)
 from content_core.config import ContentCoreConfig
 from content_core.extraction import _route_for_mime, check_file_support, extract_content
 from content_core.common.state import ExtractionOutput, FileSupport
@@ -445,3 +449,132 @@ async def test_check_file_support_html_file(tmp_path):
     assert result.supported is True
     assert result.identified_type == "text/html"
     assert result.processor == "text"
+
+
+# ---------------------------------------------------------------------------
+# 16. Explicit document_engine="docling" with docling not installed
+# ---------------------------------------------------------------------------
+def _docling_missing():
+    """Patch the orchestrator's view of docling to "not installed"."""
+    return patch.multiple(
+        "content_core.extraction",
+        DOCLING_AVAILABLE=False,
+        extract_docling=None,
+    )
+
+
+def _docling_installed(mock_extract):
+    """Patch the orchestrator's view of docling to "installed"."""
+    return patch.multiple(
+        "content_core.extraction",
+        DOCLING_AVAILABLE=True,
+        extract_docling=mock_extract,
+    )
+
+
+def test_route_for_mime_explicit_docling_missing_raises():
+    cfg = ContentCoreConfig(document_engine="docling")
+    with _docling_missing():
+        with pytest.raises(ConfigurationError) as exc_info:
+            _route_for_mime("application/pdf", cfg)
+    message = str(exc_info.value)
+    assert "pip install content-core[docling]" in message
+    assert "CCORE_DOCUMENT_ENGINE=simple" in message
+
+
+@pytest.mark.asyncio
+async def test_extract_explicit_docling_missing_raises():
+    """An explicitly named engine is honored or it raises -- never substituted."""
+    cfg = ContentCoreConfig(document_engine="docling")
+    with _docling_missing(), patch(
+        "content_core.content.identification.get_file_type",
+        new_callable=AsyncMock,
+        return_value="application/pdf",
+    ), patch(
+        "content_core.extraction.extract_pdf_file", new_callable=AsyncMock
+    ) as mock_pdf:
+        with pytest.raises(ConfigurationError) as exc_info:
+            await extract_content(file_path="/tmp/test.pdf", config=cfg)
+        mock_pdf.assert_not_awaited()
+    assert "pip install content-core[docling]" in str(exc_info.value)
+    assert "CCORE_DOCUMENT_ENGINE=simple" in str(exc_info.value)
+
+
+def test_route_for_mime_auto_docling_missing_falls_back():
+    """`auto` is a preference: it degrades to the standard processors silently."""
+    cfg = ContentCoreConfig(document_engine="auto")
+    with _docling_missing():
+        assert _route_for_mime("application/pdf", cfg) == "pdf"
+
+
+@pytest.mark.asyncio
+async def test_extract_auto_docling_missing_uses_standard_processor():
+    cfg = ContentCoreConfig(document_engine="auto")
+    expected = _make_output(identified_type="application/pdf")
+    with _docling_missing(), patch(
+        "content_core.content.identification.get_file_type",
+        new_callable=AsyncMock,
+        return_value="application/pdf",
+    ), patch(
+        "content_core.extraction.extract_pdf_file",
+        new_callable=AsyncMock,
+        return_value=expected,
+    ) as mock_pdf:
+        result = await extract_content(file_path="/tmp/test.pdf", config=cfg)
+    mock_pdf.assert_awaited_once()
+    assert result is expected
+
+
+def test_route_for_mime_explicit_docling_installed_still_routes():
+    """Docling-available paths are unchanged."""
+    cfg = ContentCoreConfig(document_engine="docling")
+    with _docling_installed(AsyncMock()):
+        assert _route_for_mime("application/pdf", cfg) == "docling"
+
+
+def test_route_for_mime_auto_docling_installed_still_routes():
+    cfg = ContentCoreConfig(document_engine="auto")
+    with _docling_installed(AsyncMock()), patch(
+        "content_core.extraction.DOCLING_SUPPORTED", {"application/pdf"}
+    ):
+        assert _route_for_mime("application/pdf", cfg) == "docling"
+
+
+@pytest.mark.asyncio
+async def test_check_file_support_explicit_docling_missing_is_a_verdict():
+    """Pre-flight reports the unhonorable engine as a verdict, it does not raise."""
+    cfg = ContentCoreConfig(document_engine="docling")
+    with _docling_missing(), patch(
+        "content_core.content.identification.get_file_type",
+        new_callable=AsyncMock,
+        return_value="application/pdf",
+    ):
+        result = await check_file_support("/tmp/test.pdf", config=cfg)
+    assert result.supported is False
+    assert result.processor is None
+    assert result.identified_type == "application/pdf"
+    assert result.document_engine == "docling"
+    assert "pip install content-core[docling]" in result.reason
+    assert "CCORE_DOCUMENT_ENGINE=simple" in result.reason
+
+
+@pytest.mark.asyncio
+async def test_check_file_support_reason_matches_extraction_error():
+    """The pre-flight reason is the very message extraction would raise with."""
+    cfg = ContentCoreConfig(document_engine="docling")
+    with _docling_missing(), patch(
+        "content_core.content.identification.get_file_type",
+        new_callable=AsyncMock,
+        return_value="application/pdf",
+    ):
+        verdict = await check_file_support("/tmp/test.pdf", config=cfg)
+        with pytest.raises(ConfigurationError) as exc_info:
+            await extract_content(file_path="/tmp/test.pdf", config=cfg)
+    assert verdict.reason == str(exc_info.value)
+
+
+def test_configuration_error_is_exported_from_package():
+    import content_core
+
+    assert content_core.ConfigurationError is ConfigurationError
+    assert "ConfigurationError" in content_core.__all__
