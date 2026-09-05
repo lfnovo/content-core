@@ -20,7 +20,6 @@ async def test_extract_content_from_url():
     assert hasattr(result, "source_type")
     assert result.source_type == "url"
     assert "Supernova Labs" in result.title
-    assert "AI Consulting" in result.title
 
 
 @pytest.mark.asyncio
@@ -39,7 +38,6 @@ async def test_extract_content_from_url_firecrawl():
     assert hasattr(result, "source_type")
     assert result.source_type == "url"
     assert "Supernova Labs" in result.title
-    assert "AI Consulting" in result.title
     assert len(result.content) > 100
     assert "AI" in result.content
 

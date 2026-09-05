@@ -59,6 +59,7 @@ class FileDetector:
             b'\xff\xf2': 'audio/mpeg',  # MP3 frame sync with MPEG-2.5 Layer 3
             b'RIFF': None,  # Resource Interchange File Format - requires further inspection (could be WAV, AVI, WebP)
             b'fLaC': 'audio/flac',  # Free Lossless Audio Codec signature
+            b'OggS': None,  # Ogg container - requires further inspection (Opus/Vorbis/FLAC audio, or Theora video)
             
             # Video/Audio containers - these will be handled by ftyp detection
             # MP4/M4A/MOV use ftyp box at offset 4 for identification
@@ -126,6 +127,7 @@ class FileDetector:
             '.aac': 'audio/aac',
             '.ogg': 'audio/ogg',
             '.oga': 'audio/ogg',
+            '.opus': 'audio/ogg',
             '.flac': 'audio/flac',
             '.wma': 'audio/x-ms-wma',
             
@@ -231,6 +233,12 @@ class FileDetector:
                         elif header[8:12] == b'AVI ':
                             return 'video/x-msvideo'
                     
+                    # Special handling for Ogg (audio and video share the container)
+                    if signature == b'OggS':
+                        ogg_mime = self._detect_ogg_codec(header)
+                        if ogg_mime:
+                            return ogg_mime
+
                     # Special handling for ZIP-based formats
                     if mime_type == 'application/zip':
                         zip_mime = await self._detect_zip_format(file_path)
@@ -260,6 +268,20 @@ class FileDetector:
             logger.debug(f"Error reading file signature: {e}")
             return None
     
+    def _detect_ogg_codec(self, header: bytes) -> Optional[str]:
+        """Disambiguate an Ogg container by the codec identification header.
+
+        The codec id lives in the first page's payload, well within the bytes
+        already read for signature detection. Theora is checked first because a
+        video stream is usually multiplexed with a Vorbis audio track, and the
+        file should route to the video pipeline in that case.
+        """
+        if b'theora' in header:
+            return 'video/ogg'
+        if b'OpusHead' in header or b'vorbis' in header or b'FLAC' in header:
+            return 'audio/ogg'
+        return None
+
     async def _detect_zip_format(self, file_path: Path) -> Optional[str]:
         """Detect specific ZIP-based format (DOCX, XLSX, PPTX, EPUB)."""
         try:

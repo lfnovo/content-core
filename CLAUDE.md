@@ -37,7 +37,7 @@ uv sync --group dev
 uv run pytest tests/unit tests/integration -v
 ```
 
-This is the gate. It returns clean pass/fail in ~15s, requires no credentials or network, and matches what CI enforces on `main` (CI runs only `tests/unit`; integration tests are also safe locally — no network/API keys). For targeted feedback during iteration, use `uv run pytest -k "<keyword>"` per the table in the Testing section below.
+This is the gate. It returns clean pass/fail in ~15s and requires no credentials or network. CI on PRs and `main` runs exactly these tests (`tests/unit tests/integration`) across Python 3.10/3.11/3.12, plus a packaging gate (`.github/workflows/package.yml`) that builds the wheel and exercises the library, the `content-core` CLI and the `content-core-mcp` server from the built artifact. The packaging gate needs no credentials either, but it is not reproducible from a plain pytest run — if you touch packaging metadata (`pyproject.toml`, entry points, package data), expect it to be the check that catches you. For targeted feedback during iteration, use `uv run pytest -k "<keyword>"` per the table in the Testing section below.
 
 ### Do NOT use as gates
 
