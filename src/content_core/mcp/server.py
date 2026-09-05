@@ -38,7 +38,10 @@ async def extract_content(
         file_path: Local file path to extract content from
         engine: Optional extraction engine override, routed by input type.
             With `url`: auto, simple, firecrawl, jina, crawl4ai.
-            With `file_path`: auto, simple, docling.
+            With `file_path`: auto, simple, docling — `docling` requires
+            `pip install "content-core[docling]"` and fails with a
+            configuration error when the extra is missing, in which case use
+            `auto` or `simple`.
             Any other value is rejected with an error naming the accepted ones.
         formulas: Enable formula extraction via Docling (requires engine=docling)
         pictures: Enable image description + chart data extraction via Docling (requires engine=docling)
