@@ -36,7 +36,10 @@ async def extract_content(
     Args:
         url: URL to extract content from (web page, YouTube video, PDF link, etc.)
         file_path: Local file path to extract content from
-        engine: Optional extraction engine override (firecrawl, jina, crawl4ai, simple, docling)
+        engine: Optional extraction engine override, routed by input type.
+            With `url`: auto, simple, firecrawl, jina, crawl4ai.
+            With `file_path`: auto, simple, docling.
+            Any other value is rejected with an error naming the accepted ones.
         formulas: Enable formula extraction via Docling (requires engine=docling)
         pictures: Enable image description + chart data extraction via Docling (requires engine=docling)
         no_ocr: Disable OCR in Docling (requires engine=docling)
