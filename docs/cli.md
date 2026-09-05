@@ -224,6 +224,8 @@ export OPENAI_API_KEY=sk-...
 
 The `--engine` flag is routed automatically based on input type:
 - **URLs** → overrides `url_engine` (options: `firecrawl`, `jina`, `crawl4ai`, `simple`)
-- **Files** → overrides `document_engine` (options: `docling`, `simple`)
+- **Files** → overrides `document_engine` (options: `docling`, `simple`). `--engine docling`
+  requires `pip install content-core[docling]`; without it the command fails instead of
+  falling back to the simple engine
 
 See [Usage documentation](usage.md) for all configuration options.

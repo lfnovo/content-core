@@ -12,6 +12,7 @@ from content_core.common.exceptions import (
     InvalidInputError,
     UnsupportedTypeException,
 )
+from content_core.common.messages import DOCLING_MISSING_MESSAGE
 from content_core.common.retry import retry_download
 from content_core.config import ContentCoreConfig, get_default_config
 from content_core.logging import logger
@@ -32,7 +33,6 @@ from content_core.processors.url.youtube import extract_youtube
 try:
     from content_core.processors.document.docling import (
         DOCLING_AVAILABLE,
-        DOCLING_MISSING_MESSAGE,
         DOCLING_SUPPORTED,
         extract_docling,
     )
@@ -40,10 +40,6 @@ except ImportError:
     DOCLING_AVAILABLE = False
     DOCLING_SUPPORTED = set()
     extract_docling = None  # type: ignore
-    DOCLING_MISSING_MESSAGE = (
-        "Docling not installed. Install with: pip install content-core[docling] "
-        "or use CCORE_DOCUMENT_ENGINE=simple to skip docling."
-    )
 
 
 async def extract_content(

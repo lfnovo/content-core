@@ -225,6 +225,8 @@ The `document_engine` setting controls how files (PDF, DOCX, PPTX, XLSX, HTML) a
 | `simple` | pdfplumber for PDF, fast-ebook for EPUB, python-docx/openpyxl/python-pptx for Office, markdownify for HTML | None (included) |
 | `docling` | Docling library for rich document parsing | `pip install content-core[docling]` |
 
+`auto` is a preference: it uses Docling when installed and silently falls back to `simple` otherwise. `docling` is a requirement: if the extra is not installed, extraction raises `ConfigurationError` instead of silently producing simple-engine output. Install it with `pip install content-core[docling]`, or set `CCORE_DOCUMENT_ENGINE=simple` (or `auto`) to proceed without it.
+
 ## AI Providers
 
 Content Core uses [Esperanto](https://github.com/lfnovo/esperanto) as a unified abstraction layer for LLM and Speech-to-Text providers. This means you can use any provider supported by Esperanto without changing your code — just update the config.
@@ -323,6 +325,23 @@ Docling provides advanced document parsing for PDF, DOCX, PPTX, XLSX, Markdown, 
 ```bash
 pip install content-core[docling]
 ```
+
+If Docling is not installed, `document_engine="docling"` raises `ConfigurationError`
+rather than falling back — an explicitly named engine is honored or it fails loudly:
+
+```python
+from content_core import ConfigurationError
+
+try:
+    result = await content_core.extract_content(file_path="report.pdf", config=config)
+except ConfigurationError as e:
+    print(e)
+    # Docling not installed. Install with: pip install content-core[docling]
+    # or use CCORE_DOCUMENT_ENGINE=simple to skip docling.
+```
+
+Use `document_engine="auto"` (the default) if you want Docling when available and a
+silent fallback to the simple engine when it is not.
 
 ### Usage
 

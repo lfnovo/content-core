@@ -10,6 +10,7 @@ from content_core.common.exceptions import (
     InvalidInputError,
     UnsupportedTypeException,
 )
+from content_core.common.messages import DOCLING_MISSING_MESSAGE
 from content_core.config import ContentCoreConfig
 from content_core.extraction import _route_for_mime, check_file_support, extract_content
 from content_core.common.state import ExtractionOutput, FileSupport
@@ -480,6 +481,8 @@ def test_route_for_mime_explicit_docling_missing_raises():
     message = str(exc_info.value)
     assert "pip install content-core[docling]" in message
     assert "CCORE_DOCUMENT_ENGINE=simple" in message
+    # Single source of truth: routing and the docling stub share one string.
+    assert message == DOCLING_MISSING_MESSAGE
 
 
 @pytest.mark.asyncio

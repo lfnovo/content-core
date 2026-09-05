@@ -3,15 +3,8 @@ Docling-based document extraction processor.
 """
 
 from content_core.config import ContentCoreConfig
+from content_core.common.messages import DOCLING_MISSING_MESSAGE
 from content_core.common.state import ExtractionOutput
-
-#: Message for every "docling was asked for but is not installed" failure.
-#: Names the install command *and* the escape hatch, per the missing-dependency
-#: principle in ARCHITECTURE.md.
-DOCLING_MISSING_MESSAGE = (
-    "Docling not installed. Install with: pip install content-core[docling] "
-    "or use CCORE_DOCUMENT_ENGINE=simple to skip docling."
-)
 
 DOCLING_AVAILABLE = False
 try:

@@ -224,7 +224,7 @@ Content Core uses `ContentCoreConfig` powered by pydantic-settings. Settings are
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `CCORE_URL_ENGINE` | URL extraction engine (`auto`, `simple`, `firecrawl`, `jina`, `crawl4ai`) | `auto` |
-| `CCORE_DOCUMENT_ENGINE` | Document extraction engine (`auto`, `simple`, `docling`) | `auto` |
+| `CCORE_DOCUMENT_ENGINE` | Document extraction engine (`auto`, `simple`, `docling`) — `docling` raises `ConfigurationError` if the extra is not installed; `auto` falls back silently | `auto` |
 | `CCORE_AUDIO_CONCURRENCY` | Concurrent audio transcriptions (1-10) | `3` |
 | `CRAWL4AI_API_URL` | Crawl4AI Docker API URL (omit for local browser mode) | - |
 | `CRAWL4AI_API_TOKEN` | Bearer token for the Crawl4AI Docker API (required by Crawl4AI >= 0.9.0) | - |
@@ -248,6 +248,8 @@ Content Core reads standard `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` environmen
 
 ```bash
 # Docling for advanced document parsing (PDF, DOCX, PPTX, XLSX)
+# Required by document_engine="docling", which raises ConfigurationError without it.
+# Use document_engine="auto" (default) or "simple" to proceed without Docling.
 pip install content-core[docling]
 
 # Crawl4AI for local browser-based URL extraction
