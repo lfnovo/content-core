@@ -200,6 +200,13 @@ The `url_engine` setting controls how web pages are extracted:
 
 For self-hosted Firecrawl, set `FIRECRAWL_API_URL` to your instance URL.
 
+The same setting works for Firecrawl-compatible backends such as [fastCRW](https://github.com/us/crw): point `FIRECRAWL_API_URL` at the instance root and keep `url_engine=firecrawl`. `FIRECRAWL_API_KEY` can be any non-empty value when the backend has authentication disabled.
+
+```bash
+FIRECRAWL_API_URL=http://localhost:3000
+FIRECRAWL_API_KEY=anykey
+```
+
 ### Document Engines
 
 The `document_engine` setting controls how files (PDF, DOCX, PPTX, XLSX) are processed:
