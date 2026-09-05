@@ -120,3 +120,43 @@ async def test_non_utf8_without_declared_charset_does_not_raise(tmp_path, config
     result = await extract_content(file_path=str(page), config=config)
 
     assert "Ação" in result.content
+
+
+@pytest.mark.asyncio
+async def test_utf8_bom_html_file(tmp_path, config):
+    page = tmp_path / "bom.html"
+    page.write_bytes(
+        b"\xef\xbb\xbf<!DOCTYPE html><html><head><title>BOM</title></head><body><p>Hi</p></body></html>"
+    )
+
+    result = await extract_content(file_path=str(page), config=config)
+
+    assert result.title == "BOM"
+    assert result.content.strip() == "Hi"
+
+
+@pytest.mark.asyncio
+async def test_utf16_html_file(tmp_path, config):
+    page = tmp_path / "wide.html"
+    page.write_bytes(
+        "<html><head><title>Wide</title></head><body><p>Olá</p></body></html>".encode("utf-16")
+    )
+
+    result = await extract_content(file_path=str(page), config=config)
+
+    assert result.title == "Wide"
+    assert "Olá" in result.content
+
+
+@pytest.mark.asyncio
+async def test_charset_declaration_with_spaces(tmp_path, config):
+    page = tmp_path / "greek.html"
+    page.write_bytes(
+        "<html><head><meta charset = 'iso-8859-7'><title>Αθήνα</title></head>"
+        "<body><p>Καλημέρα</p></body></html>".encode("iso-8859-7")
+    )
+
+    result = await extract_content(file_path=str(page), config=config)
+
+    assert result.title == "Αθήνα"
+    assert "Καλημέρα" in result.content

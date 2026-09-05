@@ -22,17 +22,20 @@ HTML_STRUCTURAL_TAGS = re.compile(
 
 # A document that opens with a doctype or <html> tag is HTML regardless of how
 # many structural tags its body has (a one-paragraph page is still a page).
-HTML_DOCUMENT_START = re.compile(r"\s*(?:<!--.*?-->\s*)*<(?:!doctype\s+html|html)\b", re.IGNORECASE | re.DOTALL)
+HTML_DOCUMENT_START = re.compile(r"[\s\ufeff]*(?:<!--.*?-->\s*)*<(?:!doctype\s+html|html)\b", re.IGNORECASE | re.DOTALL)
 
 # Declared charset in an HTML head, used only when the file is not valid UTF-8.
-HTML_CHARSET_RE = re.compile(rb"<meta[^>]+charset=[\"']?\s*([\w.:-]+)", re.IGNORECASE)
+HTML_CHARSET_RE = re.compile(rb"<meta[^>]+charset\s*=\s*[\"']?\s*([\w.:-]+)", re.IGNORECASE)
 
 
 def _decode_text_file(raw: bytes) -> str:
-    """Decode a text/HTML file: strict UTF-8 first, then the declared charset,
-    then cp1252 (superset of latin-1, the usual legacy encoding) with replacement."""
+    """Decode a text/HTML file: UTF-16 by BOM, then strict UTF-8 (BOM stripped),
+    then the declared charset, then cp1252 (superset of latin-1, the usual legacy
+    encoding) with replacement."""
+    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return raw.decode("utf-16", errors="replace")
     try:
-        return raw.decode("utf-8")
+        return raw.decode("utf-8-sig")
     except UnicodeDecodeError:
         pass
     match = HTML_CHARSET_RE.search(raw[:4096])
