@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Optional, Tuple, Type
+from typing import Annotated, Any, Literal, Optional, Tuple, Type, get_args, get_origin
 
-from pydantic import Field
+from pydantic import Field, TypeAdapter, ValidationError
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
+
+from content_core.common.types import DocumentEngine, UrlEngine
 
 try:
     import tomllib
@@ -53,8 +55,8 @@ class ContentCoreConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CCORE_")
 
     # Engine selection
-    document_engine: str = "auto"
-    url_engine: str = "auto"
+    document_engine: DocumentEngine = "auto"
+    url_engine: UrlEngine = "auto"
 
     # Audio
     audio_provider: str = "openai"
@@ -160,6 +162,33 @@ def _write_config_file(data: dict) -> None:
     CONFIG_FILE.write_text("\n".join(lines) + "\n" if lines else "")
 
 
+_TRUE_TOKENS = frozenset({"true", "1", "yes", "on"})
+_FALSE_TOKENS = frozenset({"false", "0", "no", "off"})
+
+
+def _validate_field_value(key: str, value: Any) -> None:
+    """Validate a coerced value against the field declared on ContentCoreConfig.
+
+    Raises ValueError with a message listing the valid values when the field
+    has a closed vocabulary (Literal).
+    """
+    field = ContentCoreConfig.model_fields[key]
+    annotation = field.annotation
+    if field.metadata:
+        annotation = Annotated[tuple([annotation, *field.metadata])]
+
+    try:
+        TypeAdapter(annotation).validate_python(value)
+    except ValidationError as e:
+        allowed = get_args(field.annotation) if get_origin(field.annotation) is Literal else ()
+        if allowed:
+            raise ValueError(
+                f"Invalid value for {key}: {value!r}. "
+                f"Valid values: {', '.join(str(v) for v in allowed)}"
+            ) from e
+        raise ValueError(f"Invalid value for {key}: {value!r}. {e.errors()[0]['msg']}") from e
+
+
 def config_set(key: str, value: str) -> None:
     """Set a config value in the file."""
     # Validate key exists in ContentCoreConfig
@@ -175,11 +204,19 @@ def config_set(key: str, value: str) -> None:
     if annotation is int or (hasattr(annotation, "__origin__") and annotation is int):
         data[key] = int(value)
     elif annotation is bool:
-        data[key] = value.lower() in ("true", "1", "yes")
+        token = value.lower()
+        if token not in _TRUE_TOKENS | _FALSE_TOKENS:
+            raise ValueError(
+                f"Invalid value for {key}: {value!r}. "
+                f"Valid values: {', '.join(sorted(_TRUE_TOKENS | _FALSE_TOKENS))}"
+            )
+        data[key] = token in _TRUE_TOKENS
     elif hasattr(annotation, "__origin__") and getattr(annotation, "__origin__", None) is list:
         data[key] = [v.strip() for v in value.split(",")]
     else:
         data[key] = value
+
+    _validate_field_value(key, data[key])
 
     _write_config_file(data)
 

@@ -256,6 +256,14 @@ class TestConfigCommands:
         assert result.exit_code == 1
         assert "Unknown config key" in result.output
 
+    def test_config_set_invalid_engine_value(self, tmp_path):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["config", "set", "url_engine", "jinaa"])
+        assert result.exit_code == 1
+        assert "Invalid value for url_engine" in result.output
+        assert "jina" in result.output
+        assert not (tmp_path / "config.toml").exists()
+
     def test_config_delete(self):
         runner = CliRunner()
         runner.invoke(cli, ["config", "set", "llm_provider", "anthropic"])

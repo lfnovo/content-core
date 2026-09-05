@@ -192,6 +192,56 @@ class TestSingleton:
         assert cfg1 is not cfg2
 
     def test_singleton_picks_up_env(self, monkeypatch):
-        monkeypatch.setenv("CCORE_URL_ENGINE", "bs4")
+        monkeypatch.setenv("CCORE_URL_ENGINE", "jina")
         cfg = get_default_config()
-        assert cfg.url_engine == "bs4"
+        assert cfg.url_engine == "jina"
+
+
+class TestEngineVocabulary:
+    """Closed-vocabulary engine fields are validated at construction."""
+
+    @pytest.mark.parametrize(
+        "field, value",
+        [
+            ("url_engine", "jinaa"),
+            ("url_engine", "docling"),
+            ("document_engine", "doclingg"),
+            ("document_engine", "firecrawl"),
+        ],
+    )
+    def test_invalid_engine_raises(self, field, value):
+        with pytest.raises(ValidationError) as exc:
+            ContentCoreConfig(**{field: value})
+        assert field in str(exc.value)
+
+    def test_invalid_url_engine_message_lists_valid_values(self):
+        with pytest.raises(ValidationError) as exc:
+            ContentCoreConfig(url_engine="jinaa")
+        message = str(exc.value)
+        for valid in ("auto", "simple", "firecrawl", "jina", "crawl4ai"):
+            assert f"'{valid}'" in message
+
+    def test_invalid_document_engine_message_lists_valid_values(self):
+        with pytest.raises(ValidationError) as exc:
+            ContentCoreConfig(document_engine="doclingg")
+        message = str(exc.value)
+        for valid in ("auto", "simple", "docling"):
+            assert f"'{valid}'" in message
+
+    def test_invalid_url_engine_from_env_raises(self, monkeypatch):
+        monkeypatch.setenv("CCORE_URL_ENGINE", "jinaa")
+        with pytest.raises(ValidationError):
+            ContentCoreConfig()
+
+    def test_invalid_document_engine_from_env_raises(self, monkeypatch):
+        monkeypatch.setenv("CCORE_DOCUMENT_ENGINE", "doclingg")
+        with pytest.raises(ValidationError):
+            ContentCoreConfig()
+
+    @pytest.mark.parametrize("value", ["auto", "simple", "firecrawl", "jina", "crawl4ai"])
+    def test_valid_url_engines_accepted(self, value):
+        assert ContentCoreConfig(url_engine=value).url_engine == value
+
+    @pytest.mark.parametrize("value", ["auto", "simple", "docling"])
+    def test_valid_document_engines_accepted(self, value):
+        assert ContentCoreConfig(document_engine=value).document_engine == value

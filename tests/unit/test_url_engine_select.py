@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from content_core.common.exceptions import ConfigurationError
 from content_core.config import ContentCoreConfig
 from content_core.common.state import ExtractionOutput
 from content_core.processors.url import extract_from_url
@@ -140,3 +141,66 @@ async def test_firecrawl_default_proxy_and_wait():
     cfg = ContentCoreConfig(url_engine="firecrawl")
     assert cfg.firecrawl_proxy == "auto"
     assert cfg.firecrawl_wait_for == 3000
+
+
+# ---------------------------------------------------------------------------
+# 8. Config/routing errors propagate; network failures still degrade
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_unknown_engine_error_propagates():
+    """An unknown engine is rejected before extraction, never swallowed.
+
+    Literal validation on the config field makes this unreachable through
+    normal config, so the bad value is assigned directly — mimicking a
+    caller that bypasses the model.
+    """
+    cfg = ContentCoreConfig(url_engine="auto")
+    cfg.url_engine = "jinaa"
+    with pytest.raises(ConfigurationError) as exc:
+        await extract_from_url("https://example.com", cfg)
+    message = str(exc.value)
+    assert "jinaa" in message
+    for valid in ("auto", "simple", "firecrawl", "jina", "crawl4ai"):
+        assert valid in message
+
+
+@pytest.mark.asyncio
+async def test_engine_parse_failure_still_degrades_to_empty_output():
+    """A ValueError from a processor is not a config error: it still degrades.
+
+    (The revised raise/degrade boundary in #60 changes this; #51 only stops
+    configuration errors from being swallowed.)
+    """
+    cfg = ContentCoreConfig(url_engine="simple")
+    with patch(
+        "content_core.processors.url.extract_url_bs4",
+        new_callable=AsyncMock,
+        side_effect=ValueError("No content extracted by readability"),
+    ):
+        result = await extract_from_url("https://example.com", cfg)
+    assert result.content == ""
+
+
+@pytest.mark.asyncio
+async def test_configuration_error_propagates():
+    cfg = ContentCoreConfig(url_engine="firecrawl")
+    with patch(
+        "content_core.processors.url.extract_url_firecrawl",
+        new_callable=AsyncMock,
+        side_effect=ConfigurationError("FIRECRAWL_API_KEY not set"),
+    ):
+        with pytest.raises(ConfigurationError):
+            await extract_from_url("https://example.com", cfg)
+
+
+@pytest.mark.asyncio
+async def test_network_failure_still_degrades_to_empty_output():
+    cfg = ContentCoreConfig(url_engine="jina")
+    with patch(
+        "content_core.processors.url.extract_url_jina",
+        new_callable=AsyncMock,
+        side_effect=ConnectionError("boom"),
+    ):
+        result = await extract_from_url("https://example.com", cfg)
+    assert isinstance(result, ExtractionOutput)
+    assert result.content == ""

@@ -1,6 +1,7 @@
 """Content Core CLI — extract and summarize content."""
 import asyncio
 import sys
+from typing import get_args
 
 import click
 
@@ -223,10 +224,11 @@ def _build_config(inp, engine, formulas=False, pictures=False, no_ocr=False):
     if not engine and not docling_overrides:
         return None
 
+    from content_core.common.types import DocumentEngine, UrlEngine
     from content_core.config import ContentCoreConfig
 
-    VALID_URL_ENGINES = {"auto", "simple", "firecrawl", "jina", "crawl4ai"}
-    VALID_DOC_ENGINES = {"auto", "simple", "docling"}
+    VALID_URL_ENGINES = set(get_args(UrlEngine))
+    VALID_DOC_ENGINES = set(get_args(DocumentEngine))
 
     kwargs = {**docling_overrides}
     if engine:

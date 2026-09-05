@@ -203,6 +203,14 @@ content-core config set llm_model claude-sonnet-4-20250514
 content-core config set url_engine firecrawl
 ```
 
+`config set` rejects a value that the setting does not accept — `url_engine`
+takes `auto`, `simple`, `firecrawl`, `jina` or `crawl4ai`, and
+`document_engine` takes `auto`, `simple` or `docling` — and writes nothing to
+the file when it does.
+The same closed vocabulary is enforced on constructor arguments, `CCORE_*`
+environment variables and values edited into the TOML by hand: an unknown
+engine name fails immediately instead of surfacing as empty content.
+
 Or edit `~/.content-core/config.toml` directly:
 
 ```toml
@@ -223,8 +231,8 @@ export OPENAI_API_KEY=sk-...
 ### Engine flag
 
 The `--engine` flag is routed automatically based on input type:
-- **URLs** → overrides `url_engine` (options: `firecrawl`, `jina`, `crawl4ai`, `simple`)
-- **Files** → overrides `document_engine` (options: `docling`, `simple`). `--engine docling`
+- **URLs** → overrides `url_engine` (options: `auto`, `firecrawl`, `jina`, `crawl4ai`, `simple`)
+- **Files** → overrides `document_engine` (options: `auto`, `docling`, `simple`). `--engine docling`
   requires `pip install content-core[docling]`; without it the command fails instead of
   falling back to the simple engine
 

@@ -58,7 +58,28 @@ class TestExtractContent:
 
             mock_extract.return_value = ExtractionOutput(content="text")
             await extract_content_fn(url="https://example.com", engine="firecrawl")
-            mock_config.assert_called_once_with(url_engine="firecrawl", document_engine="firecrawl")
+            mock_config.assert_called_once_with(url_engine="firecrawl")
+
+    @pytest.mark.asyncio
+    async def test_invalid_url_engine_returns_error(self):
+        result = await extract_content_fn(url="https://example.com", engine="jinaa")
+        assert "Error" in result
+        for valid in ("auto", "simple", "firecrawl", "jina", "crawl4ai"):
+            assert valid in result
+
+    @pytest.mark.asyncio
+    async def test_document_engine_rejected_for_url(self):
+        """A URL takes URL engines only — matching the CLI's contract."""
+        result = await extract_content_fn(url="https://example.com/a.pdf", engine="docling")
+        assert "Error" in result
+        assert "Invalid URL engine" in result
+
+    @pytest.mark.asyncio
+    async def test_invalid_document_engine_returns_error(self):
+        result = await extract_content_fn(file_path="/tmp/test.pdf", engine="firecrawl")
+        assert "Error" in result
+        for valid in ("auto", "simple", "docling"):
+            assert valid in result
 
     @pytest.mark.asyncio
     async def test_extract_error(self):
