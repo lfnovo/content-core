@@ -31,3 +31,7 @@ specs/
 .claude/
 # Intermediate audio extracted from test videos (see processors/media/video.py)
 tests/input_content/*_audio.mp3
+
+# oss-maintainer local state
+.maintainer/profile.local.toml
+.maintainer/state/
