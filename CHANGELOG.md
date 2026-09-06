@@ -7,15 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-09-06
+
 ### Added
-- `ConfigurationError` is now exported from `content_core`, so callers can catch an engine choice that could not be honored explicitly (#50)
-- The whole exception taxonomy is now public (#52): `ContentCoreError`, `UnsupportedTypeException`, `InvalidInputError`, `ConfigurationError`, `NotFoundError`, `NoTranscriptFound`, `NetworkError`, `ExternalServiceError` and `FileOperationError` are importable from `content_core`, so a consumer can `except content_core.ContentCoreError` (or a specific subtype) without reaching into a private module. `extract_content`'s docstring now lists what it raises
+- Local HTML file ingestion through the simple engine, including `.html`/`.htm` routing, HTML-to-Markdown conversion, document titles, minimal HTML documents, BOMs and legacy character encodings (#59, #66).
+- Public exception exports from `content_core`: `ContentCoreError`, `UnsupportedTypeException`, `InvalidInputError`, `ConfigurationError`, `NotFoundError`, `NoTranscriptFound`, `NetworkError`, `ExternalServiceError` and `FileOperationError` (#50, #52). Typed failures can be caught through the public API. Some existing failures still escape as untyped exceptions until #60; exporting the taxonomy does not complete that migration.
+
+### Changed
+- Library imports no longer configure process-wide Loguru handlers. Content Core logging is disabled by default for library consumers; use `logger.enable("content_core")` with the host application's handlers, or `content_core.configure_logging()` from an application entry point. CLI and MCP entry points configure their own stderr logging and honor debug settings (#47).
+- Published wheel and sdist now come directly from the artifacts validated by the publishing workflow's packaging job, rather than being rebuilt in the upload job (#57).
 
 ### Removed
-- `DatabaseOperationError`, `AuthenticationError` and `RateLimitError` (#52) — none had a raise site. There is no database in a content extractor, and provider auth and rate-limit failures are `ExternalServiceError`: the caller's remedy is the same (check the provider) and the message carries the detail. No `except` clause can be affected, since none of the three was ever raised; only a direct import from the private `content_core.common.exceptions` module breaks
+- Unused `asciidoc` dependency (#58).
+- Unused internal `Processor` Protocol; processor contracts remain documented in `ARCHITECTURE.md` (#53).
+- Unused internal exception classes `DatabaseOperationError`, `AuthenticationError` and `RateLimitError` (#52). None had a raise site; direct imports from `content_core.common.exceptions` must be updated. The replacement taxonomy is public, but provider error wrapping is still incomplete pending #60.
 
 ### Fixed
-- An explicit `document_engine="docling"` with docling not installed fell back **silently** to the simple engine (#50), which is indistinguishable from success at a very different output quality. It now raises `ConfigurationError` naming both the install command and the `CCORE_DOCUMENT_ENGINE=simple` escape hatch. `document_engine="auto"` is unchanged — `auto` is a preference and may still degrade. `check_file_support` reports the same condition as `supported=False` with that message as the reason, rather than raising
+- Explicit `document_engine="docling"` now raises `ConfigurationError` when the optional engine is unavailable, instead of silently using the simple engine. The error names `pip install "content-core[docling]"` and the `CCORE_DOCUMENT_ENGINE=simple` alternative. `auto` still permits fallback, and `check_file_support` returns an unsupported verdict with the reason (#50).
+- Invalid engine names are rejected at configuration entry points, including constructor arguments, environment variables, TOML files and `content-core config set`. Misspelled boolean values are also rejected before writing; CLI/MCP validate engine names for the input type (#51).
+- MCP `serverInfo.version` reports the installed Content Core version instead of FastMCP's version (#56).
+
+### Documentation
+- Documented Firecrawl-compatible backends through `FIRECRAWL_API_URL` (#86).
 
 ## [2.0.7] - 2026-09-02
 
