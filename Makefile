@@ -1,10 +1,16 @@
-.PHONY: tag test test-e2e test-e2e-heavy test-e2e-all test-all build-docs ruff mcp-server
+.PHONY: tag release test test-e2e test-e2e-heavy test-e2e-all test-all build-docs ruff mcp-server
 
+# Prepare the version tag. PyPI publication starts when its GitHub Release is published.
 tag:
-	@version=$$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/'); \
+	@set -e; version=$$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/'); \
 	echo "Creating tag v$$version"; \
 	git tag "v$$version"; \
 	git push origin "v$$version"
+
+# Publish the reviewed draft GitHub Release, triggering the PyPI workflow.
+release:
+	@set -e; version=$$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/'); \
+	gh release edit "v$$version" --draft=false --latest
 
 test:
 	uv run pytest tests/unit tests/integration -v

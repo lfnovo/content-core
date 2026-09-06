@@ -220,3 +220,6 @@ tests/
 ## Maintainer workflows
 
 Maintainer profile lives in `.maintainer/`; do not run release, triage or discussions workflows without it.
+PyPI publication is triggered by a published GitHub Release (`release: published`).
+`make tag` prepares the tag; `make release` publishes its reviewed draft release.
+Follow `.maintainer/release/runbook.md` for candidate validation and publication.

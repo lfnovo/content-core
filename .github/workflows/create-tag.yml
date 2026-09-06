@@ -53,4 +53,5 @@ jobs:
       if: steps.check.outputs.exists == 'false'
       run: |
         echo "✨ Tag v${{ steps.version.outputs.version }} has been created!"
-        echo "🚀 This will trigger the publish workflow automatically."
+        echo "Publish a GitHub Release for this tag to start the PyPI workflow."
+        echo "Creating the tag alone does not publish to PyPI."

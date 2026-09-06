@@ -7,12 +7,14 @@ Follow `CONTRIBUTING.md` for PR delivery, `AGENTS.md` for canonical validation,
 The existing architecture decision treats fixes to hidden extraction errors as
 2.x fixes. New supported formats and public API additions are minor changes;
 breaking supported consumer contracts require explicit version review. The owner
-decides the release number. Confirmed artifact: pypi-library; trigger: `make tag`.
+decides the release number. Artifact: pypi-library; distribution trigger: `make release`,
+which publishes the reviewed draft GitHub Release (`release: published`).
 
 Prepare changes in a branch and PR. Required branch protections and review remain
 binding. Ask once per session before merging qualifying own PRs. A merge to main
-runs tests but does not currently publish. Only the exact final candidate GO
-permits `make tag`.
+runs tests but does not publish. Creating/pushing a tag or saving a draft release
+does not publish to PyPI when the tag contains the current workflow. Only the exact
+final candidate GO permits `make release`.
 
 ## Scope and source validation
 
@@ -76,25 +78,42 @@ intended lock changes and verify all package-version values agree. Leave the
 marketplace's independent schema/catalog version unchanged.
 
 Date the versioned changelog in the owner's timezone and open a fresh Unreleased
-section. Commit all cut files together through the PR process. Do not create a tag
-here. Collect contributor credits and approve the exact notes before publication.
+section. Commit all cut files together through the PR process. Collect contributor
+credits and approve the exact notes before publication.
+
+After the final candidate is integrated and validated, prepare its tag with
+`make tag` from that exact commit. Verify the remote tag resolves to the candidate.
+Create a draft with `gh release create <tag> --verify-tag --draft --title <version>
+--notes-file .maintainer/state/release-notes.md`. A draft is preparation, not GO.
+Do not use a tag from an older commit whose workflow still publishes on tag push.
 
 ## Publish — only after GO
 
 Present all mandatory results, manual acknowledgment, security visibility, exact
-candidate SHA, wheel/sdist SHA-256 and `make tag`. Recheck the candidate, versions,
-remote base and absence of the proposed tag immediately before the trigger.
+candidate SHA, wheel/sdist SHA-256, approved notes and `make release`. Immediately
+before the trigger, recheck HEAD, version files, the remote tag's resolved commit,
+and the draft release's tag, notes and draft status. Confirm the version is still
+absent from PyPI.
 
-Run `make tag` once on the approved commit. Observe `.github/workflows/publish.yml`
-to completion. A failure requires an owner decision; do not retry distribution
-through a different path or overwrite a version. Attach the approved notes to the
-existing tag, checking the release page after writing them.
+Run `make release` once on the approved candidate. It uses
+`gh release edit <tag> --draft=false --latest`; publishing the draft emits
+`release: published` and starts `.github/workflows/publish.yml`. Publishing a
+release directly in GitHub is the same distribution action and requires the same
+GO. Draft creation, tag pushes and edits to an already published release do not
+start this workflow. The published event includes prereleases; their tag must
+match the project's version (optionally prefixed with `v`).
+
+Observe Publish to completion. Its Package job checks out the release tag, builds
+and validates the artifacts, and checks the tag against the package version before
+upload. A failure requires an owner decision; do not delete/recreate the release,
+retry through another path or overwrite a version to work around it. Verify the
+published release page still contains the approved notes.
 
 ## Post-publication verification
 
 Download both published files from PyPI for the exact version and record their
 SHA-256 separately from tested hashes. Compare them with the pre-GO artifacts and
-the tag-run Package artifact. The tag workflow builds afresh, so report differences
+the release-run Package artifact. The release workflow builds afresh, so report differences
 and repeat the artifact smokes on the actual published wheel. Install the exact
 version from PyPI in a fresh environment outside the checkout and repeat library,
 CLI and MCP probes. Check the release page's tag, approved notes and latest status.

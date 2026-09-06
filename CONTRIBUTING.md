@@ -71,6 +71,26 @@ To set up the development environment:
 
 We follow PEP 8 for Python code. Please ensure your code adheres to these guidelines. Use tools like `flake8` or `pylint` to check your code style.
 
+## Publishing a release
+
+PyPI publication starts when a GitHub Release is **published**. The Publish workflow
+uses `release: published`, builds and validates the package from the release tag,
+and uploads the same validated wheel and sdist. The tag must match the project
+version, with an optional `v` prefix.
+
+After preparing and validating the version through a PR:
+
+1. Run `make tag` on the validated commit to create and push its version tag.
+2. Create a draft GitHub Release for that existing tag and add the reviewed notes.
+3. After final approval, run `make release` to publish the draft and start PyPI
+   publication, or publish the release in GitHub.
+4. Watch Publish and verify the package from PyPI.
+
+A tag push or draft release alone does not publish to PyPI. Publishing a prerelease
+also triggers the workflow; editing published release notes does not rerun it.
+See [.maintainer/release/runbook.md](.maintainer/release/runbook.md) for the complete
+candidate, artifact and verification checks.
+
 ## License
 
 By contributing to Content-Core, you agree that your contributions will be licensed under the [MIT License](LICENSE).

@@ -2,8 +2,8 @@ name: Package
 
 # Reusable packaging gate: builds the wheel and exercises all three consumer
 # surfaces (library, CLI, MCP server) from the built artifact, with the repo
-# off the path. Called by test.yml (PRs / main) and by publish.yml (tags), so
-# a tag can never publish an artifact that failed this gate.
+# off the path. Called by test.yml (PRs / main) and by publish.yml (published
+# GitHub Releases), so a release cannot upload an artifact that failed this gate.
 #
 # The validated dist/ is uploaded as an artifact so publish.yml can release the
 # exact files this gate checked, instead of rebuilding on another runner.
@@ -106,10 +106,12 @@ jobs:
         uv run --isolated --no-project --with dist/content_core-*.whl \
           python "$RUNNER_TEMP/mcp_smoke.py"
 
-    - name: Wheel version matches pyproject version
+    - name: Wheel version matches project and release tag
+      env:
+        RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || '' }}
       run: |
         python - <<'PY'
-        import glob, pathlib, re, sys
+        import glob, os, pathlib, re, sys
 
         # tomllib is 3.11+, this job runs on 3.10 - read the [project] version directly.
         text = pathlib.Path("pyproject.toml").read_text()
@@ -131,6 +133,9 @@ jobs:
             sys.exit(f"could not parse version from wheel name {name!r}")
         if match.group(1) != expected:
             sys.exit(f"wheel version {match.group(1)!r} != pyproject version {expected!r}")
+        release_tag = os.environ.get("RELEASE_TAG", "")
+        if release_tag and release_tag not in (expected, f"v{expected}"):
+            sys.exit(f"release tag {release_tag!r} != project version {expected!r}")
         print(f"version match OK: {expected}")
         PY
 

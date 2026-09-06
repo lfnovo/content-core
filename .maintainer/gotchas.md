@@ -1,10 +1,17 @@
 # Release gotchas
 
-- `make tag` creates AND pushes a tag derived from `pyproject.toml`. It starts
-  distribution and requires the final candidate GO. Creating tags through another
-  command or the Create Tag workflow is not a preparation step.
+- `make release` publishes the existing draft GitHub Release and starts PyPI
+  distribution through `release: published`. It requires the exact candidate GO.
+  `make tag` only creates/pushes the version tag under the current workflow; saving
+  a draft release does not distribute to PyPI. Tags pointing to old workflow
+  revisions can still carry the former tag-push trigger; do not use them for a cut.
+- The GitHub Release must reference the validated candidate. Verify the remote
+  tag's resolved commit before publication. The Package job rejects a release tag
+  that differs from the project version (with or without the `v` prefix).
+- `published` covers releases published directly or from drafts, including
+  prereleases. Editing an already published release does not trigger a new upload.
 - `Publish` builds again in its reusable Package job, then uploads those validated
-  bytes to PyPI without rebuilding in the publish job. Pre-GO and tag-run builds
+  bytes to PyPI without rebuilding in the publish job. Pre-GO and release-run builds
   are separate artifacts; compare hashes and verify the actual registry files.
 - `uv build` alone is not the package gate. Exercise the installed library, CLI
   and real MCP initialization response outside the checkout.
