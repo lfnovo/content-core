@@ -506,7 +506,7 @@ make test-all      # everything
    - Remove `ccore`, `cclean`, `csum` binaries
 10. **Complete MCP server** with all 3 tools + config options
 11. **Update public API** in `__init__.py` — clean exports only
-12. **Update documentation** — README, CLAUDE.md, CHANGELOG
+12. **Update documentation** — README, AGENTS.md, CHANGELOG
 
 ### Phase 4: Cleanup
 

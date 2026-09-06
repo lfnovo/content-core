@@ -1,0 +1,51 @@
+schema_version = 1
+
+[project]
+name = "Content Core"
+repo = "lfnovo/content-core"
+artifact = "pypi-library"
+commands_doc = "AGENTS.md"
+
+[commands.validator]
+run = "make test"
+cwd = "."
+timeout = "15m"
+
+[contributing]
+conventions = "CONTRIBUTING.md"
+
+[release]
+process_doc = ".maintainer/release/runbook.md"
+change_delivery = "pr"
+versioning = "repository"
+changelog = "CHANGELOG.md"
+version_files = ["pyproject.toml", ".claude-plugin/plugin.json", ".codex-plugin/plugin.json", "uv.lock"]
+lock_command = "uv sync"
+distribution_trigger = "make tag"
+publish_workflow = ".github/workflows/publish.yml"
+notes_source = "CHANGELOG.md"
+consumer_surfaces = ["public Python API", "CLI commands and flags", "MCP tools and parameters", "configuration keys and environment variables", "supported formats and engines"]
+
+[release.gates]
+mandatory = ["validator", "package-gate", "bucket-c", "notes-approved"]
+optional = ["security-alerts"]
+not_gates = ["ruff", "mypy", "test-e2e", "test-e2e-heavy"]
+merge_own_prs = "ask-once-per-session"
+alerts_policy = "Report alerts when accessible. Disabled or inaccessible alerts remain not-run; never report zero alerts from an API error. Report known unresolved vulnerabilities to the owner before GO."
+
+[artifacts.pypi]
+package = "content-core"
+# Existing build entry point. package-gate passes only after ALL the runbook's
+# artifact-gate steps, including clean-room smokes and extras installation.
+gate = "uv build"
+surfaces = ["library", "cli", "mcp"]
+extras = ["docling", "crawl4ai", "langchain"]
+identity = "sha256"
+
+[comms]
+owner_language = "pt-BR"
+public_language = "en"
+agent_attribution = "none"
+
+[channels]
+announce = []

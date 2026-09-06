@@ -1,0 +1,2 @@
+# Keep maintainer configuration out of Git-generated source archives.
+.maintainer/ export-ignore
