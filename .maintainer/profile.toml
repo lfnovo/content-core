@@ -4,7 +4,7 @@ schema_version = 1
 name = "Content Core"
 repo = "lfnovo/content-core"
 artifact = "pypi-library"
-commands_doc = "CLAUDE.md"
+commands_doc = "AGENTS.md"
 
 [commands.validator]
 run = "make test"

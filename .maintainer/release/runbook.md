@@ -2,7 +2,7 @@
 
 ## Agreement and versioning
 
-Follow `CONTRIBUTING.md` for PR delivery, `CLAUDE.md` for canonical validation,
+Follow `CONTRIBUTING.md` for PR delivery, `AGENTS.md` for canonical validation,
 `ARCHITECTURE.md` for compatibility decisions and `CHANGELOG.md` for SemVer.
 The existing architecture decision treats fixes to hidden extraction errors as
 2.x fixes. New supported formats and public API additions are minor changes;
@@ -23,7 +23,7 @@ the candidate SHA, pre-existing working-tree changes and chosen checks under
 
 Run `make test` from the candidate checkout and retain the log/exit status.
 Require successful Test workflow jobs for Python 3.10, 3.11 and 3.12, plus Package,
-on the final integrated candidate. `CLAUDE.md` explicitly excludes ruff, mypy and
+on the final integrated candidate. `AGENTS.md` explicitly excludes ruff, mypy and
 broad external-service E2E suites from validator gates. The selected plan defines
 any optional external checks and authorized costs before those checks run.
 

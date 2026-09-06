@@ -10,7 +10,7 @@
   and real MCP initialization response outside the checkout.
 - `uv run --isolated --no-project` does not itself isolate Python imports. Use
   a temporary working directory, absolute wheel/fixture paths and `python -I`.
-- `make ruff` modifies files. Lint and mypy are not release gates (`CLAUDE.md`).
+- `make ruff` modifies files. Lint and mypy are not release gates (`AGENTS.md`).
 - E2E suites may call paid services or download large models. Select and authorize
   their scope before execution; skips and missing credentials are not passes.
 - The default `python3` on the current maintainer machine is older than the plugin

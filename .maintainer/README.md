@@ -11,5 +11,5 @@ It is not a list of maintainers.
 - `state/`: ignored run records, logs and artifact identities.
 - `profile.local.toml`: optional ignored preferences; cannot weaken shared gates.
 
-The canonical commands remain in `CLAUDE.md`, `Makefile` and the existing GitHub
+The canonical commands remain in `AGENTS.md`, `Makefile` and the existing GitHub
 workflows. This profile configures releases only; other capabilities are not onboarded.
