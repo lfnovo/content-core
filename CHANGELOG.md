@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Public exception exports from `content_core`: `ContentCoreError`, `UnsupportedTypeException`, `InvalidInputError`, `ConfigurationError`, `NotFoundError`, `NoTranscriptFound`, `NetworkError`, `ExternalServiceError` and `FileOperationError` (#50, #52). Typed failures can be caught through the public API. Some existing failures still escape as untyped exceptions until #60; exporting the taxonomy does not complete that migration.
 
 ### Changed
-- PyPI publication starts when a GitHub Release is published, including publishing a draft. Creating or pushing a tag alone no longer publishes. The packaging gate verifies that the release tag matches the package version.
+- PyPI publication starts when a GitHub Release is published, including publishing a draft. Creating or pushing a tag alone no longer publishes. The packaging gate verifies that the release tag matches the package version (#93).
 - Library imports no longer configure process-wide Loguru handlers. Content Core logging is disabled by default for library consumers; use `logger.enable("content_core")` with the host application's handlers, or `content_core.configure_logging()` from an application entry point. CLI and MCP entry points configure their own stderr logging and honor debug settings (#47).
 - Published wheel and sdist now come directly from the artifacts validated by the publishing workflow's packaging job, rather than being rebuilt in the upload job (#57).
 
