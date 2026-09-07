@@ -305,6 +305,23 @@ config = ContentCoreConfig(audio_concurrency=5)
 
 Higher values speed up processing of long files but may hit API rate limits.
 
+### Segment Length
+
+Long audio is split into 10-minute segments, a length that fits the upload
+size limits of the cloud STT APIs (OpenAI rejects uploads over 25 MB). A
+self-hosted endpoint has no such limit, and every cut costs it the context
+that falls across it. Set a longer segment, or `0` to send the file whole:
+
+```bash
+CCORE_AUDIO_SEGMENT_MINUTES=0
+```
+
+Or in code:
+
+```python
+config = ContentCoreConfig(audio_segment_minutes=0)
+```
+
 ### Custom STT Models
 
 Override the speech-to-text provider and model per call:

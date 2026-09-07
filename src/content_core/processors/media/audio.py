@@ -177,7 +177,7 @@ async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> Extract
 
             # Get duration via ffprobe
             duration_s = await get_audio_duration(file_path)
-            segment_length_s = 10 * 60
+            segment_length_s = config.audio_segment_minutes * 60
             output_files = []
 
             # Segments are stream-copied, so they must keep the source container:
@@ -186,9 +186,10 @@ async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> Extract
             # so stream copy stays valid while the upload becomes acceptable.
             source_ext = upload_extension(file_path) or ".mp3"
 
-            if duration_s > segment_length_s:
+            if segment_length_s and duration_s > segment_length_s:
                 logger.info(
-                    f"Audio is longer than 10 minutes ({duration_s:.0f}s), splitting into "
+                    f"Audio is longer than {config.audio_segment_minutes} minutes "
+                    f"({duration_s:.0f}s), splitting into "
                     f"{math.ceil(duration_s / segment_length_s)} segments"
                 )
                 loop = asyncio.get_event_loop()
