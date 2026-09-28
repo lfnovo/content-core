@@ -308,7 +308,7 @@ class TestIsRetryableException:
         assert not is_retryable_exception(AttributeError("No attribute"))
 
     def test_taxonomy_classification(self):
-        """Typed failures from the taxonomy: only NetworkError is transient."""
+        """NetworkError retries; tested permanent taxonomy failures ignore transient-looking messages."""
         from content_core.common.exceptions import (
             ConfigurationError,
             FileOperationError,

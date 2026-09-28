@@ -8,6 +8,7 @@ from content_core.common.exceptions import (
     ConfigurationError,
     ContentCoreError,
     ExternalServiceError,
+    InvalidInputError,
     NetworkError,
     NotFoundError,
 )
@@ -85,8 +86,11 @@ def to_typed_url_error(exc: Exception, url: str, service: str) -> ContentCoreErr
     "firecrawl", "crawl4ai", "simple") or "download". HTTP 404/410 from the
     target itself ("simple" and "download" fetch the URL directly) is
     ``NotFoundError``; any other HTTP error or API failure is
-    ``ExternalServiceError``; connection/timeout/DNS is ``NetworkError``.
+    ``ExternalServiceError``; connection/timeout/DNS is ``NetworkError``; a
+    malformed URL is ``InvalidInputError``.
     """
+    if isinstance(exc, aiohttp.InvalidURL):
+        return InvalidInputError(f"Invalid URL {url}: {exc}")
     if isinstance(exc, aiohttp.ClientResponseError):
         if service in ("simple", "download") and exc.status in (404, 410):
             return NotFoundError(f"{url} returned HTTP {exc.status}")
@@ -154,6 +158,7 @@ async def extract_from_url(url: str, config: ContentCoreConfig) -> ExtractionOut
     extract raises.
 
     Raises:
+        InvalidInputError: the URL is malformed.
         NetworkError: the page (or engine API) could not be reached.
         NotFoundError: the page answered 404/410 (``simple`` engine).
         ExternalServiceError: the engine or site returned an error.

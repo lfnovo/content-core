@@ -10,6 +10,7 @@ import aiohttp
 from content_core.common.exceptions import (
     ConfigurationError,
     ContentCoreError,
+    FileOperationError,
     InvalidInputError,
     UnsupportedTypeException,
 )
@@ -319,10 +320,15 @@ async def _download_remote_file(url: str) -> str:
     except Exception as e:
         raise to_typed_url_error(e, url, "download") from e
     suffix = os.path.splitext(urlparse(url).path)[1] if urlparse(url).path else ""
-    fd, tmp = tempfile.mkstemp(suffix=suffix)
-    os.close(fd)
-    with open(tmp, "wb") as f:
-        f.write(content)
+    tmp = None
+    try:
+        fd, tmp = tempfile.mkstemp(suffix=suffix)
+        with os.fdopen(fd, "wb") as f:
+            f.write(content)
+    except OSError as e:
+        if tmp is not None:
+            _safe_delete(tmp)
+        raise FileOperationError(f"Could not save download of {url}: {e}") from e
     return tmp
 
 

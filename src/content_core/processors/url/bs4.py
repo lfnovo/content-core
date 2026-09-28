@@ -69,7 +69,7 @@ async def extract_url_bs4(url: str) -> dict:
                 if content_tags
                 else soup.get_text(separator=" ", strip=True)
             )
-            content = content.strip() or "No content found"
+            content = content.strip()
 
         return {
             "title": title,

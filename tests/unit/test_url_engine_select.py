@@ -10,6 +10,7 @@ from content_core import extract_content
 from content_core.common.exceptions import (
     ConfigurationError,
     ExternalServiceError,
+    InvalidInputError,
     NetworkError,
     NotFoundError,
 )
@@ -280,7 +281,7 @@ async def test_simple_engine_server_error_raises_external_service_error():
 
 @pytest.mark.asyncio
 async def test_named_crawl4ai_not_installed_raises_configuration_error():
-    cfg = ContentCoreConfig(url_engine="crawl4ai")
+    cfg = ContentCoreConfig(url_engine="crawl4ai", crawl4ai_api_url=None)
     with patch.dict("sys.modules", {"crawl4ai": None}), patch.dict(
         "os.environ", {}, clear=False
     ) as env:
@@ -300,6 +301,31 @@ async def test_empty_page_returns_empty_content():
     ):
         result = await extract_from_url("https://example.com", cfg)
     assert result.content == ""
+
+
+@pytest.mark.asyncio
+async def test_simple_engine_empty_page_returns_empty_content():
+    """No placeholder text: an empty page is content=""."""
+    cfg = ContentCoreConfig(url_engine="simple")
+    with patch(
+        "content_core.processors.url.bs4._fetch_url_html",
+        new_callable=AsyncMock,
+        return_value="<html><body></body></html>",
+    ):
+        result = await extract_from_url("https://example.com/empty", cfg)
+    assert result.content == ""
+
+
+@pytest.mark.asyncio
+async def test_malformed_url_raises_invalid_input():
+    cfg = ContentCoreConfig(url_engine="simple")
+    with patch(
+        "content_core.processors.url.bs4._fetch_url_html",
+        new_callable=AsyncMock,
+        side_effect=aiohttp.InvalidURL("ftp//nope"),
+    ):
+        with pytest.raises(InvalidInputError):
+            await extract_from_url("ftp//nope", cfg)
 
 
 # ---------------------------------------------------------------------------
