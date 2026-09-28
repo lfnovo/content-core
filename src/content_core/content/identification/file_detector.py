@@ -149,6 +149,11 @@ class FileDetector:
             '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+
+            # OpenDocument formats
+            '.odt': 'application/vnd.oasis.opendocument.text',
+            '.ods': 'application/vnd.oasis.opendocument.spreadsheet',
+            '.odp': 'application/vnd.oasis.opendocument.presentation',
             
             # E-books
             '.epub': 'application/epub+zip',
@@ -283,11 +288,17 @@ class FileDetector:
         return None
 
     async def _detect_zip_format(self, file_path: Path) -> Optional[str]:
-        """Detect specific ZIP-based format (DOCX, XLSX, PPTX, EPUB)."""
+        """Detect specific ZIP-based format (DOCX, XLSX, PPTX, EPUB, ODF)."""
         try:
             with zipfile.ZipFile(file_path, 'r') as zf:
                 namelist = zf.namelist()
-                
+
+                # OpenDocument stores its exact MIME type in a `mimetype` member
+                if 'mimetype' in namelist:
+                    odf_mime = zf.read('mimetype').decode('ascii', errors='replace').strip()
+                    if odf_mime.startswith('application/vnd.oasis.opendocument'):
+                        return odf_mime
+
                 # Check for specific content patterns
                 for pattern, mime_type in self.zip_content_patterns.items():
                     if any(name.startswith(pattern) for name in namelist):

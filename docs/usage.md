@@ -67,6 +67,9 @@ result = await content_core.extract_content(file_path="slides.pptx")
 # Excel
 result = await content_core.extract_content(file_path="data.xlsx")
 
+# OpenDocument (LibreOffice): .odt, .ods, .odp
+result = await content_core.extract_content(file_path="report.odt")
+
 # Use Docling engine for richer parsing
 from content_core import ContentCoreConfig
 config = ContentCoreConfig(document_engine="docling", docling_output_format="html")
@@ -222,7 +225,7 @@ The `document_engine` setting controls how files (PDF, DOCX, PPTX, XLSX, HTML) a
 | Engine | Description | Requirements |
 |--------|-------------|-------------|
 | `auto` (default) | Tries Docling first, falls back to simple | Depends on installed extras |
-| `simple` | pdfplumber for PDF, fast-ebook for EPUB, python-docx/openpyxl/python-pptx for Office, markdownify for HTML | None (included) |
+| `simple` | pdfplumber for PDF, fast-ebook for EPUB, python-docx/openpyxl/python-pptx for Office, odfpy for OpenDocument, markdownify for HTML | None (included) |
 | `docling` | Docling library for rich document parsing | `pip install content-core[docling]` |
 
 `auto` is a preference: it uses Docling when installed and silently falls back to `simple` otherwise. `docling` is a requirement: if the extra is not installed, extraction raises `ConfigurationError` instead of silently producing simple-engine output. Install it with `pip install content-core[docling]`, or set `CCORE_DOCUMENT_ENGINE=simple` (or `auto`) to proceed without it.

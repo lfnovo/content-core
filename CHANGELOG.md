@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- OpenDocument extraction for `.odt`, `.ods` and `.odp` through the office route, using `odfpy` (new core dependency). Text documents become markdown paragraphs, headings, lists and tables; spreadsheets become one markdown table per sheet; presentations become one block per slide. Detection reads the ZIP's `mimetype` member, so a wrong or missing extension still works (#43).
+
 ## [2.1.0] - 2026-09-06
 
 ### Added
