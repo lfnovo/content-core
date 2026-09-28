@@ -104,9 +104,10 @@ both are off by default, and with neither set the behavior is unchanged.
 
 **Browser cookies** (`youtube_cookies_file` / `CCORE_YOUTUBE_COOKIES_FILE`) —
 path to a Netscape-format `cookies.txt` exported from a browser that is logged
-in to YouTube (use a "Get cookies.txt"-style browser extension, or
-`yt-dlp --cookies-from-browser chrome --cookies cookies.txt`). This unblocks the
-transcript path on the same IP.
+in to YouTube (use a "Get cookies.txt"-style browser extension, or let yt-dlp
+dump its cookie jar: `yt-dlp --cookies-from-browser chrome --cookies cookies.txt
+--skip-download <any YouTube URL>`). This unblocks the transcript path on the
+same IP.
 
 - Cookies are credentials: keep the file private. Content Core logs only the
   file path (at debug level), never cookie values.

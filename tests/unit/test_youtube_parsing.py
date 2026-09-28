@@ -303,6 +303,12 @@ class TestYoutubeCookiesAndProxy:
         config = ContentCoreConfig(youtube_proxy=DUMMY_PROXY)
         with (
             patch(
+                "content_core.processors.url.youtube.YouTubeTranscriptApi"
+            ) as mock_api,
+            patch(
+                "content_core.processors.url.youtube.GenericProxyConfig"
+            ) as mock_proxy,
+            patch(
                 "content_core.processors.url.youtube.get_best_transcript",
                 new_callable=AsyncMock,
                 return_value=None,
@@ -319,11 +325,9 @@ class TestYoutubeCookiesAndProxy:
         ):
             await extract_youtube("https://www.youtube.com/watch?v=dQw4w9WgXcQ", config)
 
-        api = mock_transcript.call_args.kwargs["api"]
-        assert api._fetcher._http_client.proxies == {
-            "http": DUMMY_PROXY,
-            "https": DUMMY_PROXY,
-        }
+        mock_proxy.assert_called_once_with(http_url=DUMMY_PROXY, https_url=DUMMY_PROXY)
+        mock_api.assert_called_once_with(proxy_config=mock_proxy.return_value)
+        assert mock_transcript.call_args.kwargs["api"] is mock_api.return_value
         assert mock_pytubefix.call_args.kwargs["proxy"] == DUMMY_PROXY
 
     def test_youtube_pytubefix_receives_proxies(self):
