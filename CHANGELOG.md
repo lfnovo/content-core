@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- YouTube cookie and proxy support for the transcript path (#46). `youtube_cookies_file` (`CCORE_YOUTUBE_COOKIES_FILE`) loads a Netscape `cookies.txt` into the `youtube-transcript-api` session, unblocking IP-flagged networks; a missing or unreadable file raises `ConfigurationError`. `youtube_proxy` (`CCORE_YOUTUBE_PROXY`) routes both `youtube-transcript-api` and the `pytubefix` fallback through a proxy URL — use a residential proxy, as datacenter proxies are blocked. With neither set, behavior is unchanged. Cookie values are never logged.
+
 ## [2.1.0] - 2026-09-06
 
 ### Added

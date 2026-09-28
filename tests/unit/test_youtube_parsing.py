@@ -1,11 +1,32 @@
 """Unit tests for content_core.processors.url.youtube."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+import http.cookiejar
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 
+from content_core.common.exceptions import ConfigurationError
 from content_core.config import ContentCoreConfig
-from content_core.processors.url.youtube import _extract_youtube_id, extract_youtube
+from content_core.processors.url.youtube import (
+    _build_transcript_api,
+    _fetch_transcript_pytubefix,
+    _extract_youtube_id,
+    extract_youtube,
+)
+
+# Dummy values only -- never real cookies in fixtures.
+DUMMY_COOKIE_VALUE = "dummy-cookie-value-not-a-secret"
+DUMMY_PROXY = "http://user:pass@proxy.example.invalid:8080"
+
+
+@pytest.fixture
+def cookies_file(tmp_path):
+    path = tmp_path / "cookies.txt"
+    path.write_text(
+        "# Netscape HTTP Cookie File\n"
+        f".youtube.com\tTRUE\t/\tTRUE\t0\tDUMMY\t{DUMMY_COOKIE_VALUE}\n"
+    )
+    return path
 
 
 class TestExtractYoutubeId:
@@ -157,7 +178,169 @@ class TestExtractYoutube:
             await extract_youtube(
                 "https://www.youtube.com/watch?v=dQw4w9WgXcQ", custom_config
             )
-            mock_transcript.assert_called_once_with("dQw4w9WgXcQ", ["fr", "de"])
-            mock_pytubefix.assert_called_once_with(
-                "https://www.youtube.com/watch?v=dQw4w9WgXcQ", ["fr", "de"]
+            mock_transcript.assert_called_once_with(
+                "dQw4w9WgXcQ", ["fr", "de"], api=ANY
             )
+            mock_pytubefix.assert_called_once_with(
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ", ["fr", "de"], proxy=None
+            )
+
+
+class TestYoutubeCookiesAndProxy:
+    def test_youtube_neither_set_instantiates_api_without_args(self):
+        with patch(
+            "content_core.processors.url.youtube.YouTubeTranscriptApi"
+        ) as mock_api:
+            _build_transcript_api(ContentCoreConfig())
+        mock_api.assert_called_once_with()
+
+    def test_youtube_cookies_file_loaded_into_session(self, cookies_file):
+        config = ContentCoreConfig(youtube_cookies_file=str(cookies_file))
+        with patch(
+            "content_core.processors.url.youtube.YouTubeTranscriptApi"
+        ) as mock_api:
+            _build_transcript_api(config)
+
+        kwargs = mock_api.call_args.kwargs
+        assert set(kwargs) == {"http_client"}
+        jar = kwargs["http_client"].cookies
+        assert isinstance(jar, http.cookiejar.MozillaCookieJar)
+        assert jar.filename == str(cookies_file)
+        assert [(c.name, c.value) for c in jar] == [("DUMMY", DUMMY_COOKIE_VALUE)]
+
+    def test_youtube_proxy_builds_generic_proxy_config(self):
+        config = ContentCoreConfig(youtube_proxy=DUMMY_PROXY)
+        with (
+            patch(
+                "content_core.processors.url.youtube.YouTubeTranscriptApi"
+            ) as mock_api,
+            patch(
+                "content_core.processors.url.youtube.GenericProxyConfig"
+            ) as mock_proxy,
+        ):
+            _build_transcript_api(config)
+
+        mock_proxy.assert_called_once_with(http_url=DUMMY_PROXY, https_url=DUMMY_PROXY)
+        mock_api.assert_called_once_with(proxy_config=mock_proxy.return_value)
+
+    def test_youtube_cookies_and_proxy_together(self, cookies_file):
+        config = ContentCoreConfig(
+            youtube_cookies_file=str(cookies_file), youtube_proxy=DUMMY_PROXY
+        )
+        with patch(
+            "content_core.processors.url.youtube.YouTubeTranscriptApi"
+        ) as mock_api:
+            _build_transcript_api(config)
+
+        assert set(mock_api.call_args.kwargs) == {"http_client", "proxy_config"}
+
+    def test_youtube_missing_cookies_file_raises(self, tmp_path):
+        config = ContentCoreConfig(youtube_cookies_file=str(tmp_path / "nope.txt"))
+        with pytest.raises(ConfigurationError, match="nope.txt"):
+            _build_transcript_api(config)
+
+    def test_youtube_malformed_cookies_file_raises_without_leaking(self, tmp_path):
+        path = tmp_path / "cookies.txt"
+        path.write_text(f"not a cookies file\tSECRET={DUMMY_COOKIE_VALUE}\n")
+        config = ContentCoreConfig(youtube_cookies_file=str(path))
+        with pytest.raises(ConfigurationError) as exc_info:
+            _build_transcript_api(config)
+        assert DUMMY_COOKIE_VALUE not in str(exc_info.value)
+        assert exc_info.value.__cause__ is None
+        assert exc_info.value.__suppress_context__
+
+    async def test_youtube_missing_cookies_file_raises_from_extract(self, tmp_path):
+        config = ContentCoreConfig(youtube_cookies_file=str(tmp_path / "nope.txt"))
+        with patch(
+            "content_core.processors.url.youtube.get_best_transcript",
+            new_callable=AsyncMock,
+        ) as mock_transcript:
+            with pytest.raises(ConfigurationError):
+                await extract_youtube(
+                    "https://www.youtube.com/watch?v=dQw4w9WgXcQ", config
+                )
+        mock_transcript.assert_not_called()
+
+    async def test_youtube_cookie_values_not_logged(self, cookies_file):
+        from content_core.logging import logger
+
+        messages = []
+        logger.enable("content_core")
+        sink_id = logger.add(messages.append, level="DEBUG")
+        try:
+            config = ContentCoreConfig(
+                youtube_cookies_file=str(cookies_file), youtube_proxy=DUMMY_PROXY
+            )
+            with (
+                patch(
+                    "content_core.processors.url.youtube.get_best_transcript",
+                    new_callable=AsyncMock,
+                    return_value=None,
+                ),
+                patch(
+                    "content_core.processors.url.youtube.get_video_title",
+                    new_callable=AsyncMock,
+                    return_value="",
+                ),
+                patch(
+                    "content_core.processors.url.youtube.extract_transcript_pytubefix",
+                    return_value=(None, None),
+                ),
+            ):
+                await extract_youtube(
+                    "https://www.youtube.com/watch?v=dQw4w9WgXcQ", config
+                )
+        finally:
+            logger.remove(sink_id)
+            logger.disable("content_core")
+
+        logged = "".join(str(m) for m in messages)
+        assert str(cookies_file) in logged
+        assert DUMMY_COOKIE_VALUE not in logged
+        assert "user:pass" not in logged
+
+    async def test_youtube_proxy_passed_to_both_paths(self):
+        config = ContentCoreConfig(youtube_proxy=DUMMY_PROXY)
+        with (
+            patch(
+                "content_core.processors.url.youtube.get_best_transcript",
+                new_callable=AsyncMock,
+                return_value=None,
+            ) as mock_transcript,
+            patch(
+                "content_core.processors.url.youtube.get_video_title",
+                new_callable=AsyncMock,
+                return_value="",
+            ),
+            patch(
+                "content_core.processors.url.youtube.extract_transcript_pytubefix",
+                return_value=(None, None),
+            ) as mock_pytubefix,
+        ):
+            await extract_youtube("https://www.youtube.com/watch?v=dQw4w9WgXcQ", config)
+
+        api = mock_transcript.call_args.kwargs["api"]
+        assert api._fetcher._http_client.proxies == {
+            "http": DUMMY_PROXY,
+            "https": DUMMY_PROXY,
+        }
+        assert mock_pytubefix.call_args.kwargs["proxy"] == DUMMY_PROXY
+
+    def test_youtube_pytubefix_receives_proxies(self):
+        with patch("pytubefix.YouTube") as mock_yt:
+            mock_yt.return_value.captions = {}
+            _fetch_transcript_pytubefix(
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ", ["en"], DUMMY_PROXY
+            )
+        mock_yt.assert_called_once_with(
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            proxies={"http": DUMMY_PROXY, "https": DUMMY_PROXY},
+        )
+
+    def test_youtube_pytubefix_without_proxy_unchanged(self):
+        with patch("pytubefix.YouTube") as mock_yt:
+            mock_yt.return_value.captions = {}
+            _fetch_transcript_pytubefix(
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ", ["en"]
+            )
+        mock_yt.assert_called_once_with("https://www.youtube.com/watch?v=dQw4w9WgXcQ")

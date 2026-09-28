@@ -84,6 +84,8 @@ class ContentCoreConfig(BaseSettings):
 
     # YouTube
     youtube_languages: list[str] = Field(default=["en", "es", "pt"])
+    youtube_cookies_file: Optional[str] = None  # path to a Netscape cookies.txt
+    youtube_proxy: Optional[str] = None  # proxy URL, e.g. http://user:pass@host:port
 
     # Docling
     docling_output_format: str = "markdown"
