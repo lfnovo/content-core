@@ -190,3 +190,39 @@ class TestFileDetectorOpenDocument:
         assert await detector.detect(str(fixtures / "file.ods")) == self.ODF_MIMES[1]
         assert await detector.detect(str(fixtures / "file.odp")) == self.ODF_MIMES[2]
         assert await detector.detect(str(fixtures / "file.epub")) == "application/epub+zip"
+
+
+@pytest.mark.asyncio
+async def test_oversized_mimetype_member_read_is_bounded(tmp_path, monkeypatch):
+    """A huge `mimetype` member is not decompressed in full just to sniff it."""
+    import zipfile
+
+    path = tmp_path / "bomb.zip"
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr(
+            "mimetype",
+            "application/vnd.oasis.opendocument.text" + " " * 5_000_000,
+            compress_type=zipfile.ZIP_DEFLATED,
+        )
+
+    reads = []
+    real_open = zipfile.ZipFile.open
+
+    def tracking_open(self, name, *args, **kwargs):
+        member = real_open(self, name, *args, **kwargs)
+        real_read = member.read
+
+        def read(n=-1):
+            data = real_read(n)
+            reads.append(len(data))
+            return data
+
+        member.read = read
+        return member
+
+    monkeypatch.setattr(zipfile.ZipFile, "open", tracking_open)
+
+    detected = await FileDetector().detect(str(path))
+
+    assert detected == "application/vnd.oasis.opendocument.text"
+    assert reads and max(reads) <= FileDetector.ZIP_MIMETYPE_READ_SIZE

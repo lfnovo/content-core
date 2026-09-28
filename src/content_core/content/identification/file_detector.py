@@ -17,6 +17,7 @@ class FileDetector:
     # Configuration constants for binary/text detection
     SIGNATURE_READ_SIZE = 512  # Bytes to read for binary signature detection
     TEXT_READ_SIZE = 1024      # Bytes to read for text content analysis
+    ZIP_MIMETYPE_READ_SIZE = 256  # Bytes to read from a ZIP `mimetype` member (ODF/EPUB)
 
     # Configuration constants for CSV detection
     CSV_MAX_FIELD_LENGTH = 100  # Maximum average field length for CSV (longer suggests prose)
@@ -294,8 +295,11 @@ class FileDetector:
                 namelist = zf.namelist()
 
                 # OpenDocument stores its exact MIME type in a `mimetype` member
+                # (bounded read: the member is a short constant string)
                 if 'mimetype' in namelist:
-                    odf_mime = zf.read('mimetype').decode('ascii', errors='replace').strip()
+                    with zf.open('mimetype') as member:
+                        raw = member.read(self.ZIP_MIMETYPE_READ_SIZE)
+                    odf_mime = raw.decode('ascii', errors='replace').strip()
                     if odf_mime.startswith('application/vnd.oasis.opendocument'):
                         return odf_mime
 

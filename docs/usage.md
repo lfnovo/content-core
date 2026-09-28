@@ -220,7 +220,7 @@ FIRECRAWL_API_KEY=anykey
 
 ### Document Engines
 
-The `document_engine` setting controls how files (PDF, DOCX, PPTX, XLSX, HTML) are processed:
+The `document_engine` setting controls how files (PDF, DOCX, PPTX, XLSX, ODT, ODS, ODP, HTML) are processed:
 
 | Engine | Description | Requirements |
 |--------|-------------|-------------|
