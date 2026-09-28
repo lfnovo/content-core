@@ -3,6 +3,7 @@ import asyncio
 
 from fast_ebook.epub import read_epub
 
+from content_core.common.exceptions import FileOperationError
 from content_core.config import ContentCoreConfig
 from content_core.logging import logger
 from content_core.common.state import ExtractionOutput
@@ -27,4 +28,4 @@ async def extract_epub_file(file_path: str, config: ContentCoreConfig) -> Extrac
     except FileNotFoundError:
         raise
     except Exception as e:
-        raise RuntimeError(f"EPUB extraction failed for {file_path}") from e
+        raise FileOperationError(f"EPUB extraction failed for {file_path}: {e}") from e

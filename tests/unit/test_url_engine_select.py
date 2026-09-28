@@ -1,14 +1,32 @@
 """Tests for URL engine selection logic in extract_from_url."""
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import aiohttp
 import pytest
 
-from content_core.common.exceptions import ConfigurationError
+from content_core import extract_content
+from content_core.common.exceptions import (
+    ConfigurationError,
+    ExternalServiceError,
+    NetworkError,
+    NotFoundError,
+)
 from content_core.config import ContentCoreConfig
 from content_core.common.state import ExtractionOutput
 from content_core.processors.url import extract_from_url
+
+
+def _http_error(status: int) -> aiohttp.ClientResponseError:
+    return aiohttp.ClientResponseError(
+        request_info=MagicMock(), history=(), status=status, message="err"
+    )
+
+
+@pytest.fixture
+def no_firecrawl_key(monkeypatch):
+    monkeypatch.delenv("FIRECRAWL_API_KEY", raising=False)
 
 
 # ---------------------------------------------------------------------------
@@ -144,7 +162,7 @@ async def test_firecrawl_default_proxy_and_wait():
 
 
 # ---------------------------------------------------------------------------
-# 8. Config/routing errors propagate; network failures still degrade
+# 8. Failures raise typed errors; only `auto` falls through the chain
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_unknown_engine_error_propagates():
@@ -165,20 +183,16 @@ async def test_unknown_engine_error_propagates():
 
 
 @pytest.mark.asyncio
-async def test_engine_parse_failure_still_degrades_to_empty_output():
-    """A ValueError from a processor is not a config error: it still degrades.
-
-    (The revised raise/degrade boundary in #60 changes this; #51 only stops
-    configuration errors from being swallowed.)
-    """
+async def test_named_engine_unexpected_failure_raises_external_service_error():
     cfg = ContentCoreConfig(url_engine="simple")
     with patch(
         "content_core.processors.url.extract_url_bs4",
         new_callable=AsyncMock,
-        side_effect=ValueError("No content extracted by readability"),
+        side_effect=ValueError("boom"),
     ):
-        result = await extract_from_url("https://example.com", cfg)
-    assert result.content == ""
+        with pytest.raises(ExternalServiceError) as exc:
+            await extract_from_url("https://example.com", cfg)
+    assert isinstance(exc.value.__cause__, ValueError)
 
 
 @pytest.mark.asyncio
@@ -194,13 +208,191 @@ async def test_configuration_error_propagates():
 
 
 @pytest.mark.asyncio
-async def test_network_failure_still_degrades_to_empty_output():
+@pytest.mark.parametrize(
+    "error",
+    [
+        ConnectionError("boom"),
+        aiohttp.ClientConnectionError("dns"),
+        aiohttp.ServerTimeoutError("slow"),
+        TimeoutError("slow"),
+    ],
+)
+async def test_named_engine_network_failure_raises_network_error(error):
     cfg = ContentCoreConfig(url_engine="jina")
     with patch(
         "content_core.processors.url.extract_url_jina",
         new_callable=AsyncMock,
-        side_effect=ConnectionError("boom"),
+        side_effect=error,
+    ):
+        with pytest.raises(NetworkError) as exc:
+            await extract_from_url("https://example.com", cfg)
+    assert exc.value.__cause__ is error
+
+
+@pytest.mark.asyncio
+async def test_named_api_engine_http_error_raises_external_service_error():
+    cfg = ContentCoreConfig(url_engine="jina")
+    with patch(
+        "content_core.processors.url.extract_url_jina",
+        new_callable=AsyncMock,
+        side_effect=_http_error(401),
+    ):
+        with pytest.raises(ExternalServiceError, match="401"):
+            await extract_from_url("https://example.com", cfg)
+
+
+@pytest.mark.asyncio
+async def test_firecrawl_sdk_error_raises_external_service_error():
+    cfg = ContentCoreConfig(url_engine="firecrawl")
+    with patch(
+        "content_core.processors.url.firecrawl._fetch_url_firecrawl",
+        new_callable=AsyncMock,
+        side_effect=Exception("Unauthorized: invalid token"),
+    ):
+        with pytest.raises(ExternalServiceError):
+            await extract_from_url("https://example.com", cfg)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [404, 410])
+async def test_simple_engine_missing_page_raises_not_found(status):
+    cfg = ContentCoreConfig(url_engine="simple")
+    with patch(
+        "content_core.processors.url.bs4._fetch_url_html",
+        new_callable=AsyncMock,
+        side_effect=_http_error(status),
+    ):
+        with pytest.raises(NotFoundError):
+            await extract_from_url("https://example.com/gone", cfg)
+
+
+@pytest.mark.asyncio
+async def test_simple_engine_server_error_raises_external_service_error():
+    cfg = ContentCoreConfig(url_engine="simple")
+    with patch(
+        "content_core.processors.url.bs4._fetch_url_html",
+        new_callable=AsyncMock,
+        side_effect=_http_error(503),
+    ):
+        with pytest.raises(ExternalServiceError):
+            await extract_from_url("https://example.com", cfg)
+
+
+@pytest.mark.asyncio
+async def test_named_crawl4ai_not_installed_raises_configuration_error():
+    cfg = ContentCoreConfig(url_engine="crawl4ai")
+    with patch.dict("sys.modules", {"crawl4ai": None}), patch.dict(
+        "os.environ", {}, clear=False
+    ) as env:
+        env.pop("CRAWL4AI_API_URL", None)
+        with pytest.raises(ConfigurationError, match="content-core\\[crawl4ai\\]"):
+            await extract_from_url("https://example.com", cfg)
+
+
+@pytest.mark.asyncio
+async def test_empty_page_returns_empty_content():
+    """A page with nothing to extract is not an error."""
+    cfg = ContentCoreConfig(url_engine="jina")
+    with patch(
+        "content_core.processors.url.extract_url_jina",
+        new_callable=AsyncMock,
+        return_value={"content": ""},
     ):
         result = await extract_from_url("https://example.com", cfg)
-    assert isinstance(result, ExtractionOutput)
     assert result.content == ""
+
+
+# ---------------------------------------------------------------------------
+# 9. auto falls through the chain and raises only when every engine failed
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_auto_falls_through_to_bs4(no_firecrawl_key):
+    cfg = ContentCoreConfig(url_engine="auto")
+    with patch(
+        "content_core.processors.url.extract_url_jina",
+        new_callable=AsyncMock,
+        side_effect=_http_error(500),
+    ) as jina, patch(
+        "content_core.processors.url.extract_url_crawl4ai",
+        new_callable=AsyncMock,
+        side_effect=ConfigurationError("Crawl4AI is not installed"),
+    ) as crawl, patch(
+        "content_core.processors.url.extract_url_bs4",
+        new_callable=AsyncMock,
+        return_value={"title": "B", "content": "BS4 Content"},
+    ) as bs4:
+        result = await extract_from_url("https://example.com", cfg)
+    jina.assert_awaited_once()
+    crawl.assert_awaited_once()
+    bs4.assert_awaited_once()
+    assert result.content == "BS4 Content"
+
+
+@pytest.mark.asyncio
+async def test_auto_firecrawl_failure_falls_through_to_jina(monkeypatch):
+    monkeypatch.setenv("FIRECRAWL_API_KEY", "test-key")
+    cfg = ContentCoreConfig(url_engine="auto")
+    with patch(
+        "content_core.processors.url.extract_url_firecrawl",
+        new_callable=AsyncMock,
+        side_effect=Exception("rate limited"),
+    ), patch(
+        "content_core.processors.url.extract_url_jina",
+        new_callable=AsyncMock,
+        return_value={"title": "J", "content": "Jina Content"},
+    ):
+        result = await extract_from_url("https://example.com", cfg)
+    assert result.content == "Jina Content"
+
+
+@pytest.mark.asyncio
+async def test_auto_raises_last_error_when_every_engine_fails(no_firecrawl_key):
+    cfg = ContentCoreConfig(url_engine="auto")
+    last = aiohttp.ClientConnectionError("dns")
+    with patch(
+        "content_core.processors.url.extract_url_jina",
+        new_callable=AsyncMock,
+        side_effect=_http_error(500),
+    ), patch(
+        "content_core.processors.url.extract_url_crawl4ai",
+        new_callable=AsyncMock,
+        side_effect=RuntimeError("no browser"),
+    ), patch(
+        "content_core.processors.url.extract_url_bs4",
+        new_callable=AsyncMock,
+        side_effect=last,
+    ):
+        with pytest.raises(NetworkError) as exc:
+            await extract_from_url("https://example.com", cfg)
+    assert exc.value.__cause__ is last
+
+
+# ---------------------------------------------------------------------------
+# 10. extract_content: an unreachable host raises, it does not return empty
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+@pytest.mark.parametrize("engine", ["simple", "auto"])
+async def test_extract_content_unreachable_host_raises_network_error(
+    engine, no_firecrawl_key
+):
+    unreachable = aiohttp.ClientConnectionError("Cannot connect to host")
+    cfg = ContentCoreConfig(url_engine=engine)
+    with patch(
+        "content_core.processors.url._fetch_url_mime_type",
+        new_callable=AsyncMock,
+        side_effect=unreachable,
+    ), patch(
+        "content_core.processors.url.jina._fetch_url_jina",
+        new_callable=AsyncMock,
+        side_effect=_http_error(502),
+    ), patch(
+        "content_core.processors.url.extract_url_crawl4ai",
+        new_callable=AsyncMock,
+        side_effect=ConfigurationError("Crawl4AI is not installed"),
+    ), patch(
+        "content_core.processors.url.bs4._fetch_url_html",
+        new_callable=AsyncMock,
+        side_effect=unreachable,
+    ):
+        with pytest.raises(NetworkError):
+            await extract_content(url="https://unreachable.invalid/page", config=cfg)

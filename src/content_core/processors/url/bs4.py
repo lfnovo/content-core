@@ -27,6 +27,9 @@ async def extract_url_bs4(url: str) -> dict:
 
     Returns:
         dict: A dictionary containing the 'title' and 'content' of the webpage.
+
+    Raises on failure; the engine router in ``processors/url/__init__.py``
+    types the error.
     """
     try:
         # Fetch the webpage content with retry
@@ -75,7 +78,4 @@ async def extract_url_bs4(url: str) -> dict:
 
     except Exception as e:
         logger.error(f"Error processing URL {url} after retries: {e}")
-        return {
-            "title": "Error",
-            "content": f"Failed to extract content: {str(e)}",
-        }
+        raise

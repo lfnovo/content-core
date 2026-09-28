@@ -1,9 +1,10 @@
 """Unit tests for content_core.processors.document.pdf."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from content_core.common.exceptions import FileOperationError
 from content_core.config import ContentCoreConfig
 from content_core.processors.document.pdf import clean_pdf_text, extract_pdf_file
 
@@ -60,3 +61,23 @@ class TestExtractPdfFile:
         ):
             with pytest.raises(FileNotFoundError):
                 await extract_pdf_file("/no/such/file.pdf", config)
+
+    async def test_corrupted_pdf_raises_file_operation_error(self, config, tmp_path):
+        corrupted = tmp_path / "corrupted.pdf"
+        corrupted.write_bytes(b"%PDF-1.4 this is not really a pdf")
+        with pytest.raises(FileOperationError) as exc_info:
+            await extract_pdf_file(str(corrupted), config)
+        assert exc_info.value.__cause__ is not None
+
+    async def test_valid_but_empty_pdf_returns_empty_content(self, config):
+        page = MagicMock()
+        page.extract_text.return_value = None
+        page.extract_tables.return_value = []
+        pdf = MagicMock()
+        pdf.pages = [page]
+        pdf.__enter__.return_value = pdf
+        with patch(
+            "content_core.processors.document.pdf.pdfplumber.open", return_value=pdf
+        ):
+            result = await extract_pdf_file("/fake/blank.pdf", config)
+        assert result.content == ""

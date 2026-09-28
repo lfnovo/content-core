@@ -1,15 +1,8 @@
 """The public exception taxonomy for ``extract_content``.
 
 Per the raise/degrade boundary in ``ARCHITECTURE.md``, total failure raises
-one of these; degradation only exists within a single source.
-
-The taxonomy is complete, its raise sites are not yet: ``NotFoundError``,
-``NetworkError``, ``ExternalServiceError`` and ``FileOperationError`` have
-no raise site in this release -- the failures they name still escape as
-untyped exceptions (an ``aiohttp.ClientError`` out of a download, say)
-until the migration in #60 lands. ``ContentCoreError`` catches every typed
-failure, so it is the right single handler -- but it does not yet cover the
-whole library.
+one of these; degradation only exists within a single source. Every one
+derives from ``ContentCoreError``, the single handler for typed failures.
 """
 
 
