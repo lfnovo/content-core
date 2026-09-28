@@ -62,14 +62,12 @@ async def extract_url_bs4(url: str) -> dict:
             content_tags = soup.select(
                 'article, .content, .post, main, [role="main"], div[class*="content"], div[class*="article"]'
             )
-            content = (
-                " ".join(
-                    tag.get_text(separator=" ", strip=True) for tag in content_tags
-                )
-                if content_tags
-                else soup.get_text(separator=" ", strip=True)
-            )
-            content = content.strip()
+            content = " ".join(
+                tag.get_text(separator=" ", strip=True) for tag in content_tags
+            ).strip()
+            if not content:
+                # No content tags, or they were empty: use the whole page.
+                content = soup.get_text(separator=" ", strip=True).strip()
 
         return {
             "title": title,

@@ -317,6 +317,29 @@ async def test_simple_engine_empty_page_returns_empty_content():
 
 
 @pytest.mark.asyncio
+async def test_simple_engine_empty_content_tag_falls_back_to_page_text():
+    """An empty <main> must not mask visible text elsewhere on the page."""
+    cfg = ContentCoreConfig(url_engine="simple")
+    html = "<html><body><main></main><p>Visible text</p></body></html>"
+    with patch(
+        "content_core.processors.url.bs4._fetch_url_html",
+        new_callable=AsyncMock,
+        return_value=html,
+    ), patch(
+        "content_core.processors.url.bs4.Document",
+        side_effect=ValueError("readability failed"),
+    ):
+        result = await extract_from_url("https://example.com", cfg)
+    assert "Visible text" in result.content
+
+
+@pytest.mark.asyncio
+async def test_extract_content_malformed_ipv6_url_raises_invalid_input():
+    with pytest.raises(InvalidInputError):
+        await extract_content(url="http://[::1/page")
+
+
+@pytest.mark.asyncio
 async def test_malformed_url_raises_invalid_input():
     cfg = ContentCoreConfig(url_engine="simple")
     with patch(

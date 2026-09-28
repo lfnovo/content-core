@@ -99,9 +99,13 @@ async def extract_content(
 
 async def _extract_url(url: str, cfg: ContentCoreConfig) -> ExtractionOutput:
     """Route URL to appropriate processor."""
+    try:
+        parsed = urlparse(url)
+        hostname = (parsed.hostname or "").lower()
+    except ValueError as e:  # e.g. a malformed IPv6 netloc
+        raise InvalidInputError(f"Invalid URL {url}: {e}") from e
+
     # YouTube detection
-    parsed = urlparse(url)
-    hostname = (parsed.hostname or "").lower()
     if hostname in ("youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"):
         return await extract_youtube(url, cfg)
 
