@@ -36,6 +36,7 @@ dependencies = [
     "tomli>=2.0; python_version < '3.11'",
     "click>=8.3.0",
     "odfpy>=1.4.1",
+    "requests>=2.31.0",
 ]
 
 [project.optional-dependencies]
