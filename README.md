@@ -226,6 +226,7 @@ Content Core uses `ContentCoreConfig` powered by pydantic-settings. Settings are
 | `CCORE_URL_ENGINE` | URL extraction engine (`auto`, `simple`, `firecrawl`, `jina`, `crawl4ai`) | `auto` |
 | `CCORE_DOCUMENT_ENGINE` | Document extraction engine (`auto`, `simple`, `docling`) — `docling` raises `ConfigurationError` if the extra is not installed; `auto` falls back silently | `auto` |
 | `CCORE_AUDIO_CONCURRENCY` | Concurrent audio transcriptions (1-10) | `3` |
+| `CCORE_AUDIO_SEGMENT_MINUTES` | Length of the segments long audio is split into; `0` sends the file whole | `10` |
 | `CRAWL4AI_API_URL` | Crawl4AI Docker API URL (omit for local browser mode) | - |
 | `CRAWL4AI_API_TOKEN` | Bearer token for the Crawl4AI Docker API (required by Crawl4AI >= 0.9.0) | - |
 | `FIRECRAWL_API_URL` | Custom Firecrawl API URL for self-hosted instances or Firecrawl-compatible backends (e.g. fastCRW) | - |
@@ -237,12 +238,18 @@ Content Core uses `ContentCoreConfig` powered by pydantic-settings. Settings are
 | `CCORE_STT_MODEL` | Speech-to-text model | - |
 | `CCORE_STT_TIMEOUT` | Speech-to-text timeout in seconds | - |
 | `CCORE_YOUTUBE_LANGUAGES` | Preferred YouTube transcript languages | - |
+| `CCORE_YOUTUBE_COOKIES_FILE` | Path to a Netscape `cookies.txt` for YouTube transcripts (missing file raises `ConfigurationError`) | - |
+| `CCORE_YOUTUBE_PROXY` | Proxy URL for YouTube transcripts, e.g. `http://user:pass@host:port` | - |
 
 API keys for external services are set via their standard environment variables (e.g., `OPENAI_API_KEY`, `FIRECRAWL_API_KEY`, `JINA_API_KEY`).
 
 ### Proxy Configuration
 
 Content Core reads standard `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` environment variables automatically. No additional configuration is needed.
+
+### YouTube on Blocked Networks
+
+If YouTube extraction fails with `IpBlocked`/`RequestBlocked` on a flagged IP (cloud hosts, VPNs), either point `CCORE_YOUTUBE_COOKIES_FILE` at a `cookies.txt` exported from a logged-in browser (re-export it when the cookies expire), or set `CCORE_YOUTUBE_PROXY` to a **residential** proxy — datacenter proxies get blocked or CAPTCHA'd. See [docs/usage.md](docs/usage.md#youtube-on-blocked-networks).
 
 ## Optional Dependencies
 

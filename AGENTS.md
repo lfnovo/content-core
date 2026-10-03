@@ -130,7 +130,7 @@ from content_core import ContentCoreConfig
 config = ContentCoreConfig(url_engine="firecrawl", audio_concurrency=5)
 ```
 
-Key settings: `url_engine`, `document_engine`, `audio_provider`, `audio_model`, `firecrawl_api_url`, `youtube_languages`, `llm_provider`, `llm_model`, `docling_ocr`, `docling_formulas`, `docling_vision`
+Key settings: `url_engine`, `document_engine`, `audio_provider`, `audio_model`, `firecrawl_api_url`, `youtube_languages`, `youtube_cookies_file`, `youtube_proxy`, `llm_provider`, `llm_model`, `docling_ocr`, `docling_formulas`, `docling_vision`
 
 Docling enrichment flags (`docling_ocr`, `docling_formulas`, `docling_vision`) control OCR, formula extraction, and image/chart processing when `document_engine="docling"`. These are also exposed as CLI flags (`--formulas`, `--pictures`, `--no-ocr`) and MCP parameters.
 

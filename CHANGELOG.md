@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - OpenDocument extraction for `.odt`, `.ods` and `.odp` through the office route, using `odfpy` (new core dependency). Text documents become markdown paragraphs, headings, lists and tables; spreadsheets become one markdown table per sheet; presentations become one block per slide. Detection reads the ZIP's `mimetype` member, so a wrong or missing extension still works (#43).
+- YouTube cookie and proxy support for the transcript path (#46). `youtube_cookies_file` (`CCORE_YOUTUBE_COOKIES_FILE`) loads a Netscape `cookies.txt` into the `youtube-transcript-api` session, unblocking IP-flagged networks; a missing or unreadable file raises `ConfigurationError`. `youtube_proxy` (`CCORE_YOUTUBE_PROXY`) routes both `youtube-transcript-api` and the `pytubefix` fallback through a proxy URL — use a residential proxy, as datacenter proxies are blocked. With neither set, behavior is unchanged. Cookie values are never logged.
+- `audio_segment_minutes` setting (`CCORE_AUDIO_SEGMENT_MINUTES`) controls the length of the segments long audio is split into before transcription. The default stays 10 minutes; `0` sends the file whole, for self-hosted STT endpoints without an upload size limit (#94).
 
 ## [2.1.0] - 2026-09-06
 
