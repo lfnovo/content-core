@@ -646,3 +646,53 @@ def test_configuration_error_is_exported_from_package():
 
     assert content_core.ConfigurationError is ConfigurationError
     assert "ConfigurationError" in content_core.__all__
+
+
+# ---------------------------------------------------------------------------
+# 17. OpenDocument MIME types route to the office processor
+# ---------------------------------------------------------------------------
+ODF_MIMES = [
+    "application/vnd.oasis.opendocument.text",
+    "application/vnd.oasis.opendocument.spreadsheet",
+    "application/vnd.oasis.opendocument.presentation",
+]
+
+
+@pytest.mark.parametrize("engine", ["simple", "auto"])
+@pytest.mark.parametrize("mime", ODF_MIMES)
+def test_route_for_mime_odf_is_office(mime, engine):
+    assert _route_for_mime(mime, ContentCoreConfig(document_engine=engine)) == "office"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mime", ODF_MIMES)
+async def test_check_file_support_odf_supported(mime):
+    cfg = ContentCoreConfig(document_engine="simple")
+    with patch(
+        "content_core.content.identification.get_file_type",
+        new_callable=AsyncMock,
+        return_value=mime,
+    ):
+        result = await check_file_support("/tmp/test.odf", config=cfg)
+    assert result.supported is True
+    assert result.processor == "office"
+    assert result.identified_type == mime
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mime", ODF_MIMES)
+async def test_file_odf_calls_extract_office(mime):
+    expected = _make_output(identified_type=mime)
+    cfg = ContentCoreConfig(document_engine="simple")
+    with patch(
+        "content_core.content.identification.get_file_type",
+        new_callable=AsyncMock,
+        return_value=mime,
+    ), patch(
+        "content_core.extraction.extract_office",
+        new_callable=AsyncMock,
+        return_value=expected,
+    ) as mock:
+        result = await extract_content(file_path="/tmp/test.odf", config=cfg)
+        mock.assert_awaited_once_with("/tmp/test.odf", mime, cfg)
+        assert result is expected

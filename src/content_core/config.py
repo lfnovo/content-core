@@ -62,6 +62,7 @@ class ContentCoreConfig(BaseSettings):
     audio_provider: str = "openai"
     audio_model: Optional[str] = None
     audio_concurrency: int = Field(default=3, ge=1, le=10)
+    audio_segment_minutes: int = Field(default=10, ge=0)
 
     # Crawl4AI
     crawl4ai_api_url: Optional[str] = None
@@ -84,6 +85,8 @@ class ContentCoreConfig(BaseSettings):
 
     # YouTube
     youtube_languages: list[str] = Field(default=["en", "es", "pt"])
+    youtube_cookies_file: Optional[str] = None  # path to a Netscape cookies.txt
+    youtube_proxy: Optional[str] = None  # proxy URL, e.g. http://user:pass@host:port
 
     # Docling
     docling_output_format: str = "markdown"

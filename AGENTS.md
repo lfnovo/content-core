@@ -92,6 +92,7 @@ src/content_core/
 │   │   ├── docx.py          # python-docx
 │   │   ├── pptx.py          # python-pptx
 │   │   ├── xlsx.py          # openpyxl
+│   │   ├── odf.py           # ODT/ODS/ODP via odfpy
 │   │   └── docling.py       # Optional Docling integration
 │   └── media/               # Audio/video processing
 │       ├── __init__.py      # Video→audio pipeline
@@ -129,7 +130,7 @@ from content_core import ContentCoreConfig
 config = ContentCoreConfig(url_engine="firecrawl", audio_concurrency=5)
 ```
 
-Key settings: `url_engine`, `document_engine`, `audio_provider`, `audio_model`, `firecrawl_api_url`, `youtube_languages`, `llm_provider`, `llm_model`, `docling_ocr`, `docling_formulas`, `docling_vision`
+Key settings: `url_engine`, `document_engine`, `audio_provider`, `audio_model`, `firecrawl_api_url`, `youtube_languages`, `youtube_cookies_file`, `youtube_proxy`, `llm_provider`, `llm_model`, `docling_ocr`, `docling_formulas`, `docling_vision`
 
 Docling enrichment flags (`docling_ocr`, `docling_formulas`, `docling_vision`) control OCR, formula extraction, and image/chart processing when `document_engine="docling"`. These are also exposed as CLI flags (`--formulas`, `--pictures`, `--no-ocr`) and MCP parameters.
 
@@ -166,7 +167,7 @@ When you change a specific processor or module, run only the relevant tests for 
 | `processors/url/youtube.py` | `uv run pytest -k "youtube"` |
 | `processors/url/reddit.py` | `uv run pytest -k "reddit"` |
 | `processors/document/pdf.py` | `uv run pytest -k "pdf"` |
-| `processors/document/docx.py` or `pptx.py` or `xlsx.py` | `uv run pytest -k "office"` |
+| `processors/document/docx.py` or `pptx.py` or `xlsx.py` or `odf.py` | `uv run pytest -k "office"` |
 | `processors/document/docling.py` | `uv run pytest -k "docling"` |
 | `processors/text.py` | `uv run pytest -k "text_processing or html_file"` |
 | `processors/media/audio.py` | `uv run pytest -k "audio or media_pipeline"` |
@@ -191,7 +192,7 @@ tests/
 │   ├── test_pdf_extraction.py     # PDF text cleaning, extraction with mocked pdfplumber
 │   ├── test_pdf_helpers.py        # Formula detection, table conversion helpers
 │   ├── test_epub_extraction.py    # EPUB extraction with mocked fast-ebook
-│   ├── test_office_extraction.py  # DOCX/PPTX/XLSX routing and extraction
+│   ├── test_office_extraction.py  # DOCX/PPTX/XLSX/ODT/ODS/ODP routing and extraction
 │   ├── test_docling_extraction.py # Docling output formats with mocked converter
 │   ├── test_text_processing.py    # HTML detection, markdown conversion, <title>/<head> handling
 │   ├── test_html_file_extraction.py # Local .html file → markdown via text processor
@@ -206,7 +207,7 @@ tests/
 │   └── test_file_detector*.py     # MIME detection, performance, edge cases
 │
 ├── integration/       # Local files, no network (~22 tests)
-│   ├── test_extraction.py   # Real file extraction (PDF, DOCX, PPTX, XLSX, EPUB, HTML, etc.)
+│   ├── test_extraction.py   # Real file extraction (PDF, DOCX, PPTX, XLSX, ODT/ODS/ODP, EPUB, HTML, etc.)
 │   └── test_cli_v2.py       # CLI subcommands via CliRunner with real extraction
 │
 └── e2e/

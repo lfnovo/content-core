@@ -67,6 +67,9 @@ result = await content_core.extract_content(file_path="slides.pptx")
 # Excel
 result = await content_core.extract_content(file_path="data.xlsx")
 
+# OpenDocument (LibreOffice): .odt, .ods, .odp
+result = await content_core.extract_content(file_path="report.odt")
+
 # Use Docling engine for richer parsing
 from content_core import ContentCoreConfig
 config = ContentCoreConfig(document_engine="docling", docling_output_format="html")
@@ -93,6 +96,54 @@ result = await content_core.extract_content(file_path="interview.mp3", config=co
 ```python
 result = await content_core.extract_content(url="https://www.youtube.com/watch?v=dQw4w9WgXcQ")
 print(result.content)  # Video transcript
+```
+
+#### YouTube on blocked networks
+
+On IP-flagged networks (cloud hosts, some ISPs, VPNs) YouTube refuses transcript
+requests even for public videos with captions — the extraction fails with
+`IpBlocked`/`RequestBlocked` from `youtube-transcript-api`. Two settings help;
+both are off by default, and with neither set the behavior is unchanged.
+
+**Browser cookies** (`youtube_cookies_file` / `CCORE_YOUTUBE_COOKIES_FILE`) —
+path to a Netscape-format `cookies.txt` exported from a browser that is logged
+in to YouTube (use a "Get cookies.txt"-style browser extension, or let yt-dlp
+dump its cookie jar: `yt-dlp --cookies-from-browser chrome --cookies cookies.txt
+--skip-download <any YouTube URL>`). This unblocks the transcript path on the
+same IP.
+
+- Cookies are credentials: keep the file private. Content Core logs only the
+  file path (at debug level), never cookie values.
+- Session cookies expire. When extraction starts failing again, re-export the
+  file.
+- A missing, unreadable or malformed file raises `ConfigurationError` — Content
+  Core does not silently fall back to anonymous requests.
+- Cookies apply to the `youtube-transcript-api` path only; the `pytubefix`
+  fallback has no cookies-file support.
+
+**Proxy** (`youtube_proxy` / `CCORE_YOUTUBE_PROXY`) — a proxy URL such as
+`http://user:pass@host:port`, used by both `youtube-transcript-api` and the
+`pytubefix` fallback. The standard `HTTP_PROXY`/`HTTPS_PROXY` variables keep
+working too; this setting scopes the proxy to YouTube transcripts.
+
+Use a **residential** proxy — preferably a rotating one (e.g. Webshare
+"Residential"), so a blocked IP is swapped on the next retry. In testing
+against a blocked network, **datacenter proxies failed** (`IpBlocked`,
+`RequestBlocked` or a Google CAPTCHA), while rotating and sticky residential
+proxies returned the full transcript. See the test matrix in
+[issue #46](https://github.com/lfnovo/content-core/issues/46).
+
+```python
+config = ContentCoreConfig(
+    youtube_cookies_file="~/secrets/youtube-cookies.txt",
+    youtube_proxy="http://user:pass@p.webshare.io:80",
+)
+result = await content_core.extract_content(url="https://youtu.be/dQw4w9WgXcQ", config=config)
+```
+
+```bash
+CCORE_YOUTUBE_COOKIES_FILE=/path/to/cookies.txt
+CCORE_YOUTUBE_PROXY=http://user:pass@host:port
 ```
 
 ### Local HTML Files
@@ -177,6 +228,8 @@ CCORE_STT_PROVIDER=openai
 CCORE_STT_MODEL=whisper-1
 CCORE_STT_TIMEOUT=3600
 CCORE_YOUTUBE_LANGUAGES=en,pt
+CCORE_YOUTUBE_COOKIES_FILE=/path/to/cookies.txt
+CCORE_YOUTUBE_PROXY=http://user:pass@host:port
 CCORE_FIRECRAWL_PROXY=auto
 CCORE_FIRECRAWL_WAIT_FOR=3000
 FIRECRAWL_API_URL=http://localhost:3002
@@ -217,12 +270,12 @@ FIRECRAWL_API_KEY=anykey
 
 ### Document Engines
 
-The `document_engine` setting controls how files (PDF, DOCX, PPTX, XLSX, HTML) are processed:
+The `document_engine` setting controls how files (PDF, DOCX, PPTX, XLSX, ODT, ODS, ODP, HTML) are processed:
 
 | Engine | Description | Requirements |
 |--------|-------------|-------------|
 | `auto` (default) | Tries Docling first, falls back to simple | Depends on installed extras |
-| `simple` | pdfplumber for PDF, fast-ebook for EPUB, python-docx/openpyxl/python-pptx for Office, markdownify for HTML | None (included) |
+| `simple` | pdfplumber for PDF, fast-ebook for EPUB, python-docx/openpyxl/python-pptx for Office, odfpy for OpenDocument, markdownify for HTML | None (included) |
 | `docling` | Docling library for rich document parsing | `pip install content-core[docling]` |
 
 `auto` is a preference: it uses Docling when installed and silently falls back to `simple` otherwise. `docling` is a requirement: if the extra is not installed, extraction raises `ConfigurationError` instead of silently producing simple-engine output. Install it with `pip install content-core[docling]`, or set `CCORE_DOCUMENT_ENGINE=simple` (or `auto`) to proceed without it.
@@ -304,6 +357,27 @@ config = ContentCoreConfig(audio_concurrency=5)
 ```
 
 Higher values speed up processing of long files but may hit API rate limits.
+
+### Segment Length
+
+Long audio is split into 10-minute segments, a length that fits the upload
+size limits of the cloud STT APIs (OpenAI rejects uploads over 25 MB). A
+self-hosted endpoint has no such limit, and every cut costs it the context
+that falls across it. Set a longer segment, or `0` to send the file whole:
+
+```bash
+CCORE_AUDIO_SEGMENT_MINUTES=0
+```
+
+Or in code:
+
+```python
+config = ContentCoreConfig(audio_segment_minutes=0)
+```
+
+Keep the default when using a cloud provider: with splitting off or a long
+segment, a long file can exceed the provider's upload limit and the
+transcription fails.
 
 ### Custom STT Models
 

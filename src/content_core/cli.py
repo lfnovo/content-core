@@ -109,6 +109,7 @@ def config():
     \b
     Available keys:
       audio_concurrency    Parallel transcription limit (1-10, default: 3)
+      audio_segment_minutes  Audio segment length in minutes, 0 disables splitting (default: 10)
       crawl4ai_api_url     Crawl4AI Docker API URL (default: none, uses local mode)
       crawl4ai_api_token   Bearer token for the Crawl4AI Docker API (required by Crawl4AI >= 0.9.0)
       audio_model          Override STT model

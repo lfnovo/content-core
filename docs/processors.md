@@ -106,6 +106,14 @@ The `document_engine` setting controls document processing. When set to `auto` (
 - File: `document/xlsx.py`
 - Extracts data from Excel spreadsheets
 
+### OpenDocument (ODT/ODS/ODP)
+
+- File: `document/odf.py`
+- Uses odfpy for LibreOffice/OpenOffice formats
+- ODT: paragraphs, headings (by outline level), lists and tables as markdown
+- ODS: one markdown table per sheet, preceded by `## <sheet name>`
+- ODP: one block per slide (`## Slide N` followed by its text frames)
+
 ### Docling (Optional)
 
 - File: `document/docling.py`
@@ -160,6 +168,7 @@ Located in `src/content_core/processors/media/`.
 - Detection methods:
   - Binary signature matching for PDF, images, audio, video, and archives
   - ZIP structure inspection for Office formats (DOCX, XLSX, PPTX) and EPUB
+  - OpenDocument (ODT, ODS, ODP) identified by the ZIP's `mimetype` member
   - Content analysis for text-based formats (HTML, XML, JSON, YAML, CSV, Markdown)
 - Reads only the first 512 bytes for binary signatures and 1024 bytes for text content analysis
 - Works regardless of file extension

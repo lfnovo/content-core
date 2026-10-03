@@ -15,18 +15,29 @@ from content_core.processors.document.xlsx import (
     extract_xlsx_content,
     get_xlsx_info,
 )
+from content_core.processors.document.odf import (
+    ODP_MIME,
+    ODS_MIME,
+    ODT_MIME,
+    extract_odp_content,
+    extract_ods_content,
+    extract_odt_content,
+)
 
 SUPPORTED_OFFICE_TYPES = [
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ODT_MIME,
+    ODS_MIME,
+    ODP_MIME,
 ]
 
 
 async def extract_office(
     file_path: str, mime_type: str, config: ContentCoreConfig
 ) -> ExtractionOutput:
-    """Extract content from an Office document (DOCX/PPTX/XLSX).
+    """Extract content from an Office document (DOCX/PPTX/XLSX/ODT/ODS/ODP).
 
     Unlike the legacy extract_office_content, this function does NOT call the
     get_*_info helpers, avoiding the double-extraction bug where content was
@@ -53,6 +64,15 @@ async def extract_office(
     ):
         logger.debug("Extracting content from XLSX file")
         content = await extract_xlsx_content(file_path)
+    elif mime_type == ODT_MIME:
+        logger.debug("Extracting content from ODT file")
+        content = await extract_odt_content(file_path)
+    elif mime_type == ODS_MIME:
+        logger.debug("Extracting content from ODS file")
+        content = await extract_ods_content(file_path)
+    elif mime_type == ODP_MIME:
+        logger.debug("Extracting content from ODP file")
+        content = await extract_odp_content(file_path)
     else:
         raise ValueError(f"Unsupported file format: {mime_type}")
 
@@ -85,6 +105,9 @@ __all__ = [
     "get_pptx_info",
     "extract_xlsx_content",
     "get_xlsx_info",
+    "extract_odt_content",
+    "extract_ods_content",
+    "extract_odp_content",
     "extract_office",
     "clean_pdf_text",
     "convert_table_to_markdown",
