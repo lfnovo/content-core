@@ -192,3 +192,57 @@ async def test_extract_content_from_xlsx(fixture_path):
     )
     assert result.title is not None  # Attempt to extract title/metadata
     assert len(result.content) > 0  # Check that some content was extracted
+
+
+@pytest.mark.asyncio
+async def test_extract_content_from_odt(fixture_path):
+    """Tests extracting markdown from an ODT file."""
+    result = await extract_content(file_path=str(fixture_path / "file.odt"))
+
+    assert result.source_type == "file"
+    assert result.identified_type == "application/vnd.oasis.opendocument.text"
+    assert result.title == "file.odt"
+    assert "# Buenos Aires Guide" in result.content
+    assert "## Neighborhoods" in result.content
+    assert "* Palermo" in result.content
+    assert "| Population | 3 million |" in result.content
+
+
+@pytest.mark.asyncio
+async def test_extract_content_from_ods(fixture_path):
+    """Tests extracting one markdown table per sheet from an ODS file."""
+    result = await extract_content(file_path=str(fixture_path / "file.ods"))
+
+    assert result.source_type == "file"
+    assert result.identified_type == "application/vnd.oasis.opendocument.spreadsheet"
+    assert "## Cities" in result.content
+    assert "| Buenos Aires | Argentina |" in result.content
+    assert "## Rivers" in result.content
+    assert "| Parana | 4880 |" in result.content
+
+
+@pytest.mark.asyncio
+async def test_extract_content_from_odp(fixture_path):
+    """Tests extracting one block per slide from an ODP file."""
+    result = await extract_content(file_path=str(fixture_path / "file.odp"))
+
+    assert result.source_type == "file"
+    assert result.identified_type == "application/vnd.oasis.opendocument.presentation"
+    assert "## Slide 1" in result.content
+    assert "Welcome to Buenos Aires" in result.content
+    assert "## Slide 2" in result.content
+    assert "Tango" in result.content
+
+
+@pytest.mark.asyncio
+async def test_extract_content_from_odt_without_extension(fixture_path, tmp_path):
+    """ODF detection relies on the `mimetype` member, not the extension."""
+    import shutil
+
+    renamed = tmp_path / "document"
+    shutil.copy(fixture_path / "file.odt", renamed)
+
+    result = await extract_content(file_path=str(renamed))
+
+    assert result.identified_type == "application/vnd.oasis.opendocument.text"
+    assert "Buenos Aires Guide" in result.content

@@ -121,3 +121,108 @@ class TestFileDetectorOgg:
         ogv_path.write_bytes(_ogg_page(b"\x80theora"))
 
         assert await detector.detect(str(ogv_path)) == "video/ogg"
+
+def _zip_with_mimetype(path, mimetype, members):
+    """Write a ZIP whose first member is an uncompressed `mimetype`, as ODF/EPUB do."""
+    import zipfile
+
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("mimetype", mimetype, compress_type=zipfile.ZIP_STORED)
+        for name in members:
+            zf.writestr(name, '<?xml version="1.0"?>', compress_type=zipfile.ZIP_DEFLATED)
+
+
+class TestFileDetectorOpenDocument:
+    """ODF is identified by its `mimetype` ZIP member, not by extension."""
+
+    ODF_MIMES = [
+        "application/vnd.oasis.opendocument.text",
+        "application/vnd.oasis.opendocument.spreadsheet",
+        "application/vnd.oasis.opendocument.presentation",
+    ]
+
+    @pytest.fixture
+    def detector(self):
+        return FileDetector()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("mime", ODF_MIMES)
+    @pytest.mark.parametrize("name", ["document", "document.zip", "document.docx"])
+    async def test_odf_detected_by_mimetype_member(self, detector, tmp_path, mime, name):
+        """Missing or wrong extensions don't matter: the `mimetype` member decides."""
+        path = tmp_path / name
+        _zip_with_mimetype(path, mime, ["content.xml", "META-INF/manifest.xml"])
+
+        assert await detector.detect(str(path)) == mime
+
+    @pytest.mark.parametrize(
+        "ext, mime",
+        [(".odt", ODF_MIMES[0]), (".ods", ODF_MIMES[1]), (".odp", ODF_MIMES[2])],
+    )
+    def test_odf_extension_fallback(self, detector, ext, mime):
+        assert detector._detect_by_extension(Path(f"file{ext}")) == mime
+
+    @pytest.mark.asyncio
+    async def test_epub_with_mimetype_member_unchanged(self, detector, tmp_path):
+        path = tmp_path / "book.epub"
+        _zip_with_mimetype(path, "application/epub+zip", ["META-INF/container.xml"])
+
+        assert await detector.detect(str(path)) == "application/epub+zip"
+
+    @pytest.mark.asyncio
+    async def test_docx_without_mimetype_member_unchanged(self, detector, tmp_path):
+        import zipfile
+
+        path = tmp_path / "report.docx"
+        with zipfile.ZipFile(path, "w") as zf:
+            zf.writestr("[Content_Types].xml", '<?xml version="1.0"?>')
+            zf.writestr("word/document.xml", '<?xml version="1.0"?>')
+
+        assert (
+            await detector.detect(str(path))
+            == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+
+    @pytest.mark.asyncio
+    async def test_real_fixtures(self, detector):
+        fixtures = Path(__file__).parent.parent / "input_content"
+        assert await detector.detect(str(fixtures / "file.odt")) == self.ODF_MIMES[0]
+        assert await detector.detect(str(fixtures / "file.ods")) == self.ODF_MIMES[1]
+        assert await detector.detect(str(fixtures / "file.odp")) == self.ODF_MIMES[2]
+        assert await detector.detect(str(fixtures / "file.epub")) == "application/epub+zip"
+
+
+@pytest.mark.asyncio
+async def test_oversized_mimetype_member_read_is_bounded(tmp_path, monkeypatch):
+    """A huge `mimetype` member is not decompressed in full just to sniff it."""
+    import zipfile
+
+    path = tmp_path / "bomb.zip"
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr(
+            "mimetype",
+            "application/vnd.oasis.opendocument.text" + " " * 5_000_000,
+            compress_type=zipfile.ZIP_DEFLATED,
+        )
+
+    reads = []
+    real_open = zipfile.ZipFile.open
+
+    def tracking_open(self, name, *args, **kwargs):
+        member = real_open(self, name, *args, **kwargs)
+        real_read = member.read
+
+        def read(n=-1):
+            data = real_read(n)
+            reads.append(len(data))
+            return data
+
+        member.read = read
+        return member
+
+    monkeypatch.setattr(zipfile.ZipFile, "open", tracking_open)
+
+    detected = await FileDetector().detect(str(path))
+
+    assert detected == "application/vnd.oasis.opendocument.text"
+    assert reads and max(reads) <= FileDetector.ZIP_MIMETYPE_READ_SIZE

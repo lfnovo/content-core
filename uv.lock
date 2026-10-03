@@ -781,6 +781,7 @@ dependencies = [
     { name = "langdetect" },
     { name = "loguru" },
     { name = "markdownify" },
+    { name = "odfpy" },
     { name = "openpyxl" },
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "pandas", version = "3.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -842,6 +843,7 @@ requires-dist = [
     { name = "langdetect", specifier = ">=1.0.9" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "markdownify", specifier = ">=0.14.0" },
+    { name = "odfpy", specifier = ">=1.4.1" },
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "pdfplumber", specifier = ">=0.11.0" },
@@ -3305,6 +3307,15 @@ sdist = { url = "https://files.pythonhosted.org/packages/5e/07/3e15ab404f75875c5
 wheels = [
     { url = "https://files.pythonhosted.org/packages/37/15/7cc16507a2aca927abe395f1c545f17ae76b1f8ed44f43ebe4e8670ee203/ocrmac-1.0.1-py3-none-any.whl", hash = "sha256:1cef25426f7ae6bbd57fe3dc5553b25461ae8ad0d2b428a9bbadbf5907349024", size = 9955, upload-time = "2026-01-08T16:44:25.555Z" },
 ]
+
+[[package]]
+name = "odfpy"
+version = "1.4.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "defusedxml" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/97/73/8ade73f6749177003f7ce3304f524774adda96e6aaab30ea79fd8fda7934/odfpy-1.4.1.tar.gz", hash = "sha256:db766a6e59c5103212f3cc92ec8dd50a0f3a02790233ed0b52148b70d3c438ec", size = 717045, upload-time = "2020-01-18T16:55:48.852Z" }
 
 [[package]]
 name = "omegaconf"

@@ -35,6 +35,7 @@ dependencies = [
     "pydantic-settings>=2.12.0",
     "tomli>=2.0; python_version < '3.11'",
     "click>=8.3.0",
+    "odfpy>=1.4.1",
 ]
 
 [project.optional-dependencies]
