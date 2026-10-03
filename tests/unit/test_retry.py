@@ -333,6 +333,30 @@ class TestIsRetryableException:
         assert is_retryable_exception(Exception("Too many requests"))
         assert is_retryable_exception(Exception("503 Service Unavailable"))
 
+    def test_youtube_blocks_retryable_by_type(self):
+        """Blocks are retried by type, not by the wording of their message."""
+        import youtube_transcript_api as yta
+
+        for exc in (yta.IpBlocked("vid"), yta.RequestBlocked("vid")):
+            assert is_retryable_exception(exc)
+            with patch.object(type(exc), "__str__", lambda self: "blocked"):
+                assert is_retryable_exception(exc)
+
+    def test_youtube_video_states_not_retryable(self):
+        """A state of the video will not change on retry, whatever the message says."""
+        import youtube_transcript_api as yta
+
+        for exc in (
+            yta.VideoUnavailable("vid"),
+            yta.TranscriptsDisabled("vid"),
+            yta.AgeRestricted("vid"),
+            yta.InvalidVideoId("vid"),
+        ):
+            with patch.object(
+                type(exc), "__str__", lambda self: "temporarily unavailable"
+            ):
+                assert not is_retryable_exception(exc)
+
     def test_generic_exception_without_transient_message_not_retryable(self):
         """Test that generic exceptions without transient indicators are not retried."""
         assert not is_retryable_exception(Exception("Invalid input"))

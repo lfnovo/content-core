@@ -21,6 +21,7 @@ Usage:
 from typing import Callable, Optional
 
 import aiohttp
+import youtube_transcript_api as yta  # type: ignore
 from tenacity import (
     RetryError,
     retry,
@@ -93,6 +94,18 @@ def is_retryable_exception(exception: BaseException) -> bool:
     # Always retry network-related errors
     if isinstance(exception, NetworkError):
         return True
+
+    # youtube-transcript-api: a blocked request (IpBlocked is a subclass) can
+    # succeed on the next attempt through a rotating proxy; every other
+    # CouldNotRetrieveTranscript names a state of the video (unavailable,
+    # transcripts disabled, age-restricted...) that a retry will not change.
+    # YouTubeRequestFailed wraps an HTTP error, so it is judged by status below.
+    if isinstance(exception, yta.RequestBlocked):
+        return True
+    if isinstance(exception, yta.CouldNotRetrieveTranscript) and not isinstance(
+        exception, yta.YouTubeRequestFailed
+    ):
+        return False
     if isinstance(exception, (aiohttp.ClientError, ConnectionError, TimeoutError, OSError)):
         # But not if it's a client error (4xx) - those are usually permanent
         if isinstance(exception, aiohttp.ClientResponseError):
