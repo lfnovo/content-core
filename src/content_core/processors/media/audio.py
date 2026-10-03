@@ -250,21 +250,16 @@ async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> Extract
             else:
                 output_files = [file_path]
 
-            # Determine STT model from config
+            # Determine STT model from config. An explicit audio model is
+            # honored or raises: no silent fallback to the default model.
             stt_config = {"timeout": config.stt_timeout} if config.stt_timeout else {}
             if config.audio_provider and config.audio_model:
-                try:
-                    logger.info(
-                        f"Using custom audio model: {config.audio_provider}/{config.audio_model}"
-                    )
-                    speech_to_text_model = _create_stt_model(
-                        config.audio_provider, config.audio_model, stt_config
-                    )
-                except ConfigurationError as e:
-                    logger.error(f"{e}. Falling back to default model.")
-                    speech_to_text_model = _create_stt_model(
-                        config.stt_provider, config.stt_model, stt_config
-                    )
+                logger.info(
+                    f"Using custom audio model: {config.audio_provider}/{config.audio_model}"
+                )
+                speech_to_text_model = _create_stt_model(
+                    config.audio_provider, config.audio_model, stt_config
+                )
             else:
                 speech_to_text_model = _create_stt_model(
                     config.stt_provider, config.stt_model, stt_config

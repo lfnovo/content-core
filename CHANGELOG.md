@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - File extraction failures raise typed errors (#60): corrupted PDF, EPUB or unreadable text files raise `FileOperationError` (chained to the original cause) instead of bare `Exception`/`RuntimeError`; a missing file still raises `FileNotFoundError`. ffmpeg/ffprobe failures in audio and video processing raise `FileOperationError`: video extraction no longer returns empty content when ffprobe or ffmpeg fails. Speech-to-text provider failures (after retries) raise `ExternalServiceError`, and an STT model that cannot be created raises `ConfigurationError`.
 - Retry classification now treats `ConfigurationError`, `UnsupportedTypeException`, `InvalidInputError` and `FileOperationError` as permanent and `NetworkError` as transient (#60).
 - YouTube extraction raises instead of returning empty content when no transcript can be fetched (#60): `NoTranscriptFound` when neither youtube-transcript-api nor pytubefix finds a transcript, `ExternalServiceError` (chained to the provider error) when YouTube blocks or fails the request on both paths, e.g. `IpBlocked`, and `InvalidInputError` for a YouTube URL without a video ID. Provider errors from `get_best_transcript` and `extract_transcript_pytubefix` now propagate after retries instead of being swallowed (`extract_transcript_pytubefix` still returns `(None, None)` for a video without captions); a failure of the first path still falls back to the second.
+- An explicit `audio_provider`/`audio_model` that cannot be created now raises `ConfigurationError` instead of silently transcribing with the default STT model, per "Explicit choice is a requirement".
+- youtube-transcript-api failures are retried by type: blocked requests (`RequestBlocked`/`IpBlocked`) are retried, so a rotating proxy can get a new IP; other transcript errors that name a state of the video (unavailable, transcripts disabled, age-restricted...) are not.
+
+### Fixed
+- `youtube_proxy` now also applies to the YouTube video title lookup, which previously used only env-var proxies.
+- `requests`, imported directly for the YouTube cookie session, is declared as a dependency instead of arriving transitively.
 
 ## [2.1.0] - 2026-09-06
 

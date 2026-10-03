@@ -324,7 +324,7 @@ class TestYoutubeCookiesAndProxy:
                 "content_core.processors.url.youtube.get_video_title",
                 new_callable=AsyncMock,
                 return_value="",
-            ),
+            ) as mock_title,
             patch(
                 "content_core.processors.url.youtube.extract_transcript_pytubefix",
                 return_value=(None, None),
@@ -335,10 +335,31 @@ class TestYoutubeCookiesAndProxy:
                     "https://www.youtube.com/watch?v=dQw4w9WgXcQ", config
                 )
 
+        assert mock_title.call_args.kwargs["proxy"] == DUMMY_PROXY
         mock_proxy.assert_called_once_with(http_url=DUMMY_PROXY, https_url=DUMMY_PROXY)
         mock_api.assert_called_once_with(proxy_config=mock_proxy.return_value)
         assert mock_transcript.call_args.kwargs["api"] is mock_api.return_value
         assert mock_pytubefix.call_args.kwargs["proxy"] == DUMMY_PROXY
+
+    async def test_youtube_proxy_passed_to_title_fetch(self):
+        from content_core.processors.url.youtube import get_video_title
+
+        response = MagicMock()
+        response.text = AsyncMock(
+            return_value='<meta property="og:title" content="A title">'
+        )
+        session = MagicMock()
+        session.get.return_value.__aenter__ = AsyncMock(return_value=response)
+        session.get.return_value.__aexit__ = AsyncMock(return_value=False)
+        with patch(
+            "content_core.processors.url.youtube.aiohttp.ClientSession"
+        ) as mock_session_cls:
+            mock_session_cls.return_value.__aenter__ = AsyncMock(return_value=session)
+            mock_session_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            title = await get_video_title("dQw4w9WgXcQ", proxy=DUMMY_PROXY)
+
+        assert title == "A title"
+        assert session.get.call_args.kwargs["proxy"] == DUMMY_PROXY
 
     def test_youtube_pytubefix_receives_proxies(self):
         with patch("pytubefix.YouTube") as mock_yt:

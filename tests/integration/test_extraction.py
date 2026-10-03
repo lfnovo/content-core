@@ -215,9 +215,9 @@ async def test_extract_content_from_ods(fixture_path):
 
     assert result.source_type == "file"
     assert result.identified_type == "application/vnd.oasis.opendocument.spreadsheet"
-    assert "## Cities" in result.content
+    assert "# Sheet: Cities" in result.content
     assert "| Buenos Aires | Argentina |" in result.content
-    assert "## Rivers" in result.content
+    assert "# Sheet: Rivers" in result.content
     assert "| Parana | 4880 |" in result.content
 
 
@@ -228,9 +228,9 @@ async def test_extract_content_from_odp(fixture_path):
 
     assert result.source_type == "file"
     assert result.identified_type == "application/vnd.oasis.opendocument.presentation"
-    assert "## Slide 1" in result.content
+    assert "# Slide 1" in result.content
     assert "Welcome to Buenos Aires" in result.content
-    assert "## Slide 2" in result.content
+    assert "# Slide 2" in result.content
     assert "Tango" in result.content
 
 

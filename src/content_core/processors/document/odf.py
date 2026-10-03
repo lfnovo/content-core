@@ -164,7 +164,10 @@ async def extract_odt_content(file_path):
 
 
 async def extract_ods_content(file_path):
-    """Extract content from an ODS file: one markdown table per sheet."""
+    """Extract content from an ODS file: one markdown table per sheet.
+
+    Sheet headings match ``xlsx.py`` (``# Sheet: <name>``).
+    """
 
     def _extract():
         doc = load(file_path)
@@ -178,7 +181,7 @@ async def extract_ods_content(file_path):
             except Exception as e:
                 logger.warning(f"Skipping ODS sheet {name!r}: {e}")
                 continue
-            content.append(f"## {name}")
+            content.append(f"# Sheet: {name}")
             if table:
                 content.append(table)
         return "\n\n".join(content)
@@ -187,7 +190,10 @@ async def extract_ods_content(file_path):
 
 
 async def extract_odp_content(file_path):
-    """Extract content from an ODP file: one block per slide."""
+    """Extract content from an ODP file: one block per slide.
+
+    Slide headings match ``pptx.py`` (``# Slide N``).
+    """
 
     def _extract():
         doc = load(file_path)
@@ -205,7 +211,7 @@ async def extract_odp_content(file_path):
             except Exception as e:
                 logger.warning(f"Skipping ODP slide {slide_number}: {e}")
                 continue
-            content.append(f"## Slide {slide_number}")
+            content.append(f"# Slide {slide_number}")
             content.extend(frames)
         return "\n\n".join(content)
 

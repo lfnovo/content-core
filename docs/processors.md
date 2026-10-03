@@ -111,8 +111,8 @@ The `document_engine` setting controls document processing. When set to `auto` (
 - File: `document/odf.py`
 - Uses odfpy for LibreOffice/OpenOffice formats
 - ODT: paragraphs, headings (by outline level), lists and tables as markdown
-- ODS: one markdown table per sheet, preceded by `## <sheet name>`
-- ODP: one block per slide (`## Slide N` followed by its text frames)
+- ODS: one markdown table per sheet, preceded by `# Sheet: <sheet name>` (as for XLSX)
+- ODP: one block per slide (`# Slide N` followed by its text frames, as for PPTX)
 
 ### Docling (Optional)
 

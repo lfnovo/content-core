@@ -122,9 +122,10 @@ same IP.
   fallback has no cookies-file support.
 
 **Proxy** (`youtube_proxy` / `CCORE_YOUTUBE_PROXY`) — a proxy URL such as
-`http://user:pass@host:port`, used by both `youtube-transcript-api` and the
-`pytubefix` fallback. The standard `HTTP_PROXY`/`HTTPS_PROXY` variables keep
-working too; this setting scopes the proxy to YouTube transcripts.
+`http://user:pass@host:port`, used by every YouTube request: the
+`youtube-transcript-api` transcript, the `pytubefix` fallback and the video
+title lookup. The standard `HTTP_PROXY`/`HTTPS_PROXY` variables keep working
+too; this setting scopes the proxy to YouTube.
 
 Use a **residential** proxy — preferably a rotating one (e.g. Webshare
 "Residential"), so a blocked IP is swapped on the next retry. In testing

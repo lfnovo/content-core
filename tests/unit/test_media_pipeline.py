@@ -463,6 +463,24 @@ class TestTranscribeAudioFailures:
             with pytest.raises(ConfigurationError, match="openai/whisper-1"):
                 await transcribe_audio("/fake/audio.mp3", config)
 
+    async def test_explicit_audio_model_failure_does_not_fall_back(self, config):
+        """An explicit audio model that cannot be created raises; no default fallback."""
+        config = ContentCoreConfig(audio_provider="groq", audio_model="whisper-large-v3")
+        with (
+            patch("esperanto.AIFactory") as mock_factory,
+            patch(
+                "content_core.processors.media.audio.get_audio_duration",
+                new_callable=AsyncMock,
+                return_value=60.0,
+            ),
+        ):
+            mock_factory.create_speech_to_text.side_effect = ValueError("no API key")
+            from content_core.processors.media.audio import transcribe_audio
+
+            with pytest.raises(ConfigurationError, match="groq/whisper-large-v3"):
+                await transcribe_audio("/fake/audio.mp3", config)
+            mock_factory.create_speech_to_text.assert_called_once()
+
 
 class TestExtractVideo:
     @pytest.fixture
