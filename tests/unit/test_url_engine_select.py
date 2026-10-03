@@ -483,7 +483,8 @@ async def test_auto_falls_through_failed_crawl4ai_crawl_to_simple(
 ):
     failed = MagicMock(success=False, markdown=None, error_message="net::ERR_ABORTED")
     cfg = ContentCoreConfig(url_engine="auto", crawl4ai_api_url=None)
-    with patch.dict("sys.modules", {"crawl4ai": _fake_crawl4ai(failed)}), patch(
+    fake = _fake_crawl4ai(failed)
+    with patch.dict("sys.modules", {"crawl4ai": fake}), patch(
         "content_core.processors.url.extract_url_jina",
         new_callable=AsyncMock,
         side_effect=_http_error(500),
@@ -493,6 +494,7 @@ async def test_auto_falls_through_failed_crawl4ai_crawl_to_simple(
         return_value={"title": "T", "content": "from simple"},
     ):
         result = await extract_from_url("https://example.com", cfg)
+    fake.AsyncWebCrawler.return_value.arun.assert_awaited()
     assert result.content == "from simple"
 
 
@@ -504,3 +506,14 @@ async def test_named_crawl4ai_successful_crawl_returns_markdown(crawl4ai_local):
         result = await extract_from_url("https://example.com", cfg)
     assert result.content == "# Hello"
     assert result.title == "Page"
+
+
+@pytest.mark.asyncio
+async def test_named_crawl4ai_markdown_result_object_uses_raw_markdown(crawl4ai_local):
+    """Older crawl4ai returns a MarkdownGenerationResult, not a str."""
+    md = MagicMock(raw_markdown="# Raw")
+    ok = MagicMock(success=True, markdown=md, metadata={"title": "Page"})
+    cfg = ContentCoreConfig(url_engine="crawl4ai", crawl4ai_api_url=None)
+    with patch.dict("sys.modules", {"crawl4ai": _fake_crawl4ai(ok)}):
+        result = await extract_from_url("https://example.com", cfg)
+    assert result.content == "# Raw"

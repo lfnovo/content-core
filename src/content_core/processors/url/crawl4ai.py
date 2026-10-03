@@ -93,7 +93,12 @@ async def _fetch_url_crawl4ai_local(url: str) -> dict:
         if hasattr(result, "metadata") and result.metadata:
             title = result.metadata.get("title", "")
 
-        content = str(result.markdown or "")
+        # Recent crawl4ai returns a str subclass; older releases return a
+        # MarkdownGenerationResult, whose page text is raw_markdown.
+        markdown = result.markdown
+        if markdown is not None and not isinstance(markdown, str):
+            markdown = getattr(markdown, "raw_markdown", None)
+        content = str(markdown or "")
 
         return {
             "title": title or "No title found",
