@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `youtube_proxy` now also applies to the YouTube video title lookup, which previously used only env-var proxies (#99).
 - `requests`, imported directly for the YouTube cookie session, is declared as a dependency instead of arriving transitively (#99).
+- A failed Crawl4AI crawl (navigation timeout, blocked page) now raises `ExternalServiceError` instead of failing with a pydantic `ValidationError` on `content=None`, and `auto` falls through to the next engine. Applies to both the local browser and the Docker API mode (#101).
 
 ## [2.1.0] - 2026-09-06
 

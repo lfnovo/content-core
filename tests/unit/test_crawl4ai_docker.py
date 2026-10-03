@@ -131,3 +131,18 @@ async def test_local_mode_ignores_token(fake_session, monkeypatch):
 
 def test_config_default_token_is_none():
     assert ContentCoreConfig().crawl4ai_api_token is None
+
+
+@pytest.mark.asyncio
+async def test_docker_failed_crawl_raises(monkeypatch):
+    class _FailedSession(_FakeSession):
+        def post(self, url, **kwargs):
+            return _FakeResponse(
+                {"results": [{"success": False, "error_message": "net::ERR_ABORTED", "markdown": None}]}
+            )
+
+    monkeypatch.setattr(crawl4ai_module.aiohttp, "ClientSession", _FailedSession)
+    with pytest.raises(RuntimeError, match="ERR_ABORTED"):
+        await crawl4ai_module._fetch_url_crawl4ai_docker(
+            "https://example.com", "http://crawl:11235"
+        )
