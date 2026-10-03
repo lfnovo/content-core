@@ -27,11 +27,15 @@ ssl._create_default_https_context = ssl._create_unverified_context
 
 
 @retry_youtube()
-async def _fetch_video_title(video_id):
-    """Internal function that fetches video title - wrapped with retry logic."""
+async def _fetch_video_title(video_id, proxy=None):
+    """Internal function that fetches video title - wrapped with retry logic.
+
+    ``proxy`` (``youtube_proxy``) takes precedence over the env-var proxies
+    that ``trust_env`` honors.
+    """
     url = f"https://www.youtube.com/watch?v={video_id}"
     async with aiohttp.ClientSession(trust_env=True) as session:
-        async with session.get(url) as response:
+        async with session.get(url, proxy=proxy) as response:
             html = await response.text()
 
     # BeautifulSoup doesn't support async operations
@@ -42,10 +46,10 @@ async def _fetch_video_title(video_id):
     return title
 
 
-async def get_video_title(video_id):
+async def get_video_title(video_id, proxy=None):
     """Get video title from YouTube, with retry logic for transient failures."""
     try:
-        return await _fetch_video_title(video_id)
+        return await _fetch_video_title(video_id, proxy)
     except Exception as e:
         logger.error(f"Failed to get video title after retries: {e}")
         return None
@@ -307,7 +311,7 @@ async def extract_youtube(url: str, config: ContentCoreConfig) -> ExtractionOutp
         raise InvalidInputError(f"Could not find a YouTube video ID in {url}")
 
     try:
-        title = await get_video_title(video_id)
+        title = await get_video_title(video_id, proxy=config.youtube_proxy)
     except Exception as e:
         logger.critical(f"Failed to get video title for video_id: {video_id}")
         logger.exception(e)
