@@ -27,6 +27,9 @@ async def extract_url_bs4(url: str) -> dict:
 
     Returns:
         dict: A dictionary containing the 'title' and 'content' of the webpage.
+
+    Raises on failure; the engine router in ``processors/url/__init__.py``
+    types the error.
     """
     try:
         # Fetch the webpage content with retry
@@ -59,14 +62,12 @@ async def extract_url_bs4(url: str) -> dict:
             content_tags = soup.select(
                 'article, .content, .post, main, [role="main"], div[class*="content"], div[class*="article"]'
             )
-            content = (
-                " ".join(
-                    tag.get_text(separator=" ", strip=True) for tag in content_tags
-                )
-                if content_tags
-                else soup.get_text(separator=" ", strip=True)
-            )
-            content = content.strip() or "No content found"
+            content = " ".join(
+                tag.get_text(separator=" ", strip=True) for tag in content_tags
+            ).strip()
+            if not content:
+                # No content tags, or they were empty: use the whole page.
+                content = soup.get_text(separator=" ", strip=True).strip()
 
         return {
             "title": title,
@@ -75,7 +76,4 @@ async def extract_url_bs4(url: str) -> dict:
 
     except Exception as e:
         logger.error(f"Error processing URL {url} after retries: {e}")
-        return {
-            "title": "Error",
-            "content": f"Failed to extract content: {str(e)}",
-        }
+        raise

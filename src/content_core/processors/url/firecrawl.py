@@ -37,10 +37,10 @@ async def _fetch_url_firecrawl(url: str, config: ContentCoreConfig) -> dict:
     }
 
 
-async def extract_url_firecrawl(url: str, config: ContentCoreConfig | None = None) -> dict | None:
+async def extract_url_firecrawl(url: str, config: ContentCoreConfig | None = None) -> dict:
     """
     Get the content of a URL using Firecrawl.
-    Returns {"title": ..., "content": ...} or None on failure.
+    Returns {"title": ..., "content": ...}; raises on failure.
     Includes retry logic for transient API failures.
     """
     cfg = config or get_default_config()
@@ -48,4 +48,4 @@ async def extract_url_firecrawl(url: str, config: ContentCoreConfig | None = Non
         return await _fetch_url_firecrawl(url, cfg)
     except Exception as e:
         logger.error(f"Firecrawl extraction failed for {url} after retries: {e}")
-        return None
+        raise

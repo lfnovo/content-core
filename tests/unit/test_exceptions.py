@@ -69,23 +69,16 @@ def test_catching_the_base_catches_a_subtype():
         raise content_core.ConfigurationError("docling not installed")
 
 
-# Raised somewhere in the library today. The rest of the taxonomy is
-# declared and exported but has no raise site until #60 migrates them.
-RAISED_TODAY = (
-    "UnsupportedTypeException",
-    "InvalidInputError",
-    "ConfigurationError",
-    "NoTranscriptFound",
-)
-
-
 def test_extract_content_documents_what_it_raises():
-    """Every exception is named, and the pending ones are marked as pending."""
+    """Every exception is named, and none is marked as pending anymore."""
     doc = content_core.extract_content.__doc__ or ""
     assert "Raises:" in doc
     for name in PUBLIC_EXCEPTIONS:
         if name == "ContentCoreError":
             continue
         assert name in doc
-    for name in set(PUBLIC_EXCEPTIONS) - set(RAISED_TODAY) - {"ContentCoreError"}:
-        assert "#60" in doc, f"{name} has no raise site; the docstring must say so"
+    assert "#60" not in doc
+
+
+def test_module_docstring_no_longer_marks_raise_sites_pending():
+    assert "#60" not in (exc_module.__doc__ or "")

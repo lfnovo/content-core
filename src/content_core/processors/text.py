@@ -4,6 +4,7 @@ import re
 
 from markdownify import markdownify as md
 
+from content_core.common.exceptions import FileOperationError
 from content_core.config import ContentCoreConfig
 from content_core.logging import logger
 from content_core.common.state import ExtractionOutput
@@ -102,9 +103,9 @@ async def extract_text_file(file_path: str, config: ContentCoreConfig) -> Extrac
         result.source_type = "file"
         return result
     except FileNotFoundError:
-        raise FileNotFoundError(f"File not found at {file_path}")
+        raise
     except Exception as e:
-        raise Exception(f"An error occurred: {e}")
+        raise FileOperationError(f"Failed to read text file {file_path}: {e}") from e
 
 
 async def process_text(content: str, config: ContentCoreConfig) -> ExtractionOutput:

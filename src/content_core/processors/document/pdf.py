@@ -4,6 +4,7 @@ import unicodedata
 
 import pdfplumber  # type: ignore
 
+from content_core.common.exceptions import FileOperationError
 from content_core.config import ContentCoreConfig
 from content_core.logging import logger
 from content_core.common.state import ExtractionOutput
@@ -184,6 +185,6 @@ async def extract_pdf_file(file_path: str, config: ContentCoreConfig) -> Extract
             identified_type="application/pdf",
         )
     except FileNotFoundError:
-        raise FileNotFoundError(f"File not found at {file_path}")
+        raise
     except Exception as e:
-        raise Exception(f"An error occurred: {e}")
+        raise FileOperationError(f"PDF extraction failed for {file_path}: {e}") from e

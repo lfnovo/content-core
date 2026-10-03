@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from content_core.common.exceptions import FileOperationError
 from content_core.config import ContentCoreConfig
 from content_core.processors.text import (
     detect_html,
@@ -100,6 +101,18 @@ class TestExtractTextFile:
 
             with pytest.raises(FileNotFoundError):
                 await extract_text_file("/no/such/file.txt", config)
+
+    async def test_read_failure_raises_file_operation_error(self, config):
+        with patch(
+            "content_core.processors.text.asyncio.get_event_loop"
+        ) as mock_loop:
+            mock_loop.return_value.run_in_executor = AsyncMock(
+                side_effect=PermissionError("denied")
+            )
+
+            with pytest.raises(FileOperationError) as exc_info:
+                await extract_text_file("/locked/file.txt", config)
+            assert isinstance(exc_info.value.__cause__, PermissionError)
 
 
 class TestExtractHtmlTitle:

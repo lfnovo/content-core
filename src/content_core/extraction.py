@@ -9,6 +9,8 @@ import aiohttp
 
 from content_core.common.exceptions import (
     ConfigurationError,
+    ContentCoreError,
+    FileOperationError,
     InvalidInputError,
     UnsupportedTypeException,
 )
@@ -24,7 +26,11 @@ from content_core.processors.document import SUPPORTED_OFFICE_TYPES, extract_off
 from content_core.processors.document.pdf import SUPPORTED_PDF_TYPES, extract_pdf_file
 from content_core.processors.document.epub import SUPPORTED_EPUB_TYPES, extract_epub_file
 from content_core.processors.text import extract_text_file, process_text
-from content_core.processors.url import detect_remote_mime, extract_from_url
+from content_core.processors.url import (
+    detect_remote_mime,
+    extract_from_url,
+    to_typed_url_error,
+)
 from content_core.processors.media.video import extract_video
 from content_core.processors.url.reddit import extract_reddit, is_reddit_post
 from content_core.processors.url.youtube import extract_youtube
@@ -66,17 +72,19 @@ async def extract_content(
         ConfigurationError: a configuration cannot be honored (e.g.
             ``document_engine="docling"`` with the extra not installed).
         NoTranscriptFound: a YouTube video has no usable transcript.
+        NotFoundError: a URL answered 404/410.
+        NetworkError: a URL (or an engine API) could not be reached --
+            connection, timeout, or DNS failure.
+        ExternalServiceError: an external service failed (URL engine API,
+            STT provider, YouTube blocking every transcript path), including
+            auth and rate-limit responses.
+        FileOperationError: a routed file exists but could not be parsed or
+            processed (corrupted PDF/EPUB, ffmpeg/ffprobe failure).
+        FileNotFoundError: ``file_path`` does not exist.
 
-        These four are raised today. The rest of the taxonomy in
-        ``common/exceptions.py`` -- ``NotFoundError``, ``NetworkError``,
-        ``ExternalServiceError`` and ``FileOperationError`` -- is declared
-        and exported but has no raise site yet: those failures still escape
-        untyped until #60 migrates the raise sites. Handlers for them are
-        safe to write now, but will not fire until then.
-
-        Everything typed derives from ``ContentCoreError``, so a caller that
-        wants a single handler can catch that -- though note that untyped
-        exceptions can still escape until #60.
+        Every typed failure derives from ``ContentCoreError``, so a caller
+        that wants a single handler can catch that. A source that was
+        genuinely empty returns ``content=""`` instead of raising.
     """
     cfg = config or get_default_config()
 
@@ -92,9 +100,13 @@ async def extract_content(
 
 async def _extract_url(url: str, cfg: ContentCoreConfig) -> ExtractionOutput:
     """Route URL to appropriate processor."""
+    try:
+        parsed = urlparse(url)
+        hostname = (parsed.hostname or "").lower()
+    except ValueError as e:  # e.g. a malformed IPv6 netloc
+        raise InvalidInputError(f"Invalid URL {url}: {e}") from e
+
     # YouTube detection
-    parsed = urlparse(url)
-    hostname = (parsed.hostname or "").lower()
     if hostname in ("youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"):
         return await extract_youtube(url, cfg)
 
@@ -306,12 +318,22 @@ async def _fetch_remote_file(url: str) -> tuple:
 async def _download_remote_file(url: str) -> str:
     """Download a remote file to a temp path."""
     logger.debug(f"Downloading remote file: {url}")
-    mime, content = await _fetch_remote_file(url)
+    try:
+        mime, content = await _fetch_remote_file(url)
+    except ContentCoreError:
+        raise
+    except Exception as e:
+        raise to_typed_url_error(e, url, "download") from e
     suffix = os.path.splitext(urlparse(url).path)[1] if urlparse(url).path else ""
-    fd, tmp = tempfile.mkstemp(suffix=suffix)
-    os.close(fd)
-    with open(tmp, "wb") as f:
-        f.write(content)
+    tmp = None
+    try:
+        fd, tmp = tempfile.mkstemp(suffix=suffix)
+        with os.fdopen(fd, "wb") as f:
+            f.write(content)
+    except OSError as e:
+        if tmp is not None:
+            _safe_delete(tmp)
+        raise FileOperationError(f"Could not save download of {url}: {e}") from e
     return tmp
 
 

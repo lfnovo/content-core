@@ -5,7 +5,12 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 
-from content_core.common.exceptions import ConfigurationError
+from content_core.common.exceptions import (
+    ConfigurationError,
+    ExternalServiceError,
+    InvalidInputError,
+    NoTranscriptFound,
+)
 from content_core.config import ContentCoreConfig
 from content_core.processors.url.youtube import (
     _build_transcript_api,
@@ -134,7 +139,7 @@ class TestExtractYoutube:
             assert result.content == "Fallback transcript"
             assert result.title == "Fallback Video"
 
-    async def test_both_failures_returns_empty(self, config):
+    async def test_no_transcript_on_either_path_raises(self, config):
         with (
             patch(
                 "content_core.processors.url.youtube.get_best_transcript",
@@ -151,10 +156,10 @@ class TestExtractYoutube:
                 return_value=(None, None),
             ),
         ):
-            result = await extract_youtube(
-                "https://www.youtube.com/watch?v=dQw4w9WgXcQ", config
-            )
-            assert result.content == ""
+            with pytest.raises(NoTranscriptFound):
+                await extract_youtube(
+                    "https://www.youtube.com/watch?v=dQw4w9WgXcQ", config
+                )
 
     async def test_uses_config_languages(self):
         custom_config = ContentCoreConfig(youtube_languages=["fr", "de"])
@@ -175,9 +180,10 @@ class TestExtractYoutube:
                 return_value=(None, None),
             ) as mock_pytubefix,
         ):
-            await extract_youtube(
-                "https://www.youtube.com/watch?v=dQw4w9WgXcQ", custom_config
-            )
+            with pytest.raises(NoTranscriptFound):
+                await extract_youtube(
+                    "https://www.youtube.com/watch?v=dQw4w9WgXcQ", custom_config
+                )
             mock_transcript.assert_called_once_with(
                 "dQw4w9WgXcQ", ["fr", "de"], api=ANY
             )
@@ -287,9 +293,10 @@ class TestYoutubeCookiesAndProxy:
                     return_value=(None, None),
                 ),
             ):
-                await extract_youtube(
-                    "https://www.youtube.com/watch?v=dQw4w9WgXcQ", config
-                )
+                with pytest.raises(NoTranscriptFound):
+                    await extract_youtube(
+                        "https://www.youtube.com/watch?v=dQw4w9WgXcQ", config
+                    )
         finally:
             logger.remove(sink_id)
             logger.disable("content_core")
@@ -323,7 +330,10 @@ class TestYoutubeCookiesAndProxy:
                 return_value=(None, None),
             ) as mock_pytubefix,
         ):
-            await extract_youtube("https://www.youtube.com/watch?v=dQw4w9WgXcQ", config)
+            with pytest.raises(NoTranscriptFound):
+                await extract_youtube(
+                    "https://www.youtube.com/watch?v=dQw4w9WgXcQ", config
+                )
 
         mock_proxy.assert_called_once_with(http_url=DUMMY_PROXY, https_url=DUMMY_PROXY)
         mock_api.assert_called_once_with(proxy_config=mock_proxy.return_value)
@@ -348,3 +358,139 @@ class TestYoutubeCookiesAndProxy:
                 "https://www.youtube.com/watch?v=dQw4w9WgXcQ", ["en"]
             )
         mock_yt.assert_called_once_with("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+
+
+class TestYoutubeTotalFailure:
+    """Both transcript paths failing raises typed; one path failing degrades."""
+
+    URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+    def _patches(self, primary, fallback):
+        primary_kw = (
+            {"side_effect": primary}
+            if isinstance(primary, BaseException)
+            else {"return_value": primary}
+        )
+        fallback_kw = (
+            {"side_effect": fallback}
+            if isinstance(fallback, BaseException)
+            else {"return_value": fallback}
+        )
+        return (
+            patch(
+                "content_core.processors.url.youtube.get_best_transcript",
+                new_callable=AsyncMock,
+                **primary_kw,
+            ),
+            patch(
+                "content_core.processors.url.youtube.get_video_title",
+                new_callable=AsyncMock,
+                return_value="",
+            ),
+            patch(
+                "content_core.processors.url.youtube.extract_transcript_pytubefix",
+                **fallback_kw,
+            ),
+        )
+
+    async def test_blocked_on_both_paths_raises_external_service_error(self):
+        blocked = RuntimeError("IpBlocked: YouTube is blocking requests from your IP")
+        p1, p2, p3 = self._patches(blocked, RuntimeError("blocked too"))
+        with p1, p2, p3, pytest.raises(ExternalServiceError) as exc_info:
+            await extract_youtube(self.URL, ContentCoreConfig())
+        assert exc_info.value.__cause__ is blocked
+
+    async def test_fallback_error_wins_over_no_transcript(self):
+        fallback_error = RuntimeError("pytubefix bot check")
+        p1, p2, p3 = self._patches(NoTranscriptFound("none"), fallback_error)
+        with p1, p2, p3, pytest.raises(ExternalServiceError) as exc_info:
+            await extract_youtube(self.URL, ContentCoreConfig())
+        assert exc_info.value.__cause__ is fallback_error
+
+    async def test_no_transcript_on_both_paths_raises_no_transcript_found(self):
+        p1, p2, p3 = self._patches(NoTranscriptFound("none"), (None, None))
+        with p1, p2, p3, pytest.raises(NoTranscriptFound):
+            await extract_youtube(self.URL, ContentCoreConfig())
+
+    async def test_primary_failure_degrades_to_pytubefix(self):
+        p1, p2, p3 = self._patches(RuntimeError("IpBlocked"), ("Fallback text", "srt"))
+        with p1, p2, p3:
+            result = await extract_youtube(self.URL, ContentCoreConfig())
+        assert result.content == "Fallback text"
+
+    async def test_url_without_video_id_raises_invalid_input(self):
+        with pytest.raises(InvalidInputError):
+            await extract_youtube(
+                "https://www.youtube.com/@somechannel", ContentCoreConfig()
+            )
+
+    async def test_primary_block_with_captionless_fallback_raises_external(self):
+        blocked = RuntimeError("IpBlocked")
+        p1, p2, p3 = self._patches(blocked, (None, None))
+        with p1, p2, p3, pytest.raises(ExternalServiceError) as exc_info:
+            await extract_youtube(self.URL, ContentCoreConfig())
+        assert exc_info.value.__cause__ is blocked
+
+    async def test_formatter_failure_is_not_reported_as_no_transcript(self):
+        transcript = MagicMock()
+        transcript.snippets = []
+        p1, p2, p3 = self._patches(transcript, (None, None))
+        with (
+            p1,
+            p2,
+            p3,
+            patch("content_core.processors.url.youtube.TextFormatter") as fmt,
+            pytest.raises(ExternalServiceError),
+        ):
+            fmt.return_value.format_transcript.side_effect = ValueError("bad data")
+            await extract_youtube(self.URL, ContentCoreConfig())
+
+
+class TestFetchBestTranscriptErrors:
+    """A failed fetch is not collapsed into "no transcript"."""
+
+    async def test_blocked_fetch_is_reraised(self):
+        import youtube_transcript_api as yta
+
+        api = MagicMock()
+        transcript_list = api.list.return_value
+        for finder in (
+            transcript_list.find_manually_created_transcript,
+            transcript_list.find_generated_transcript,
+            transcript_list.find_transcript,
+        ):
+            finder.return_value.fetch.side_effect = RuntimeError("IpBlocked")
+        api.fetch.side_effect = yta.NoTranscriptFound("vid", ["en"], MagicMock())
+
+        from content_core.processors.url.youtube import _fetch_best_transcript
+
+        # __wrapped__ skips the retry decorator: this tests classification only.
+        with pytest.raises(RuntimeError, match="IpBlocked"):
+            await _fetch_best_transcript.__wrapped__("vid", ["en"], api)
+
+    async def test_transcripts_disabled_is_no_transcript_found(self):
+        import youtube_transcript_api as yta
+
+        api = MagicMock()
+        api.list.side_effect = yta.TranscriptsDisabled("vid")
+
+        from content_core.processors.url.youtube import _fetch_best_transcript
+
+        with pytest.raises(NoTranscriptFound):
+            await _fetch_best_transcript.__wrapped__("vid", ["en"], api)
+
+    async def test_no_transcript_anywhere_is_no_transcript_found(self):
+        import youtube_transcript_api as yta
+
+        not_found = yta.NoTranscriptFound("vid", ["en"], MagicMock())
+        api = MagicMock()
+        transcript_list = api.list.return_value
+        transcript_list.find_manually_created_transcript.side_effect = not_found
+        transcript_list.find_generated_transcript.side_effect = not_found
+        transcript_list.find_transcript.side_effect = not_found
+        api.fetch.side_effect = not_found
+
+        from content_core.processors.url.youtube import _fetch_best_transcript
+
+        with pytest.raises(NoTranscriptFound):
+            await _fetch_best_transcript.__wrapped__("vid", ["en"], api)

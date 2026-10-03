@@ -29,7 +29,15 @@ from tenacity import (
     wait_random_exponential,
 )
 
-from content_core.common.exceptions import NoTranscriptFound, NotFoundError
+from content_core.common.exceptions import (
+    ConfigurationError,
+    FileOperationError,
+    InvalidInputError,
+    NetworkError,
+    NoTranscriptFound,
+    NotFoundError,
+    UnsupportedTypeException,
+)
 from content_core.logging import logger
 
 # Default retry configurations per operation type
@@ -61,6 +69,10 @@ def get_retry_config(operation_type: str) -> dict:
 NON_RETRYABLE_EXCEPTIONS = (
     NoTranscriptFound,
     NotFoundError,
+    ConfigurationError,
+    UnsupportedTypeException,
+    InvalidInputError,
+    FileOperationError,
     ValueError,
     TypeError,
     KeyError,
@@ -79,6 +91,8 @@ def is_retryable_exception(exception: BaseException) -> bool:
         return False
 
     # Always retry network-related errors
+    if isinstance(exception, NetworkError):
+        return True
     if isinstance(exception, (aiohttp.ClientError, ConnectionError, TimeoutError, OSError)):
         # But not if it's a client error (4xx) - those are usually permanent
         if isinstance(exception, aiohttp.ClientResponseError):

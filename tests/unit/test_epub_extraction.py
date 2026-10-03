@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from content_core.common.exceptions import FileOperationError
 from content_core.config import ContentCoreConfig
 from content_core.processors.document.epub import extract_epub_file
 
@@ -41,3 +42,10 @@ class TestExtractEpubFile:
         ):
             with pytest.raises(FileNotFoundError):
                 await extract_epub_file("/no/such/file.epub", config)
+
+    async def test_corrupted_epub_raises_file_operation_error(self, config, tmp_path):
+        corrupted = tmp_path / "corrupted.epub"
+        corrupted.write_bytes(b"PK\x03\x04 not really a zip")
+        with pytest.raises(FileOperationError) as exc_info:
+            await extract_epub_file(str(corrupted), config)
+        assert exc_info.value.__cause__ is not None

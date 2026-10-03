@@ -307,6 +307,23 @@ class TestIsRetryableException:
         assert not is_retryable_exception(KeyError("Missing key"))
         assert not is_retryable_exception(AttributeError("No attribute"))
 
+    def test_taxonomy_classification(self):
+        """NetworkError retries; tested permanent taxonomy failures ignore transient-looking messages."""
+        from content_core.common.exceptions import (
+            ConfigurationError,
+            FileOperationError,
+            InvalidInputError,
+            NetworkError,
+            UnsupportedTypeException,
+        )
+
+        assert is_retryable_exception(NetworkError("dns failure"))
+        # Even with a transient-looking message, these are permanent.
+        assert not is_retryable_exception(ConfigurationError("connection timeout"))
+        assert not is_retryable_exception(UnsupportedTypeException("503"))
+        assert not is_retryable_exception(InvalidInputError("network"))
+        assert not is_retryable_exception(FileOperationError("ffprobe timeout"))
+
     def test_generic_exception_with_transient_message_is_retryable(self):
         """Test that generic exceptions with transient-looking messages are retried."""
         assert is_retryable_exception(Exception("Connection timeout"))

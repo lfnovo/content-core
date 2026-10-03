@@ -1,45 +1,39 @@
 import asyncio
 import json
 import os
-import subprocess
 import tempfile
 from functools import partial
 
+from content_core.common.exceptions import FileOperationError
 from content_core.config import ContentCoreConfig
 from content_core.logging import logger
 from content_core.common.state import ExtractionOutput
+from content_core.processors.media.audio import run_ffmpeg_tool
 
 
 async def extract_audio_from_video(input_file, output_file, stream_index):
     """
-    Extract the specified audio stream to MP3 format asynchronously
+    Extract the specified audio stream to MP3 format asynchronously.
+
+    Raises FileOperationError if ffmpeg fails.
     """
 
     def _extract(input_file, output_file, stream_index):
-        try:
-            cmd = [
-                "ffmpeg",
-                "-i",
-                input_file,
-                "-map",
-                f"0:a:{stream_index}",  # Select specific audio stream
-                "-codec:a",
-                "libmp3lame",  # Use MP3 codec
-                "-q:a",
-                "2",  # High quality setting
-                "-y",  # Overwrite output file if exists
-                output_file,
-            ]
-
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                raise Exception(f"FFmpeg failed: {result.stderr}")
-
-            return True
-
-        except Exception as e:
-            logger.error(f"Error extracting audio: {str(e)}")
-            return False
+        cmd = [
+            "ffmpeg",
+            "-i",
+            input_file,
+            "-map",
+            f"0:a:{stream_index}",  # Select specific audio stream
+            "-codec:a",
+            "libmp3lame",  # Use MP3 codec
+            "-q:a",
+            "2",  # High quality setting
+            "-y",  # Overwrite output file if exists
+            output_file,
+        ]
+        run_ffmpeg_tool(cmd, "ffmpeg")
+        return True
 
     return await asyncio.get_event_loop().run_in_executor(
         None, partial(_extract, input_file, output_file, stream_index)
@@ -48,34 +42,34 @@ async def extract_audio_from_video(input_file, output_file, stream_index):
 
 async def get_audio_streams(input_file):
     """
-    Analyze video file and return information about all audio streams asynchronously
+    Analyze video file and return information about all audio streams asynchronously.
+
+    Raises FileOperationError if ffprobe fails; an empty list means the file
+    genuinely has no audio stream.
     """
 
     def _analyze(input_file):
         logger.debug(f"Analyzing video file {input_file} for audio streams")
+        cmd = [
+            "ffprobe",
+            "-v",
+            "quiet",
+            "-print_format",
+            "json",
+            "-show_streams",
+            "-select_streams",
+            "a",
+            input_file,
+        ]
+        result = run_ffmpeg_tool(cmd, "ffprobe")
         try:
-            cmd = [
-                "ffprobe",
-                "-v",
-                "quiet",
-                "-print_format",
-                "json",
-                "-show_streams",
-                "-select_streams",
-                "a",
-                input_file,
-            ]
-
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                raise Exception(f"FFprobe failed: {result.stderr}")
-
             data = json.loads(result.stdout)
-            logger.debug(data)
-            return data.get("streams", [])
-        except Exception as e:
-            logger.error(f"Error analyzing file: {str(e)}")
-            return []
+        except ValueError as e:
+            raise FileOperationError(
+                f"ffprobe returned unreadable output for {input_file}"
+            ) from e
+        logger.debug(data)
+        return data.get("streams", [])
 
     return await asyncio.get_event_loop().run_in_executor(
         None, partial(_analyze, input_file)
@@ -136,7 +130,7 @@ async def extract_video(file_path: str, config: ContentCoreConfig) -> Extraction
             content="",
             source_type="file",
             identified_type="video/*",
-            metadata={"error": "No audio streams found in file. Is ffprobe installed?"},
+            metadata={"error": "No audio streams found in file"},
         )
 
     # Select best stream
@@ -155,16 +149,7 @@ async def extract_video(file_path: str, config: ContentCoreConfig) -> Extraction
     base_name = os.path.splitext(os.path.basename(file_path))[0]
     with tempfile.TemporaryDirectory() as temp_dir:
         output_file = os.path.join(temp_dir, f"{base_name}_audio.mp3")
-        success = await extract_audio_from_video(file_path, output_file, stream_index)
-
-        if not success:
-            return ExtractionOutput(
-                content="",
-                source_type="file",
-                identified_type="video/*",
-                metadata={"error": "Failed to extract audio from video"},
-            )
-
+        await extract_audio_from_video(file_path, output_file, stream_index)
         logger.debug(f"Successfully extracted audio to: {output_file}")
 
         result = await transcribe_audio(output_file, config)

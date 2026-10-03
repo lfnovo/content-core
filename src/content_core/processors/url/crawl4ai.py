@@ -3,6 +3,7 @@ from typing import Optional
 
 import aiohttp
 
+from content_core.common.exceptions import ConfigurationError
 from content_core.common.retry import retry_url_api
 from content_core.config import ContentCoreConfig, get_default_config
 from content_core.logging import logger
@@ -51,10 +52,12 @@ async def _fetch_url_crawl4ai_local(url: str) -> dict:
     """Fetch URL content via local Crawl4AI browser automation."""
     try:
         from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, ProxyConfig
-    except ImportError:
-        raise ImportError(
-            "Crawl4AI is not installed. Install it with: pip install content-core[crawl4ai]"
-        )
+    except ImportError as e:
+        raise ConfigurationError(
+            "Crawl4AI is not installed. Install it with: "
+            "pip install content-core[crawl4ai], or use another url_engine "
+            "(e.g. CCORE_URL_ENGINE=auto)."
+        ) from e
 
     # Bridge HTTP_PROXY to Crawl4AI's ProxyConfig
     proxy_url = os.environ.get("HTTP_PROXY") or os.environ.get("HTTPS_PROXY")
@@ -87,13 +90,13 @@ async def _fetch_url_crawl4ai_local(url: str) -> dict:
         }
 
 
-async def extract_url_crawl4ai(url: str, config: Optional[ContentCoreConfig] = None) -> dict | None:
+async def extract_url_crawl4ai(url: str, config: Optional[ContentCoreConfig] = None) -> dict:
     """Get the content of a URL using Crawl4AI.
 
     Automatically selects Docker API mode (when CRAWL4AI_API_URL is set)
     or local browser automation mode.
 
-    Returns {"title": ..., "content": ...} or None on failure.
+    Returns {"title": ..., "content": ...}; raises on failure.
     """
     cfg = config or get_default_config()
     api_url = os.environ.get("CRAWL4AI_API_URL") or cfg.crawl4ai_api_url
@@ -108,4 +111,4 @@ async def extract_url_crawl4ai(url: str, config: Optional[ContentCoreConfig] = N
             return await _fetch_url_crawl4ai_local(url)
     except Exception as e:
         logger.error(f"Crawl4AI extraction failed for {url}: {e}")
-        return None
+        raise
