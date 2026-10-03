@@ -155,6 +155,80 @@ class TestTranscribeAudio:
             assert result.metadata["segments_count"] == 3
             assert mock_extract.call_count == 3
 
+    async def test_configured_segment_length_changes_segment_count(self):
+        """A shorter configured segment splits the same audio into more parts."""
+        config = ContentCoreConfig(
+            stt_provider="openai",
+            stt_model="whisper-1",
+            audio_provider="openai",
+            audio_model=None,
+            audio_segment_minutes=5,
+        )
+
+        mock_stt_model = MagicMock()
+        mock_result = MagicMock()
+        mock_result.text = "segment"
+        mock_stt_model.atranscribe = AsyncMock(return_value=mock_result)
+
+        with (
+            patch("esperanto.AIFactory") as mock_factory,
+            patch(
+                "content_core.processors.media.audio.get_audio_duration",
+                new_callable=AsyncMock,
+                return_value=1500.0,  # 25 minutes -> 5 segments, not the default 3
+            ),
+            patch(
+                "content_core.processors.media.audio.extract_audio"
+            ) as mock_extract,
+        ):
+            mock_factory.create_speech_to_text.return_value = mock_stt_model
+
+            from content_core.processors.media.audio import transcribe_audio
+
+            result = await transcribe_audio("/fake/long_audio.mp3", config)
+            assert result.metadata["segments_count"] == 5
+            assert mock_extract.call_count == 5
+
+    async def test_zero_segment_minutes_sends_the_file_whole(self):
+        """Splitting off, a long file is uploaded in one piece.
+
+        Providers without an upload size limit lose whatever context a cut
+        falls across, so the split has to be avoidable.
+        """
+        config = ContentCoreConfig(
+            stt_provider="openai",
+            stt_model="whisper-1",
+            audio_provider="openai",
+            audio_model=None,
+            audio_segment_minutes=0,
+        )
+
+        mock_stt_model = MagicMock()
+        mock_result = MagicMock()
+        mock_result.text = "whole file"
+        mock_stt_model.atranscribe = AsyncMock(return_value=mock_result)
+
+        with (
+            patch("esperanto.AIFactory") as mock_factory,
+            patch(
+                "content_core.processors.media.audio.get_audio_duration",
+                new_callable=AsyncMock,
+                return_value=7200.0,  # 2 hours
+            ),
+            patch(
+                "content_core.processors.media.audio.extract_audio"
+            ) as mock_extract,
+        ):
+            mock_factory.create_speech_to_text.return_value = mock_stt_model
+
+            from content_core.processors.media.audio import transcribe_audio
+
+            result = await transcribe_audio("/fake/long_audio.mp3", config)
+            assert result.content == "whole file"
+            assert result.metadata["segments_count"] == 1
+            mock_extract.assert_not_called()
+            assert mock_stt_model.atranscribe.call_args.args[0] == "/fake/long_audio.mp3"
+
     async def test_split_segments_keep_source_extension(self):
         """Segments are stream-copied, so the container must match the source.
 

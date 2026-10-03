@@ -62,6 +62,7 @@ class ContentCoreConfig(BaseSettings):
     audio_provider: str = "openai"
     audio_model: Optional[str] = None
     audio_concurrency: int = Field(default=3, ge=1, le=10)
+    audio_segment_minutes: int = Field(default=10, ge=0)
 
     # Crawl4AI
     crawl4ai_api_url: Optional[str] = None

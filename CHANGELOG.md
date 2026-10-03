@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `audio_segment_minutes` setting (`CCORE_AUDIO_SEGMENT_MINUTES`) controls the length of the segments long audio is split into before transcription. The default stays 10 minutes; `0` sends the file whole, for self-hosted STT endpoints without an upload size limit (#94).
+
 ## [2.1.0] - 2026-09-06
 
 ### Added

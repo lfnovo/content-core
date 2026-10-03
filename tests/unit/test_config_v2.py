@@ -63,6 +63,10 @@ class TestDefaults:
         cfg = ContentCoreConfig()
         assert cfg.audio_concurrency == 3
 
+    def test_audio_segment_minutes_default(self):
+        cfg = ContentCoreConfig()
+        assert cfg.audio_segment_minutes == 10
+
     def test_firecrawl_api_url_default(self):
         cfg = ContentCoreConfig()
         assert cfg.firecrawl_api_url == "https://api.firecrawl.dev"
@@ -111,6 +115,10 @@ class TestConstructorOverride:
         cfg = ContentCoreConfig(audio_concurrency=5)
         assert cfg.audio_concurrency == 5
 
+    def test_audio_segment_minutes_override(self):
+        cfg = ContentCoreConfig(audio_segment_minutes=360)
+        assert cfg.audio_segment_minutes == 360
+
     def test_llm_model_override(self):
         cfg = ContentCoreConfig(llm_model="gpt-4o")
         assert cfg.llm_model == "gpt-4o"
@@ -128,6 +136,11 @@ class TestEnvVarOverride:
         monkeypatch.setenv("CCORE_AUDIO_CONCURRENCY", "7")
         cfg = ContentCoreConfig()
         assert cfg.audio_concurrency == 7
+
+    def test_audio_segment_minutes_from_env(self, monkeypatch):
+        monkeypatch.setenv("CCORE_AUDIO_SEGMENT_MINUTES", "0")
+        cfg = ContentCoreConfig()
+        assert cfg.audio_segment_minutes == 0
 
     def test_llm_model_from_env(self, monkeypatch):
         monkeypatch.setenv("CCORE_LLM_MODEL", "claude-sonnet")
@@ -161,6 +174,14 @@ class TestValidation:
     def test_audio_concurrency_max_boundary(self):
         cfg = ContentCoreConfig(audio_concurrency=10)
         assert cfg.audio_concurrency == 10
+
+    def test_audio_segment_minutes_negative(self):
+        with pytest.raises(ValidationError):
+            ContentCoreConfig(audio_segment_minutes=-1)
+
+    def test_audio_segment_minutes_zero_boundary(self):
+        cfg = ContentCoreConfig(audio_segment_minutes=0)
+        assert cfg.audio_segment_minutes == 0
 
 
 class TestPriority:
