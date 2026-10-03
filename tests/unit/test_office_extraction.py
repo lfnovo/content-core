@@ -243,7 +243,7 @@ class TestOdsContent:
             content = await extract_ods_content("/fake/data.ods")
 
         assert content == (
-            "## People\n\n| Name | Age |\n| --- | --- |\n| Alice | 30 |\n\n## Empty"
+            "# Sheet: People\n\n| Name | Age |\n| --- | --- |\n| Alice | 30 |\n\n# Sheet: Empty"
         )
 
     async def test_repeated_cells_and_rows_are_expanded_and_padding_trimmed(self):
@@ -268,7 +268,7 @@ class TestOdsContent:
             content = await extract_ods_content("/fake/grid.ods")
 
         assert content == (
-            "## Grid\n\n| Key | Value |\n| --- | --- |\n"
+            "# Sheet: Grid\n\n| Key | Value |\n| --- | --- |\n"
             "|  |  |\n|  |  |\n|  |  |\n| x | x |\n| x | x |"
         )
 
@@ -282,7 +282,7 @@ class TestOdsContent:
         with patch(LOAD, return_value=doc):
             content = await extract_ods_content("/fake/s.ods")
 
-        assert content == "## S\n\n| a\\|b |  | c |\n| --- | --- | --- |"
+        assert content == "# Sheet: S\n\n| a\\|b |  | c |\n| --- | --- | --- |"
 
     async def test_failed_sheet_is_skipped(self):
         doc = OpenDocumentSpreadsheet()
@@ -301,7 +301,7 @@ class TestOdsContent:
             content = await extract_ods_content("/fake/data.ods")
 
         assert "Bad" not in content
-        assert content == "## Good\n\n| y |\n| --- |"
+        assert content == "# Sheet: Good\n\n| y |\n| --- |"
 
 
 class TestOdpContent:
@@ -318,7 +318,7 @@ class TestOdpContent:
             content = await extract_odp_content("/fake/deck.odp")
 
         assert content == (
-            "## Slide 1\n\nWelcome\n\nBody text\n\n## Slide 2\n\nSecond"
+            "# Slide 1\n\nWelcome\n\nBody text\n\n# Slide 2\n\nSecond"
         )
 
     async def test_failed_slide_is_skipped(self):
@@ -337,4 +337,4 @@ class TestOdpContent:
         ):
             content = await extract_odp_content("/fake/deck.odp")
 
-        assert content == "## Slide 2\n\nFine"
+        assert content == "# Slide 2\n\nFine"
