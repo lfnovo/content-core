@@ -357,6 +357,18 @@ class TestIsRetryableException:
             ):
                 assert not is_retryable_exception(exc)
 
+    def test_youtube_request_failed_judged_by_status(self):
+        """YouTubeRequestFailed retries 429/5xx and not other 4xx, by status."""
+        import requests
+        import youtube_transcript_api as yta
+
+        def failed(reason):
+            return yta.YouTubeRequestFailed("vid", requests.HTTPError(reason))
+
+        assert is_retryable_exception(failed("429 Client Error: Too Many Requests"))
+        assert is_retryable_exception(failed("502 Server Error: Bad Gateway"))
+        assert not is_retryable_exception(failed("403 Client Error: Forbidden"))
+
     def test_generic_exception_without_transient_message_not_retryable(self):
         """Test that generic exceptions without transient indicators are not retried."""
         assert not is_retryable_exception(Exception("Invalid input"))

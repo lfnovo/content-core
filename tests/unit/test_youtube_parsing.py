@@ -324,7 +324,7 @@ class TestYoutubeCookiesAndProxy:
                 "content_core.processors.url.youtube.get_video_title",
                 new_callable=AsyncMock,
                 return_value="",
-            ),
+            ) as mock_title,
             patch(
                 "content_core.processors.url.youtube.extract_transcript_pytubefix",
                 return_value=(None, None),
@@ -335,6 +335,7 @@ class TestYoutubeCookiesAndProxy:
                     "https://www.youtube.com/watch?v=dQw4w9WgXcQ", config
                 )
 
+        assert mock_title.call_args.kwargs["proxy"] == DUMMY_PROXY
         mock_proxy.assert_called_once_with(http_url=DUMMY_PROXY, https_url=DUMMY_PROXY)
         mock_api.assert_called_once_with(proxy_config=mock_proxy.return_value)
         assert mock_transcript.call_args.kwargs["api"] is mock_api.return_value

@@ -311,7 +311,7 @@ async def extract_youtube(url: str, config: ContentCoreConfig) -> ExtractionOutp
         raise InvalidInputError(f"Could not find a YouTube video ID in {url}")
 
     try:
-        title = await get_video_title(video_id, proxy=config.youtube_proxy)
+        title = await get_video_title(video_id, proxy=config.youtube_proxy or None)
     except Exception as e:
         logger.critical(f"Failed to get video title for video_id: {video_id}")
         logger.exception(e)
