@@ -322,6 +322,10 @@ Or in code:
 config = ContentCoreConfig(audio_segment_minutes=0)
 ```
 
+Keep the default when using a cloud provider: with splitting off or a long
+segment, a long file can exceed the provider's upload limit and the
+transcription fails.
+
 ### Custom STT Models
 
 Override the speech-to-text provider and model per call:
