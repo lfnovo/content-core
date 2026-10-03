@@ -238,12 +238,18 @@ Content Core uses `ContentCoreConfig` powered by pydantic-settings. Settings are
 | `CCORE_STT_MODEL` | Speech-to-text model | - |
 | `CCORE_STT_TIMEOUT` | Speech-to-text timeout in seconds | - |
 | `CCORE_YOUTUBE_LANGUAGES` | Preferred YouTube transcript languages | - |
+| `CCORE_YOUTUBE_COOKIES_FILE` | Path to a Netscape `cookies.txt` for YouTube transcripts (missing file raises `ConfigurationError`) | - |
+| `CCORE_YOUTUBE_PROXY` | Proxy URL for YouTube transcripts, e.g. `http://user:pass@host:port` | - |
 
 API keys for external services are set via their standard environment variables (e.g., `OPENAI_API_KEY`, `FIRECRAWL_API_KEY`, `JINA_API_KEY`).
 
 ### Proxy Configuration
 
 Content Core reads standard `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` environment variables automatically. No additional configuration is needed.
+
+### YouTube on Blocked Networks
+
+If YouTube extraction fails with `IpBlocked`/`RequestBlocked` on a flagged IP (cloud hosts, VPNs), either point `CCORE_YOUTUBE_COOKIES_FILE` at a `cookies.txt` exported from a logged-in browser (re-export it when the cookies expire), or set `CCORE_YOUTUBE_PROXY` to a **residential** proxy — datacenter proxies get blocked or CAPTCHA'd. See [docs/usage.md](docs/usage.md#youtube-on-blocked-networks).
 
 ## Optional Dependencies
 
