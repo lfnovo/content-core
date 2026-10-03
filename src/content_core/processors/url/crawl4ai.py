@@ -32,6 +32,10 @@ async def _fetch_url_crawl4ai_docker(
         raise ValueError("No results returned from Crawl4AI Docker API")
 
     result = data["results"][0]
+    if result.get("success") is False:
+        raise RuntimeError(
+            f"Crawl4AI could not crawl {url}: {result.get('error_message') or 'unknown error'}"
+        )
     title = result.get("metadata", {}).get("title", "")
 
     # Docker API: markdown can be a dict with raw_markdown or a string
@@ -78,11 +82,18 @@ async def _fetch_url_crawl4ai_local(url: str) -> dict:
         else:
             result = await crawler.arun(url=url)
 
+        # A failed crawl (navigation timeout, blocked page...) is returned, not
+        # raised, with markdown=None; surface it so the router can type it.
+        if not result.success:
+            raise RuntimeError(
+                f"Crawl4AI could not crawl {url}: {result.error_message or 'unknown error'}"
+            )
+
         title = ""
         if hasattr(result, "metadata") and result.metadata:
             title = result.metadata.get("title", "")
 
-        content = result.markdown if hasattr(result, "markdown") else ""
+        content = str(result.markdown or "")
 
         return {
             "title": title or "No title found",
