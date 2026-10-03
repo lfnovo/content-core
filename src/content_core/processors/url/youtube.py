@@ -6,6 +6,7 @@ import ssl
 import aiohttp
 import requests
 from bs4 import BeautifulSoup
+import youtube_transcript_api as yta  # type: ignore
 from youtube_transcript_api import YouTubeTranscriptApi  # type: ignore
 from youtube_transcript_api.formatters import TextFormatter  # type: ignore
 from youtube_transcript_api.proxies import GenericProxyConfig  # type: ignore
@@ -128,45 +129,68 @@ def _build_transcript_api(config: ContentCoreConfig) -> YouTubeTranscriptApi:
     return YouTubeTranscriptApi(**kwargs)
 
 
+# youtube-transcript-api outcomes that mean "this video has no usable
+# transcript", as opposed to a failed request.
+_NO_TRANSCRIPT_ERRORS = (yta.NoTranscriptFound, yta.TranscriptsDisabled)
+
+
 @retry_youtube()
 async def _fetch_best_transcript(
     video_id, preferred_langs=["en", "es", "pt"], api=None
 ):
     """Internal function that fetches transcript - wrapped with retry logic.
 
-    Uses youtube-transcript-api v1.0+ instance-based API.
+    Uses youtube-transcript-api v1.0+ instance-based API. Only "no
+    transcript" outcomes become ``NoTranscriptFound``; any other failure of a
+    lookup (e.g. ``IpBlocked`` on ``fetch()``) is re-raised once every lookup
+    has been tried.
     """
     if api is None:
         api = YouTubeTranscriptApi()
-    transcript_list = api.list(video_id)
+    try:
+        transcript_list = api.list(video_id)
+    except _NO_TRANSCRIPT_ERRORS as e:
+        raise NoTranscriptFound(f"No transcript available for video {video_id}") from e
+
+    last_error = None
 
     # First try: Manual transcripts in preferred languages
     try:
         transcript = transcript_list.find_manually_created_transcript(preferred_langs)
         return transcript.fetch()
-    except Exception:
+    except _NO_TRANSCRIPT_ERRORS:
         pass
+    except Exception as e:
+        last_error = e
 
     # Second try: Auto-generated transcripts in preferred languages
     try:
         transcript = transcript_list.find_generated_transcript(preferred_langs)
         return transcript.fetch()
-    except Exception:
+    except _NO_TRANSCRIPT_ERRORS:
         pass
+    except Exception as e:
+        last_error = e
 
     # Third try: Any transcript in preferred languages (manual or generated)
     try:
         transcript = transcript_list.find_transcript(preferred_langs)
         return transcript.fetch()
-    except Exception:
+    except _NO_TRANSCRIPT_ERRORS:
         pass
+    except Exception as e:
+        last_error = e
 
     # Last try: Direct fetch with language fallback
     try:
         return api.fetch(video_id, languages=preferred_langs)
-    except Exception:
+    except _NO_TRANSCRIPT_ERRORS:
         pass
+    except Exception as e:
+        last_error = e
 
+    if last_error is not None:
+        raise last_error
     raise NoTranscriptFound("No suitable transcript found for this video")
 
 
@@ -309,6 +333,7 @@ async def extract_youtube(url: str, config: ContentCoreConfig) -> ExtractionOutp
         except Exception as e:
             logger.error(f"Failed to format transcript for video_id: {video_id}")
             logger.exception(e)
+            errors.append(e)
 
         try:
             transcript_raw = [
