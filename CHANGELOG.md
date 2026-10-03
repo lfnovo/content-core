@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `requests`, imported directly for the YouTube cookie session, is declared as a dependency instead of arriving transitively (#99).
 - A failed Crawl4AI crawl (navigation timeout, blocked page) now raises `ExternalServiceError` instead of failing with a pydantic `ValidationError` on `content=None`, and `auto` falls through to the next engine. Applies to both the local browser and the Docker API mode (#101).
 
+### Security
+- Raised minimum versions to releases without known vulnerabilities: `aiohttp>=3.14.3`, `pillow>=12.3.0`, `click>=8.3.3`, `pydantic-settings>=2.14.2`, and in the extras `docling>=2.94.0`, `crawl4ai>=0.9.0` and `langchain-core>=1.3.3`. Upgrading content-core upgrades these packages in an existing environment. The development lock was refreshed; it now also exercises `fastmcp` 4 and `mcp` 2, which fresh installs already resolve to (#102).
+
 ## [2.1.0] - 2026-09-06
 
 ### Added
