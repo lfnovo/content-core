@@ -76,7 +76,8 @@ async def extract_content(
         NetworkError: a URL (or an engine API) could not be reached --
             connection, timeout, or DNS failure.
         ExternalServiceError: an external service failed (URL engine API,
-            STT provider), including auth and rate-limit responses.
+            STT provider, YouTube blocking every transcript path), including
+            auth and rate-limit responses.
         FileOperationError: a routed file exists but could not be parsed or
             processed (corrupted PDF/EPUB, ffmpeg/ffprobe failure).
         FileNotFoundError: ``file_path`` does not exist.
