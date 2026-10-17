@@ -338,3 +338,47 @@ class TestOdpContent:
             content = await extract_odp_content("/fake/deck.odp")
 
         assert content == "# Slide 2\n\nFine"
+
+
+# ---------------------------------------------------------------------------
+# pptx.py parsing, on real .pptx files written with python-pptx
+# ---------------------------------------------------------------------------
+from pptx import Presentation as PowerPointPresentation  # noqa: E402
+from pptx.util import Inches  # noqa: E402
+
+from content_core.processors.document.pptx import extract_pptx_content  # noqa: E402
+
+
+class TestPptxContent:
+    async def test_grouped_shapes_and_tables_are_kept(self, tmp_path):
+        # Only shapes with a `text` attribute were read, and neither a group
+        # shape nor a table has one: their text was lost.
+        prs = PowerPointPresentation()
+        slide = prs.slides.add_slide(prs.slide_layouts[5])
+        slide.shapes.title.text = "Quarterly results"
+        group = slide.shapes.add_group_shape()
+        box = group.shapes.add_textbox(Inches(1), Inches(2), Inches(3), Inches(1))
+        box.text_frame.text = "Revenue grew 12%"
+        inner = group.shapes.add_group_shape()
+        nested = inner.shapes.add_textbox(Inches(1), Inches(3), Inches(3), Inches(1))
+        nested.text_frame.text = "Costs fell 3%"
+        table = slide.shapes.add_table(
+            2, 2, Inches(1), Inches(4), Inches(4), Inches(1)
+        ).table
+        for (row, col), text in {
+            (0, 0): "Region",
+            (0, 1): "Sales",
+            (1, 0): "EMEA",
+            (1, 1): "4.2M | net",
+        }.items():
+            table.cell(row, col).text = text
+        path = tmp_path / "deck.pptx"
+        prs.save(path)
+
+        content = await extract_pptx_content(str(path))
+
+        assert content == (
+            "\n# Slide 1\n\n\n## Quarterly results\n\n\n"
+            "Revenue grew 12%\n\nCosts fell 3%\n\n"
+            "| Region | Sales |\n| --- | --- |\n| EMEA | 4.2M \\| net |"
+        )

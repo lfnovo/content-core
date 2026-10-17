@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- PPTX extraction keeps the text of grouped shapes, nested groups included, and of slide tables, written as markdown tables. Only shapes with text of their own were read, so both were lost.
+
 ## [2.2.0] - 2026-10-03
 
 ### Added
