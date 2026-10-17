@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- DOCX extraction keeps tables, as markdown tables in their place in the document, and the text of hyperlinks, written as `[text](url)`. Tables were left out entirely, and a linked phrase disappeared from its paragraph.
+
 ## [2.2.0] - 2026-10-03
 
 ### Added

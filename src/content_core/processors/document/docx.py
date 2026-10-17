@@ -1,8 +1,49 @@
 import asyncio
 
 from docx import Document  # type: ignore
+from docx.table import Table, _Cell  # type: ignore
+from docx.text.hyperlink import Hyperlink  # type: ignore
 
 from content_core.logging import logger
+
+
+def _cell_text(cell):
+    text = " ".join(p.text.strip() for p in cell.paragraphs if p.text.strip())
+    return text.replace("|", "\\|").replace("\n", " ")
+
+
+def _row_cells(row):
+    """The cells of a row, one per grid column.
+
+    ``row.cells`` raises ``ValueError`` for a vertically merged cell that has
+    no cell above it, so the row's own cells are used then.
+    """
+    try:
+        return row.cells
+    except ValueError:
+        return [_Cell(tc, row.table) for tc in row._tr.tc_lst]
+
+
+def _table_to_markdown(table):
+    """Render a python-docx table as a markdown table, the first row as header."""
+    rows = [[_cell_text(cell) for cell in _row_cells(row)] for row in table.rows]
+    rows = [row for row in rows if row]
+    if not rows or not any(any(row) for row in rows):
+        return ""
+    width = max(len(row) for row in rows)
+    rows = [row + [""] * (width - len(row)) for row in rows]
+    lines = ["| " + " | ".join(rows[0]) + " |"]
+    lines.append("| " + " | ".join(["---"] * width) + " |")
+    lines.extend("| " + " | ".join(row) + " |" for row in rows[1:])
+    return "\n".join(lines)
+
+
+def _formatted_run(run):
+    if run.bold:
+        return f"**{run.text}**"
+    if run.italic:
+        return f"*{run.text}*"
+    return run.text
 
 
 async def extract_docx_content_detailed(file_path):
@@ -13,7 +54,15 @@ async def extract_docx_content_detailed(file_path):
             doc = Document(file_path)
             content = []
 
-            for paragraph in doc.paragraphs:
+            # iter_inner_content yields the body's paragraphs and tables in
+            # document order; doc.paragraphs leaves every table out.
+            for block in doc.iter_inner_content():
+                if isinstance(block, Table):
+                    table = _table_to_markdown(block)
+                    if table:
+                        content.append(table)
+                    continue
+                paragraph = block
                 if not paragraph.text.strip():
                     continue
 
@@ -67,15 +116,18 @@ async def extract_docx_content_detailed(file_path):
                         content.append(f"{indent_spaces}* {text}")
 
                 else:
-                    # Handle text formatting
+                    # Handle text formatting. paragraph.runs leaves out the runs
+                    # inside a hyperlink, so a link's text was dropped; the
+                    # paragraph's inner content holds runs and hyperlinks.
                     formatted_text = []
-                    for run in paragraph.runs:
-                        if run.bold:
-                            formatted_text.append(f"**{run.text}**")
-                        elif run.italic:
-                            formatted_text.append(f"*{run.text}*")
+                    for item in paragraph.iter_inner_content():
+                        if isinstance(item, Hyperlink):
+                            text = "".join(_formatted_run(run) for run in item.runs)
+                            formatted_text.append(
+                                f"[{text}]({item.url})" if item.url and text else text
+                            )
                         else:
-                            formatted_text.append(run.text)
+                            formatted_text.append(_formatted_run(item))
 
                     content.append(f"{indent_spaces}{''.join(formatted_text)}")
 
