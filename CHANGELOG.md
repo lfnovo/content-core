@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Opt-in audio fallback for YouTube videos without a usable transcript (#61). With `youtube_audio_fallback="apify"` (`CCORE_YOUTUBE_AUDIO_FALLBACK`) and `APIFY_API_TOKEN` set, a video whose caption paths all fail is downloaded as audio through the `johnvc/youtube-download-api` Apify Actor and transcribed with the configured STT provider. This covers caption-less videos and IP-blocked hosts. Default `"off"` leaves behavior unchanged; enabling it without a token raises `ConfigurationError`, and a failed download raises `ExternalServiceError` or `NetworkError`.
+
 ## [2.2.0] - 2026-10-03
 
 ### Added

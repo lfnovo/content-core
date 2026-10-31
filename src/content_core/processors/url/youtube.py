@@ -1,7 +1,9 @@
+import asyncio
 import http.cookiejar
 import os
 import re
 import ssl
+import tempfile
 
 import aiohttp
 import requests
@@ -16,12 +18,14 @@ from content_core.common.exceptions import (
     ContentCoreError,
     ExternalServiceError,
     InvalidInputError,
+    NetworkError,
     NoTranscriptFound,
 )
 from content_core.common.retry import retry_youtube
 from content_core.config import ContentCoreConfig
 from content_core.logging import logger
 from content_core.common.state import ExtractionOutput
+from content_core.processors.media.audio import transcribe_audio
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
@@ -287,24 +291,134 @@ def _transcript_failure(video_id, errors):
     )
 
 
+APIFY_API_URL = "https://api.apify.com/v2"
+# johnvc/youtube-download-api fetches the file on Apify's side, so it works
+# for videos without captions and from IPs YouTube blocks.
+APIFY_AUDIO_ACTOR = "johnvc~youtube-download-api"
+# Apify holds a waitForFinish request open for at most 60 s; longer runs are
+# polled. The run itself is stopped by Apify after APIFY_RUN_TIMEOUT seconds.
+APIFY_WAIT_SECONDS = 60
+APIFY_RUN_TIMEOUT = 1800
+_APIFY_TERMINAL_STATUSES = ("SUCCEEDED", "FAILED", "TIMED-OUT", "ABORTED")
+
+
+def _apify_token(config: ContentCoreConfig) -> str | None:
+    """Return the Apify token when the audio fallback is enabled, else None.
+
+    Raises:
+        ConfigurationError: ``youtube_audio_fallback="apify"`` without
+            ``APIFY_API_TOKEN`` -- an explicit choice that cannot be honored.
+    """
+    if config.youtube_audio_fallback != "apify":
+        return None
+    token = os.environ.get("APIFY_API_TOKEN")
+    if not token:
+        raise ConfigurationError(
+            "youtube_audio_fallback='apify' needs an Apify API token in APIFY_API_TOKEN"
+        )
+    return token
+
+
+async def _download_audio_apify(url: str, dest_dir: str, token: str) -> tuple:
+    """Download the audio of ``url`` with the johnvc/youtube-download-api Actor.
+
+    Returns ``(file_path, title)``. Raises ``ExternalServiceError`` when the run
+    does not succeed or returns no file (e.g. the video is unavailable).
+    """
+    headers = {"Authorization": f"Bearer {token}"}
+    wait = f"waitForFinish={APIFY_WAIT_SECONDS}"
+    async with aiohttp.ClientSession(trust_env=True) as session:
+        async with session.post(
+            f"{APIFY_API_URL}/acts/{APIFY_AUDIO_ACTOR}/runs"
+            f"?timeout={APIFY_RUN_TIMEOUT}&{wait}",
+            json={"videoUrls": [url], "format": "audio"},
+            headers=headers,
+        ) as response:
+            response.raise_for_status()
+            run = (await response.json())["data"]
+        while run["status"] not in _APIFY_TERMINAL_STATUSES:
+            async with session.get(
+                f"{APIFY_API_URL}/actor-runs/{run['id']}?{wait}", headers=headers
+            ) as response:
+                response.raise_for_status()
+                run = (await response.json())["data"]
+        if run["status"] != "SUCCEEDED":
+            raise ExternalServiceError(
+                f"Apify audio download run {run['status']} for {url}"
+            )
+
+        async with session.get(
+            f"{APIFY_API_URL}/datasets/{run['defaultDatasetId']}/items?clean=true",
+            headers=headers,
+        ) as response:
+            response.raise_for_status()
+            rows = await response.json()
+        row = next((r for r in rows if r.get("fileUrl")), None)
+        if row is None:
+            reason = rows[0].get("errorMessage") if rows else "no result"
+            raise ExternalServiceError(
+                f"Apify audio download returned no file for {url}: {reason}"
+            )
+
+        # fileUrl is signed: it downloads without the token.
+        name = f"{row.get('videoId') or 'audio'}.{row.get('container') or 'm4a'}"
+        path = os.path.join(dest_dir, name)
+        async with session.get(row["fileUrl"]) as response:
+            response.raise_for_status()
+            with open(path, "wb") as f:
+                async for chunk in response.content.iter_chunked(1 << 16):
+                    f.write(chunk)
+    return path, row.get("title") or ""
+
+
+async def _transcribe_audio_apify(url, video_id, token, config: ContentCoreConfig):
+    """Last resort (#61): transcribe the video's audio with the configured STT.
+
+    Returns ``(content, title)``. Download failures raise ``NetworkError`` or
+    ``ExternalServiceError``; ``transcribe_audio`` raises its own typed errors.
+    """
+    logger.info(f"No transcript for video {video_id}; transcribing its audio via Apify")
+    with tempfile.TemporaryDirectory() as temp_dir:
+        try:
+            audio_path, title = await _download_audio_apify(url, temp_dir, token)
+        except ContentCoreError:
+            raise
+        except (aiohttp.ClientConnectionError, asyncio.TimeoutError) as e:
+            raise NetworkError(
+                f"Apify audio download failed for video {video_id}: {e!r}"
+            ) from e
+        except Exception as e:
+            raise ExternalServiceError(
+                f"Apify audio download failed for video {video_id}: {e!r}"
+            ) from e
+        result = await transcribe_audio(audio_path, config)
+    return result.content, title
+
+
 async def extract_youtube(url: str, config: ContentCoreConfig) -> ExtractionOutput:
     """Extract transcript from a YouTube video.
 
     youtube-transcript-api is tried first and pytubefix is the fallback; if
-    neither yields a transcript, the failure raises.
+    neither yields a transcript, the failure raises. With
+    ``youtube_audio_fallback="apify"`` the audio is downloaded and transcribed
+    instead, and a failure there raises.
 
     Raises:
         InvalidInputError: no video ID could be read from the URL.
-        ConfigurationError: ``youtube_cookies_file`` cannot be used.
+        ConfigurationError: ``youtube_cookies_file`` cannot be used, or the
+            audio fallback is enabled without ``APIFY_API_TOKEN``.
         NoTranscriptFound: the video has no usable transcript.
         ExternalServiceError: YouTube refused or failed the request on every
-            path (e.g. ``IpBlocked``).
+            path (e.g. ``IpBlocked``), or the audio fallback download failed.
+        NetworkError: the audio fallback could not reach Apify (connection
+            failure or timeout).
     """
     logger.debug(f"Extracting transcript from URL: {url}")
     languages = config.youtube_languages
     # Built first: an unusable cookies file is a configuration error and must
     # raise, not degrade to an anonymous request.
     api = _build_transcript_api(config)
+    apify_token = _apify_token(config)
 
     video_id = await _extract_youtube_id(url)
     if not video_id:
@@ -357,6 +471,13 @@ async def extract_youtube(url: str, config: ContentCoreConfig) -> ExtractionOutp
             )
         except Exception as e:
             errors.append(e)
+
+    # Last resort (opt-in): transcribe the audio
+    if not formatted_content and apify_token:
+        formatted_content, audio_title = await _transcribe_audio_apify(
+            url, video_id, apify_token, config
+        )
+        title = title or audio_title
 
     if not formatted_content:
         failure, cause = _transcript_failure(video_id, errors)

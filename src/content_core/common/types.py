@@ -13,3 +13,8 @@ UrlEngine = Literal[
     "jina",
     "crawl4ai",
 ]
+
+YoutubeAudioFallback = Literal[
+    "off",
+    "apify",
+]

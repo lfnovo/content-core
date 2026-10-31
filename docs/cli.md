@@ -173,6 +173,7 @@ content-core config delete llm_provider
 | `stt_timeout` | STT API timeout in seconds | `3600` |
 | `summary_model` | Override LLM model for summarization | — |
 | `url_engine` | URL extraction engine (`auto`, `simple`, `firecrawl`, `jina`, `crawl4ai`) | `auto` |
+| `youtube_audio_fallback` | Audio fallback when no transcript is found (`off`, `apify`; `apify` needs `APIFY_API_TOKEN`) | `off` |
 | `youtube_languages` | Transcript languages, comma-separated | `en,es,pt` |
 
 Run `content-core config --help` to see this list in the terminal.

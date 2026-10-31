@@ -240,6 +240,7 @@ Content Core uses `ContentCoreConfig` powered by pydantic-settings. Settings are
 | `CCORE_YOUTUBE_LANGUAGES` | Preferred YouTube transcript languages | - |
 | `CCORE_YOUTUBE_COOKIES_FILE` | Path to a Netscape `cookies.txt` for YouTube transcripts (missing file raises `ConfigurationError`) | - |
 | `CCORE_YOUTUBE_PROXY` | Proxy URL for YouTube transcripts, e.g. `http://user:pass@host:port` | - |
+| `CCORE_YOUTUBE_AUDIO_FALLBACK` | When no transcript can be fetched, transcribe the audio instead (`off`, `apify`; `apify` needs `APIFY_API_TOKEN`) | `off` |
 
 API keys for external services are set via their standard environment variables (e.g., `OPENAI_API_KEY`, `FIRECRAWL_API_KEY`, `JINA_API_KEY`).
 
@@ -250,6 +251,8 @@ Content Core reads standard `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY` environmen
 ### YouTube on Blocked Networks
 
 If YouTube extraction fails with `IpBlocked`/`RequestBlocked` on a flagged IP (cloud hosts, VPNs), either point `CCORE_YOUTUBE_COOKIES_FILE` at a `cookies.txt` exported from a logged-in browser (re-export it when the cookies expire), or set `CCORE_YOUTUBE_PROXY` to a **residential** proxy — datacenter proxies get blocked or CAPTCHA'd. See [docs/usage.md](docs/usage.md#youtube-on-blocked-networks).
+
+For videos without captions, or when every transcript path is blocked, set `CCORE_YOUTUBE_AUDIO_FALLBACK=apify` and `APIFY_API_TOKEN`: the audio is downloaded through the `johnvc/youtube-download-api` Apify Actor and transcribed with your STT provider. It is off by default. See [docs/usage.md](docs/usage.md#audio-fallback-for-videos-without-captions).
 
 ## Optional Dependencies
 

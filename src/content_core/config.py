@@ -8,7 +8,7 @@ from typing import Annotated, Any, Literal, Optional, Tuple, Type, get_args, get
 from pydantic import Field, TypeAdapter, ValidationError
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
-from content_core.common.types import DocumentEngine, UrlEngine
+from content_core.common.types import DocumentEngine, UrlEngine, YoutubeAudioFallback
 
 try:
     import tomllib
@@ -87,6 +87,9 @@ class ContentCoreConfig(BaseSettings):
     youtube_languages: list[str] = Field(default=["en", "es", "pt"])
     youtube_cookies_file: Optional[str] = None  # path to a Netscape cookies.txt
     youtube_proxy: Optional[str] = None  # proxy URL, e.g. http://user:pass@host:port
+    # Last resort when no transcript can be fetched: transcribe the audio (#61).
+    # "apify" downloads it with the johnvc/youtube-download-api Actor (APIFY_API_TOKEN).
+    youtube_audio_fallback: YoutubeAudioFallback = "off"
 
     # Docling
     docling_output_format: str = "markdown"
