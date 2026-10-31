@@ -159,8 +159,8 @@ side, so it also works from IPs YouTube blocks. It is off by default
 
 - Needs an Apify API token in `APIFY_API_TOKEN`; without it, extraction raises
   `ConfigurationError`.
-- Costs an STT call per video and is much slower than captions (download plus
-  transcription).
+- Costs one or more STT calls per video, depending on `audio_segment_minutes`,
+  and is much slower than captions (download plus transcription).
 - A failed download raises `ExternalServiceError` (or `NetworkError`); STT
   failures raise as they do for audio files.
 

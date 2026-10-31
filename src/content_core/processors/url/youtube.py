@@ -409,7 +409,9 @@ async def extract_youtube(url: str, config: ContentCoreConfig) -> ExtractionOutp
             audio fallback is enabled without ``APIFY_API_TOKEN``.
         NoTranscriptFound: the video has no usable transcript.
         ExternalServiceError: YouTube refused or failed the request on every
-            path (e.g. ``IpBlocked``).
+            path (e.g. ``IpBlocked``), or the audio fallback download failed.
+        NetworkError: the audio fallback could not reach Apify (connection
+            failure or timeout).
     """
     logger.debug(f"Extracting transcript from URL: {url}")
     languages = config.youtube_languages

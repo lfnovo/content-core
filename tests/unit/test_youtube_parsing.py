@@ -614,7 +614,9 @@ class TestYoutubeAudioFallback:
             ) as download,
             pytest.raises(NoTranscriptFound),
         ):
-            await extract_youtube(self.URL, ContentCoreConfig())
+            await extract_youtube(
+                self.URL, ContentCoreConfig(youtube_audio_fallback="off")
+            )
         download.assert_not_called()
 
     async def test_captionless_video_is_transcribed_from_audio(self, monkeypatch):

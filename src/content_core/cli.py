@@ -126,6 +126,7 @@ def config():
       stt_timeout          STT API timeout in seconds (default: 3600)
       summary_model        Override LLM model for summarization
       url_engine           URL extraction engine (auto, simple, firecrawl, jina, crawl4ai)
+      youtube_audio_fallback  Audio fallback when no transcript is found: off, apify (default: off)
       youtube_languages    Transcript languages, comma-separated (default: en,es,pt)
       docling_formulas     Enable formula extraction (default: false)
       docling_ocr          Enable OCR for scanned PDFs (default: true)
