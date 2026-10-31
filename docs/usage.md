@@ -147,6 +147,28 @@ CCORE_YOUTUBE_COOKIES_FILE=/path/to/cookies.txt
 CCORE_YOUTUBE_PROXY=http://user:pass@host:port
 ```
 
+#### Audio fallback for videos without captions
+
+When neither transcript path returns anything (the video has no captions, or
+YouTube blocks every request), `youtube_audio_fallback="apify"`
+(`CCORE_YOUTUBE_AUDIO_FALLBACK=apify`) downloads the audio through the
+`johnvc/youtube-download-api` Apify Actor and transcribes it with the
+configured STT provider, like any audio file. The download runs on Apify's
+side, so it also works from IPs YouTube blocks. It is off by default
+(`"off"`), and it only runs after the free caption paths have failed.
+
+- Needs an Apify API token in `APIFY_API_TOKEN`; without it, extraction raises
+  `ConfigurationError`.
+- Costs an STT call per video and is much slower than captions (download plus
+  transcription).
+- A failed download raises `ExternalServiceError` (or `NetworkError`); STT
+  failures raise as they do for audio files.
+
+```bash
+CCORE_YOUTUBE_AUDIO_FALLBACK=apify
+APIFY_API_TOKEN=apify_api_...
+```
+
 ### Local HTML Files
 
 ```python
@@ -231,6 +253,7 @@ CCORE_STT_TIMEOUT=3600
 CCORE_YOUTUBE_LANGUAGES=en,pt
 CCORE_YOUTUBE_COOKIES_FILE=/path/to/cookies.txt
 CCORE_YOUTUBE_PROXY=http://user:pass@host:port
+CCORE_YOUTUBE_AUDIO_FALLBACK=off
 CCORE_FIRECRAWL_PROXY=auto
 CCORE_FIRECRAWL_WAIT_FOR=3000
 FIRECRAWL_API_URL=http://localhost:3002

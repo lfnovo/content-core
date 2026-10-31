@@ -4,6 +4,7 @@ import http.cookiejar
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 
 from content_core.common.exceptions import (
     ConfigurationError,
@@ -14,6 +15,7 @@ from content_core.common.exceptions import (
 from content_core.config import ContentCoreConfig
 from content_core.processors.url.youtube import (
     _build_transcript_api,
+    _download_audio_apify,
     _fetch_transcript_pytubefix,
     _extract_youtube_id,
     extract_youtube,
@@ -515,3 +517,241 @@ class TestFetchBestTranscriptErrors:
 
         with pytest.raises(NoTranscriptFound):
             await _fetch_best_transcript.__wrapped__("vid", ["en"], api)
+
+
+
+APIFY_SESSION = "content_core.processors.url.youtube.aiohttp.ClientSession"
+FILE_URL = (
+    "https://api.apify.com/v2/key-value-stores/kv1/records/"
+    "pBy1zgt0XPc_audio.m4a?signature=abc"
+)
+
+
+class _FakeResponse:
+    """An aiohttp response stand-in: a JSON payload or file bytes."""
+
+    def __init__(self, payload=None, body=b""):
+        self._payload = payload
+        self._body = body
+        self.content = self
+
+    def raise_for_status(self):
+        pass
+
+    async def json(self):
+        return self._payload
+
+    async def iter_chunked(self, size):
+        yield self._body
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+
+class _FakeSession:
+    """Hands out canned responses in order and records each request."""
+
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.calls = []
+
+    def post(self, url, **kwargs):
+        self.calls.append((url, kwargs))
+        return self.responses.pop(0)
+
+    get = post
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+
+def _run(status):
+    return _FakeResponse(
+        {"data": {"id": "run1", "status": status, "defaultDatasetId": "ds1"}}
+    )
+
+
+class TestYoutubeAudioFallback:
+    """youtube_audio_fallback="apify": transcribe the audio as a last resort (#61)."""
+
+    URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    DUMMY_TOKEN = "dummy-apify-token"
+
+    def _no_transcript(self):
+        return (
+            patch(
+                "content_core.processors.url.youtube.get_best_transcript",
+                new_callable=AsyncMock,
+                side_effect=NoTranscriptFound("none"),
+            ),
+            patch(
+                "content_core.processors.url.youtube.get_video_title",
+                new_callable=AsyncMock,
+                return_value="",
+            ),
+            patch(
+                "content_core.processors.url.youtube.extract_transcript_pytubefix",
+                return_value=(None, None),
+            ),
+        )
+
+    async def test_off_by_default_never_downloads(self, monkeypatch):
+        monkeypatch.setenv("APIFY_API_TOKEN", self.DUMMY_TOKEN)
+        p1, p2, p3 = self._no_transcript()
+        with (
+            p1,
+            p2,
+            p3,
+            patch(
+                "content_core.processors.url.youtube._download_audio_apify",
+                new_callable=AsyncMock,
+            ) as download,
+            pytest.raises(NoTranscriptFound),
+        ):
+            await extract_youtube(self.URL, ContentCoreConfig())
+        download.assert_not_called()
+
+    async def test_captionless_video_is_transcribed_from_audio(self, monkeypatch):
+        monkeypatch.setenv("APIFY_API_TOKEN", self.DUMMY_TOKEN)
+        p1, p2, p3 = self._no_transcript()
+        with (
+            p1,
+            p2,
+            p3,
+            patch(
+                "content_core.processors.url.youtube._download_audio_apify",
+                new_callable=AsyncMock,
+                return_value=("/tmp/dQw4w9WgXcQ.m4a", "Audio Title"),
+            ) as download,
+            patch(
+                "content_core.processors.url.youtube.transcribe_audio",
+                new_callable=AsyncMock,
+                return_value=MagicMock(content="Spoken words"),
+            ) as stt,
+        ):
+            config = ContentCoreConfig(youtube_audio_fallback="apify")
+            result = await extract_youtube(self.URL, config)
+
+        assert result.content == "Spoken words"
+        assert result.title == "Audio Title"
+        assert result.identified_type == "youtube"
+        assert download.call_args.args[0] == self.URL
+        assert download.call_args.args[2] == self.DUMMY_TOKEN
+        stt.assert_awaited_once_with("/tmp/dQw4w9WgXcQ.m4a", config)
+
+    async def test_transcript_found_skips_audio(self, monkeypatch):
+        monkeypatch.setenv("APIFY_API_TOKEN", self.DUMMY_TOKEN)
+        with (
+            patch(
+                "content_core.processors.url.youtube.get_best_transcript",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "content_core.processors.url.youtube.get_video_title",
+                new_callable=AsyncMock,
+                return_value="",
+            ),
+            patch(
+                "content_core.processors.url.youtube.extract_transcript_pytubefix",
+                return_value=("Caption text", "srt"),
+            ),
+            patch(
+                "content_core.processors.url.youtube._download_audio_apify",
+                new_callable=AsyncMock,
+            ) as download,
+        ):
+            result = await extract_youtube(
+                self.URL, ContentCoreConfig(youtube_audio_fallback="apify")
+            )
+        assert result.content == "Caption text"
+        download.assert_not_called()
+
+    async def test_missing_token_raises_configuration_error(self, monkeypatch):
+        monkeypatch.delenv("APIFY_API_TOKEN", raising=False)
+        config = ContentCoreConfig(youtube_audio_fallback="apify")
+        with pytest.raises(ConfigurationError, match="APIFY_API_TOKEN"):
+            await extract_youtube(self.URL, config)
+
+    async def test_download_failure_raises_external_service_error(self, monkeypatch):
+        monkeypatch.setenv("APIFY_API_TOKEN", self.DUMMY_TOKEN)
+        p1, p2, p3 = self._no_transcript()
+        config = ContentCoreConfig(youtube_audio_fallback="apify")
+        with (
+            p1,
+            p2,
+            p3,
+            patch(
+                "content_core.processors.url.youtube._download_audio_apify",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("HTTP 402"),
+            ),
+            pytest.raises(ExternalServiceError, match="HTTP 402"),
+        ):
+            await extract_youtube(self.URL, config)
+
+    def test_unknown_fallback_is_rejected(self):
+        with pytest.raises(ValidationError):
+            ContentCoreConfig(youtube_audio_fallback="yt-dlp")
+
+    async def test_download_polls_the_run_and_saves_the_file(self, tmp_path):
+        row = {
+            "resultType": "file",
+            "videoId": "pBy1zgt0XPc",
+            "title": "What is GitHub?",
+            "container": "m4a",
+            "fileUrl": FILE_URL,
+        }
+        session = _FakeSession(
+            [
+                _run("RUNNING"),
+                _run("SUCCEEDED"),
+                _FakeResponse([row]),
+                _FakeResponse(body=b"m4a bytes"),
+            ]
+        )
+        with patch(APIFY_SESSION, return_value=session):
+            path, title = await _download_audio_apify(
+                self.URL, str(tmp_path), self.DUMMY_TOKEN
+            )
+
+        assert path == str(tmp_path / "pBy1zgt0XPc.m4a")
+        assert (tmp_path / "pBy1zgt0XPc.m4a").read_bytes() == b"m4a bytes"
+        assert title == "What is GitHub?"
+        start_url, start_kwargs = session.calls[0]
+        assert "/acts/johnvc~youtube-download-api/runs?" in start_url
+        assert start_kwargs["json"] == {"videoUrls": [self.URL], "format": "audio"}
+        assert start_kwargs["headers"] == {
+            "Authorization": f"Bearer {self.DUMMY_TOKEN}"
+        }
+        assert "/actor-runs/run1?" in session.calls[1][0]
+        assert "/datasets/ds1/items" in session.calls[2][0]
+        # The signed fileUrl downloads without the token.
+        assert session.calls[3] == (FILE_URL, {})
+
+    async def test_unavailable_video_raises_external_service_error(self, tmp_path):
+        row = {
+            "resultType": "error",
+            "error": "VIDEO_UNAVAILABLE",
+            "errorMessage": "This video is unavailable",
+        }
+        session = _FakeSession([_run("SUCCEEDED"), _FakeResponse([row])])
+        with (
+            patch(APIFY_SESSION, return_value=session),
+            pytest.raises(ExternalServiceError, match="This video is unavailable"),
+        ):
+            await _download_audio_apify(self.URL, str(tmp_path), self.DUMMY_TOKEN)
+
+    async def test_failed_run_raises_external_service_error(self, tmp_path):
+        session = _FakeSession([_run("FAILED")])
+        with (
+            patch(APIFY_SESSION, return_value=session),
+            pytest.raises(ExternalServiceError, match="FAILED"),
+        ):
+            await _download_audio_apify(self.URL, str(tmp_path), self.DUMMY_TOKEN)
