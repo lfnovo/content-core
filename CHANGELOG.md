@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-11-03
+
 ### Security
 - URL fetches made directly by content-core (the `simple` engine, the MIME-type probe, remote file downloads and Reddit posts) refuse link-local and cloud-metadata addresses, including on every redirect hop and for hostnames that resolve to them. Private and loopback addresses are still allowed. A refused URL raises `InvalidInputError` (`BlockedAddressError`).
 
