@@ -1,7 +1,7 @@
-import aiohttp
 from bs4 import BeautifulSoup
 from readability import Document
 
+from content_core.common.http import guarded_request_url, guarded_session
 from content_core.common.retry import retry_url_network
 from content_core.logging import logger
 
@@ -9,8 +9,8 @@ from content_core.logging import logger
 @retry_url_network()
 async def _fetch_url_html(url: str) -> str:
     """Internal function to fetch URL HTML content - wrapped with retry logic."""
-    async with aiohttp.ClientSession(trust_env=True) as session:
-        async with session.get(url, timeout=10) as response:
+    async with guarded_session() as session:
+        async with session.get(guarded_request_url(url), timeout=10) as response:
             # Raise ClientResponseError so retry logic can inspect status code
             # (5xx and 429 will be retried, 4xx will not)
             response.raise_for_status()
