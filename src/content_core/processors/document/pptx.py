@@ -1,8 +1,44 @@
 import asyncio
 
 from pptx import Presentation  # type: ignore
+from pptx.enum.shapes import MSO_SHAPE_TYPE  # type: ignore
 
 from content_core.logging import logger
+
+
+def _table_to_markdown(table):
+    """Render a slide table as a markdown table, the first row as header."""
+    rows = [
+        [cell.text.strip().replace("|", "\\|").replace("\n", " ") for cell in row.cells]
+        for row in table.rows
+    ]
+    if not rows or not any(any(row) for row in rows):
+        return ""
+    width = max(len(row) for row in rows)
+    rows = [row + [""] * (width - len(row)) for row in rows]
+    lines = ["| " + " | ".join(rows[0]) + " |"]
+    lines.append("| " + " | ".join(["---"] * width) + " |")
+    lines.extend("| " + " | ".join(row) + " |" for row in rows[1:])
+    return "\n".join(lines)
+
+
+def _shape_texts(shapes, title):
+    """Yield the text of the shapes in reading order.
+
+    A group shape and a table (a graphic frame) have no ``text`` of their
+    own: a group's text is in the shapes it groups, and a table's in its
+    cells, so both are read through.
+    """
+    for shape in shapes:
+        if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+            yield from _shape_texts(shape.shapes, title)
+        elif getattr(shape, "has_table", False) and shape.has_table:
+            table = _table_to_markdown(shape.table)
+            if table:
+                yield table
+        elif hasattr(shape, "text") and shape.text.strip():
+            if shape != title:  # Skip title as it's already added
+                yield shape.text.strip()
 
 
 async def extract_pptx_content(file_path):
@@ -20,13 +56,8 @@ async def extract_pptx_content(file_path):
                 if slide.shapes.title:
                     content.append(f"## {slide.shapes.title.text}\n")
 
-                # Extract text from all shapes
-                for shape in slide.shapes:
-                    if hasattr(shape, "text") and shape.text.strip():
-                        if (
-                            shape != slide.shapes.title
-                        ):  # Skip title as it's already added
-                            content.append(shape.text.strip())
+                # Extract text from all shapes, groups and tables included
+                content.extend(_shape_texts(slide.shapes, slide.shapes.title))
 
             return "\n\n".join(content)
 

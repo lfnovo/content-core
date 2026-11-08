@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - DOCX extraction keeps tables, as markdown tables in their place in the document, and the text of hyperlinks, written as `[text](url)`. Tables were left out entirely, and a linked phrase disappeared from its paragraph.
+- PPTX extraction keeps the text of grouped shapes, nested groups included, and of slide tables, written as markdown tables. Only shapes with text of their own were read, so both were lost.
 
 ## [2.3.0] - 2026-11-07
 
