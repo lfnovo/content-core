@@ -1,6 +1,7 @@
 """Unit tests for Docling picture description via an OpenAI-compatible endpoint
 (docling_vision_* settings / CCORE_DOCLING_VISION_* env vars)."""
 
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -12,6 +13,24 @@ from content_core.processors.document import docling as docling_module
 pytest.importorskip("docling")
 
 URL = "http://localhost:1234/v1/chat/completions"
+
+
+@pytest.fixture(autouse=True)
+def isolated_settings(monkeypatch, tmp_path):
+    """Keep the caller's CCORE_DOCLING_VISION_* env vars and config file out."""
+    for var in list(os.environ):
+        if var.startswith("CCORE_DOCLING_VISION_"):
+            monkeypatch.delenv(var)
+    monkeypatch.setattr("content_core.config.CONFIG_FILE", tmp_path / "config.toml")
+
+
+def test_url_with_credentials_is_not_logged():
+    config = ContentCoreConfig(docling_vision_url="https://user:pw@vlm.example.com/v1/chat/completions?key=abc")
+    with patch.object(docling_module, "logger") as logger:
+        docling_module._picture_description_api_options(config)
+    logged = " ".join(str(c) for c in logger.debug.call_args_list)
+    assert "vlm.example.com" in logged
+    assert "pw" not in logged and "abc" not in logged
 
 
 def test_no_url_keeps_inline_default():

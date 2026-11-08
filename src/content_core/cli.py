@@ -136,7 +136,7 @@ def config():
       docling_vision_prompt   Prompt for image descriptions (default: docling's)
       docling_vision_max_tokens  Token limit per image description (default: 400)
       docling_vision_timeout     Request timeout in seconds (default: 20)
-      docling_vision_token_param Token limit field: max_completion_tokens or max_tokens
+      docling_vision_token_param Token limit field: max_completion_tokens or max_tokens (default: max_completion_tokens)
     """
     pass
 

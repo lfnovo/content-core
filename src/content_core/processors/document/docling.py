@@ -3,6 +3,7 @@ Docling-based document extraction processor.
 """
 
 from typing import Optional
+from urllib.parse import urlsplit
 
 from content_core.config import ContentCoreConfig
 from content_core.common.messages import DOCLING_MISSING_MESSAGE
@@ -81,8 +82,11 @@ def _picture_description_api_options(
     if config.docling_vision_prompt:
         kwargs["prompt"] = config.docling_vision_prompt
 
+    # Log only scheme and host: the URL may carry credentials in its
+    # userinfo or query string.
+    endpoint = urlsplit(config.docling_vision_url)
     logger.debug(
-        f"Docling picture description via {config.docling_vision_url} "
+        f"Docling picture description via {endpoint.scheme}://{endpoint.hostname} "
         f"(model={config.docling_vision_model or 'server default'})"
     )
     return PictureDescriptionApiOptions(
