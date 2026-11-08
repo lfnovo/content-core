@@ -338,3 +338,110 @@ class TestOdpContent:
             content = await extract_odp_content("/fake/deck.odp")
 
         assert content == "# Slide 2\n\nFine"
+
+
+# ---------------------------------------------------------------------------
+# docx.py parsing, on real .docx files written with python-docx
+# ---------------------------------------------------------------------------
+from docx import Document as WordDocument  # noqa: E402
+from docx.opc.constants import RELATIONSHIP_TYPE  # noqa: E402
+from docx.oxml import parse_xml  # noqa: E402
+from docx.oxml.ns import nsdecls  # noqa: E402
+
+from content_core.processors.document.docx import (  # noqa: E402
+    extract_docx_content_detailed,
+)
+
+
+def _add_hyperlink(doc, paragraph, text, url):
+    r_id = doc.part.relate_to(url, RELATIONSHIP_TYPE.HYPERLINK, is_external=True)
+    paragraph._p.append(
+        parse_xml(
+            f'<w:hyperlink {nsdecls("w", "r")} r:id="{r_id}">'
+            f"<w:r><w:t>{text}</w:t></w:r></w:hyperlink>"
+        )
+    )
+
+
+class TestDocxContent:
+    async def test_tables_are_kept_in_document_order(self, tmp_path):
+        # doc.paragraphs leaves every table out, so a table's text was lost.
+        doc = WordDocument()
+        doc.add_paragraph("Before the table.")
+        table = doc.add_table(rows=2, cols=2)
+        for (row, col), text in {
+            (0, 0): "City",
+            (0, 1): "Population",
+            (1, 0): "Berlin",
+            (1, 1): "3.7M | metro",
+        }.items():
+            table.cell(row, col).text = text
+        doc.add_paragraph("After the table.")
+        path = tmp_path / "table.docx"
+        doc.save(path)
+
+        content = await extract_docx_content_detailed(str(path))
+
+        assert content == (
+            "Before the table.\n\n"
+            "| City | Population |\n| --- | --- |\n| Berlin | 3.7M \\| metro |\n\n"
+            "After the table."
+        )
+
+    async def test_hyperlink_text_is_kept(self, tmp_path):
+        # paragraph.runs leaves out the runs inside a hyperlink.
+        doc = WordDocument()
+        paragraph = doc.add_paragraph("See ")
+        _add_hyperlink(doc, paragraph, "the docs", "https://example.com/docs")
+        paragraph.add_run(" for ")
+        paragraph.add_run("details").bold = True
+        path = tmp_path / "link.docx"
+        doc.save(path)
+
+        content = await extract_docx_content_detailed(str(path))
+
+        assert content == "See [the docs](https://example.com/docs) for **details**"
+
+
+# ---------------------------------------------------------------------------
+# pptx.py parsing, on real .pptx files written with python-pptx
+# ---------------------------------------------------------------------------
+from pptx import Presentation as PowerPointPresentation  # noqa: E402
+from pptx.util import Inches  # noqa: E402
+
+from content_core.processors.document.pptx import extract_pptx_content  # noqa: E402
+
+
+class TestPptxContent:
+    async def test_grouped_shapes_and_tables_are_kept(self, tmp_path):
+        # Only shapes with a `text` attribute were read, and neither a group
+        # shape nor a table has one: their text was lost.
+        prs = PowerPointPresentation()
+        slide = prs.slides.add_slide(prs.slide_layouts[5])
+        slide.shapes.title.text = "Quarterly results"
+        group = slide.shapes.add_group_shape()
+        box = group.shapes.add_textbox(Inches(1), Inches(2), Inches(3), Inches(1))
+        box.text_frame.text = "Revenue grew 12%"
+        inner = group.shapes.add_group_shape()
+        nested = inner.shapes.add_textbox(Inches(1), Inches(3), Inches(3), Inches(1))
+        nested.text_frame.text = "Costs fell 3%"
+        table = slide.shapes.add_table(
+            2, 2, Inches(1), Inches(4), Inches(4), Inches(1)
+        ).table
+        for (row, col), text in {
+            (0, 0): "Region",
+            (0, 1): "Sales",
+            (1, 0): "EMEA",
+            (1, 1): "4.2M | net",
+        }.items():
+            table.cell(row, col).text = text
+        path = tmp_path / "deck.pptx"
+        prs.save(path)
+
+        content = await extract_pptx_content(str(path))
+
+        assert content == (
+            "\n# Slide 1\n\n\n## Quarterly results\n\n\n"
+            "Revenue grew 12%\n\nCosts fell 3%\n\n"
+            "| Region | Sales |\n| --- | --- |\n| EMEA | 4.2M \\| net |"
+        )
