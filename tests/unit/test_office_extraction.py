@@ -338,3 +338,66 @@ class TestOdpContent:
             content = await extract_odp_content("/fake/deck.odp")
 
         assert content == "# Slide 2\n\nFine"
+
+
+# ---------------------------------------------------------------------------
+# docx.py parsing, on real .docx files written with python-docx
+# ---------------------------------------------------------------------------
+from docx import Document as WordDocument  # noqa: E402
+from docx.opc.constants import RELATIONSHIP_TYPE  # noqa: E402
+from docx.oxml import parse_xml  # noqa: E402
+from docx.oxml.ns import nsdecls  # noqa: E402
+
+from content_core.processors.document.docx import (  # noqa: E402
+    extract_docx_content_detailed,
+)
+
+
+def _add_hyperlink(doc, paragraph, text, url):
+    r_id = doc.part.relate_to(url, RELATIONSHIP_TYPE.HYPERLINK, is_external=True)
+    paragraph._p.append(
+        parse_xml(
+            f'<w:hyperlink {nsdecls("w", "r")} r:id="{r_id}">'
+            f"<w:r><w:t>{text}</w:t></w:r></w:hyperlink>"
+        )
+    )
+
+
+class TestDocxContent:
+    async def test_tables_are_kept_in_document_order(self, tmp_path):
+        # doc.paragraphs leaves every table out, so a table's text was lost.
+        doc = WordDocument()
+        doc.add_paragraph("Before the table.")
+        table = doc.add_table(rows=2, cols=2)
+        for (row, col), text in {
+            (0, 0): "City",
+            (0, 1): "Population",
+            (1, 0): "Berlin",
+            (1, 1): "3.7M | metro",
+        }.items():
+            table.cell(row, col).text = text
+        doc.add_paragraph("After the table.")
+        path = tmp_path / "table.docx"
+        doc.save(path)
+
+        content = await extract_docx_content_detailed(str(path))
+
+        assert content == (
+            "Before the table.\n\n"
+            "| City | Population |\n| --- | --- |\n| Berlin | 3.7M \\| metro |\n\n"
+            "After the table."
+        )
+
+    async def test_hyperlink_text_is_kept(self, tmp_path):
+        # paragraph.runs leaves out the runs inside a hyperlink.
+        doc = WordDocument()
+        paragraph = doc.add_paragraph("See ")
+        _add_hyperlink(doc, paragraph, "the docs", "https://example.com/docs")
+        paragraph.add_run(" for ")
+        paragraph.add_run("details").bold = True
+        path = tmp_path / "link.docx"
+        doc.save(path)
+
+        content = await extract_docx_content_detailed(str(path))
+
+        assert content == "See [the docs](https://example.com/docs) for **details**"
