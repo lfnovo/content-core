@@ -130,6 +130,13 @@ def config():
       docling_formulas     Enable formula extraction (default: false)
       docling_ocr          Enable OCR for scanned PDFs (default: true)
       docling_vision       Enable image description + chart extraction (default: false)
+      docling_vision_url   OpenAI-compatible chat completions URL for image descriptions (default: none, inline model)
+      docling_vision_model Model name sent to docling_vision_url
+      docling_vision_api_key  Bearer token for docling_vision_url
+      docling_vision_prompt   Prompt for image descriptions (default: docling's)
+      docling_vision_max_tokens  Token limit per image description (default: 400)
+      docling_vision_timeout     Request timeout in seconds (default: 20)
+      docling_vision_token_param Token limit field: max_completion_tokens or max_tokens
     """
     pass
 

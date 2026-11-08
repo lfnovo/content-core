@@ -1,47 +1,36 @@
-"""Unit tests for env-configured Docling picture description via an
-OpenAI-compatible endpoint (CCORE_DOCLING_VISION_*)."""
+"""Unit tests for Docling picture description via an OpenAI-compatible endpoint
+(docling_vision_* settings / CCORE_DOCLING_VISION_* env vars)."""
+
+from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 
+from content_core.config import ContentCoreConfig
 from content_core.processors.document import docling as docling_module
 
 pytest.importorskip("docling")
 
-
-def _clear(monkeypatch):
-    for var in (
-        docling_module.VISION_URL_ENV,
-        docling_module.VISION_API_KEY_ENV,
-        docling_module.VISION_MODEL_ENV,
-        docling_module.VISION_PROMPT_ENV,
-        docling_module.VISION_MAX_TOKENS_ENV,
-        docling_module.VISION_TIMEOUT_ENV,
-        docling_module.VISION_TOKEN_PARAM_ENV,
-    ):
-        monkeypatch.delenv(var, raising=False)
+URL = "http://localhost:1234/v1/chat/completions"
 
 
-def test_no_url_keeps_inline_default(monkeypatch):
-    _clear(monkeypatch)
-    assert docling_module._picture_description_options_from_env() is None
-    if docling_module.PictureDescriptionApiOptions is not None:
-        monkeypatch.setenv(docling_module.VISION_MODEL_ENV, "some-model")
-        # URL is the master switch: a model name alone must not enable the API
-        assert docling_module._picture_description_options_from_env() is None
+def test_no_url_keeps_inline_default():
+    # URL is the switch: a model name alone must not enable the API path
+    config = ContentCoreConfig(docling_vision_url=None, docling_vision_model="some-model")
+    assert docling_module._picture_description_api_options(config) is None
 
 
-def test_url_builds_api_options(monkeypatch):
-    _clear(monkeypatch)
-    monkeypatch.setenv(
-        docling_module.VISION_URL_ENV, "http://localhost:1234/v1/chat/completions"
+def test_url_builds_api_options():
+    config = ContentCoreConfig(
+        docling_vision_url=URL,
+        docling_vision_model="my-local-vlm",
+        docling_vision_api_key="secret",
+        docling_vision_max_tokens=800,
+        docling_vision_timeout=120,
+        docling_vision_prompt="Describe it.",
     )
-    monkeypatch.setenv(docling_module.VISION_MODEL_ENV, "my-local-vlm")
-    monkeypatch.setenv(docling_module.VISION_API_KEY_ENV, "secret")
-    monkeypatch.setenv(docling_module.VISION_MAX_TOKENS_ENV, "800")
-    monkeypatch.setenv(docling_module.VISION_TIMEOUT_ENV, "120")
-    monkeypatch.setenv(docling_module.VISION_PROMPT_ENV, "Describe it.")
 
-    options = docling_module._picture_description_options_from_env()
+    options = docling_module._picture_description_api_options(config)
 
     assert options is not None
     assert "localhost:1234" in str(options.url)
@@ -52,39 +41,79 @@ def test_url_builds_api_options(monkeypatch):
     assert options.prompt == "Describe it."
 
 
-def test_missing_api_key_sends_no_authorization_header(monkeypatch):
-    _clear(monkeypatch)
-    monkeypatch.setenv(
-        docling_module.VISION_URL_ENV, "http://localhost:1234/v1/chat/completions"
-    )
-    options = docling_module._picture_description_options_from_env()
+def test_defaults_keep_docling_prompt_and_timeout():
+    config = ContentCoreConfig(docling_vision_url=URL, docling_vision_api_key=None)
+    options = docling_module._picture_description_api_options(config)
+    default = docling_module.PictureDescriptionApiOptions()
+
     assert options is not None
     assert "Authorization" not in options.headers
-
-
-def test_malformed_numeric_env_falls_back_to_defaults(monkeypatch):
-    _clear(monkeypatch)
-    monkeypatch.setenv(
-        docling_module.VISION_URL_ENV, "http://localhost:1234/v1/chat/completions"
-    )
-    monkeypatch.setenv(docling_module.VISION_MAX_TOKENS_ENV, "banana")
-    monkeypatch.setenv(docling_module.VISION_TIMEOUT_ENV, "not-a-number")
-
-    with pytest.warns(UserWarning):
-        options = docling_module._picture_description_options_from_env()
-
-    assert options is not None
+    assert "model" not in options.params
     assert options.params["max_completion_tokens"] == 400
+    assert options.prompt == default.prompt
     assert options.timeout == 20
 
 
-def test_token_param_name_is_selectable(monkeypatch):
-    _clear(monkeypatch)
-    monkeypatch.setenv(
-        docling_module.VISION_URL_ENV, "http://localhost:1234/v1/chat/completions"
-    )
-    monkeypatch.setenv(docling_module.VISION_TOKEN_PARAM_ENV, "max_tokens")
-    options = docling_module._picture_description_options_from_env()
+def test_token_param_name_is_selectable():
+    config = ContentCoreConfig(docling_vision_url=URL, docling_vision_token_param="max_tokens")
+    options = docling_module._picture_description_api_options(config)
     assert options is not None
     assert "max_tokens" in options.params
     assert "max_completion_tokens" not in options.params
+
+
+def test_settings_read_from_env(monkeypatch):
+    monkeypatch.setenv("CCORE_DOCLING_VISION_URL", URL)
+    monkeypatch.setenv("CCORE_DOCLING_VISION_MODEL", "env-vlm")
+    monkeypatch.setenv("CCORE_DOCLING_VISION_MAX_TOKENS", "256")
+    monkeypatch.setenv("CCORE_DOCLING_VISION_TIMEOUT", "45.5")
+    monkeypatch.setenv("CCORE_DOCLING_VISION_TOKEN_PARAM", "max_tokens")
+
+    options = docling_module._picture_description_api_options(ContentCoreConfig())
+
+    assert options is not None
+    assert options.params == {"max_tokens": 256, "model": "env-vlm"}
+    assert options.timeout == 45.5
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("docling_vision_max_tokens", "banana"),
+        ("docling_vision_max_tokens", 0),
+        ("docling_vision_timeout", "not-a-number"),
+        ("docling_vision_token_param", "max_length"),
+    ],
+)
+def test_invalid_settings_are_rejected(field, value):
+    with pytest.raises(ValidationError):
+        ContentCoreConfig(**{field: value})
+
+
+async def _run_extract(config):
+    mock_result = MagicMock()
+    mock_result.document.export_to_markdown.return_value = "content"
+    pipeline_cls = MagicMock()
+    with patch.object(docling_module, "DocumentConverter") as converter_cls, patch.object(
+        docling_module, "DOCLING_AVAILABLE", True
+    ), patch.object(docling_module, "PdfPipelineOptions", pipeline_cls), patch.object(
+        docling_module, "PdfFormatOption", MagicMock()
+    ), patch.object(docling_module, "InputFormat", MagicMock()):
+        converter_cls.return_value.convert.return_value = mock_result
+        await docling_module.extract_docling("/fake/doc.pdf", config)
+    return pipeline_cls.call_args[1]
+
+
+async def test_extract_wires_api_options_when_url_set():
+    config = ContentCoreConfig(docling_vision=True, docling_vision_url=URL)
+    kwargs = await _run_extract(config)
+    assert kwargs["enable_remote_services"] is True
+    assert "localhost:1234" in str(kwargs["picture_description_options"].url)
+
+
+async def test_extract_stays_local_without_vision():
+    # The URL alone does not turn picture description on
+    config = ContentCoreConfig(docling_vision=False, docling_vision_url=URL)
+    kwargs = await _run_extract(config)
+    assert kwargs["enable_remote_services"] is False
+    assert "picture_description_options" not in kwargs

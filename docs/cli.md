@@ -162,6 +162,13 @@ content-core config delete llm_provider
 | `docling_ocr` | Enable OCR for scanned PDFs | `true` |
 | `docling_output_format` | Docling output format | `markdown` |
 | `docling_vision` | Enable image description + chart data extraction | `false` |
+| `docling_vision_url` | OpenAI-compatible chat completions URL for image descriptions (see [usage](usage.md#image-descriptions-via-an-openai-compatible-endpoint)) | — |
+| `docling_vision_model` | Model name sent to `docling_vision_url` | — |
+| `docling_vision_api_key` | Bearer token for `docling_vision_url` | — |
+| `docling_vision_prompt` | Prompt for image descriptions | Docling's prompt |
+| `docling_vision_max_tokens` | Token limit per image description | `400` |
+| `docling_vision_timeout` | Request timeout in seconds | `20` |
+| `docling_vision_token_param` | Token limit field name (`max_completion_tokens`, `max_tokens`) | `max_completion_tokens` |
 | `document_engine` | Document extraction engine (`auto`, `simple`, `docling`) | `auto` |
 | `firecrawl_api_url` | Firecrawl API URL | `https://api.firecrawl.dev` |
 | `firecrawl_proxy` | Firecrawl proxy mode (`auto`, `basic`, `stealth`) | `auto` |
