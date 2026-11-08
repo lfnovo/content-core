@@ -12,6 +12,7 @@ from content_core.common.exceptions import (
     NetworkError,
     NotFoundError,
 )
+from content_core.common.http import guarded_request_url, guarded_session
 from content_core.common.retry import retry_url_network
 from content_core.common.types import UrlEngine
 from content_core.config import ContentCoreConfig
@@ -35,8 +36,10 @@ from content_core.processors.url.crawl4ai import extract_url_crawl4ai
 @retry_url_network()
 async def _fetch_url_mime_type(url: str) -> str:
     """Internal function to fetch URL MIME type - wrapped with retry logic."""
-    async with aiohttp.ClientSession(trust_env=True) as session:
-        async with session.head(url, timeout=10, allow_redirects=True) as resp:
+    async with guarded_session() as session:
+        async with session.head(
+            guarded_request_url(url), timeout=10, allow_redirects=True
+        ) as resp:
             mime = resp.headers.get("content-type", "").split(";", 1)[0]
             logger.debug(f"MIME type for {url}: {mime}")
             return mime

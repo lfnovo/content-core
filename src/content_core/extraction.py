@@ -5,8 +5,6 @@ import os
 import tempfile
 from urllib.parse import urlparse
 
-import aiohttp
-
 from content_core.common.exceptions import (
     ConfigurationError,
     ContentCoreError,
@@ -15,6 +13,7 @@ from content_core.common.exceptions import (
     UnsupportedTypeException,
 )
 from content_core.common.messages import DOCLING_MISSING_MESSAGE
+from content_core.common.http import guarded_request_url, guarded_session
 from content_core.common.retry import retry_download
 from content_core.config import ContentCoreConfig, get_default_config
 from content_core.logging import logger
@@ -307,8 +306,8 @@ async def _extract_file(
 @retry_download()
 async def _fetch_remote_file(url: str) -> tuple:
     """Download a remote file. Wrapped with retry logic."""
-    async with aiohttp.ClientSession(trust_env=True) as session:
-        async with session.get(url) as resp:
+    async with guarded_session() as session:
+        async with session.get(guarded_request_url(url)) as resp:
             resp.raise_for_status()
             mime = resp.headers.get("content-type", "").split(";", 1)[0]
             content = await resp.read()

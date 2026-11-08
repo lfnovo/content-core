@@ -4,6 +4,7 @@ from urllib.parse import urlparse, urlunparse
 
 import aiohttp
 
+from content_core.common.http import guarded_request_url, guarded_session
 from content_core.common.retry import retry_url_network
 from content_core.config import ContentCoreConfig
 from content_core.logging import logger
@@ -28,9 +29,9 @@ async def _fetch_reddit_json(url: str) -> dict:
     clean_url = urlunparse((parsed.scheme, parsed.netloc, clean_path, "", "", ""))
     json_url = clean_url + ".json"
 
-    async with aiohttp.ClientSession(trust_env=True) as session:
+    async with guarded_session() as session:
         async with session.get(
-            json_url,
+            guarded_request_url(json_url),
             headers={"User-Agent": "content-core/2.0"},
             timeout=aiohttp.ClientTimeout(total=15),
         ) as resp:
