@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-11-07
+
 ### Added
-- Docling image descriptions can use any OpenAI-compatible chat completions endpoint (vLLM, Ollama, LM Studio, MLX servers...) instead of Docling's small inline model (#104, thanks PhantombrainM). Set `docling_vision_url` (`CCORE_DOCLING_VISION_URL`), with optional `docling_vision_model`, `docling_vision_api_key`, `docling_vision_prompt`, `docling_vision_max_tokens` (default 400), `docling_vision_timeout` (default 20s) and `docling_vision_token_param` (`max_completion_tokens` or `max_tokens`). Applies only when `docling_vision` is on; without the URL, behavior is unchanged and nothing leaves the machine. Chart data extraction still uses Docling's own model. All settings work from the constructor, env vars and `content-core config set`.
+- Docling image descriptions can use any OpenAI-compatible chat completions endpoint (vLLM, Ollama, LM Studio, MLX servers...) instead of Docling's small inline model (#111, building on #104 by PhantombrainM). Set `docling_vision_url` (`CCORE_DOCLING_VISION_URL`), with optional `docling_vision_model`, `docling_vision_api_key`, `docling_vision_prompt`, `docling_vision_max_tokens` (default 400), `docling_vision_timeout` (default 20s) and `docling_vision_token_param` (`max_completion_tokens` or `max_tokens`). Applies only when `docling_vision` is on; without the URL, behavior is unchanged and nothing leaves the machine. Chart data extraction still uses Docling's own model. All settings work from the constructor, env vars and `content-core config set`.
 
 ## [2.2.1] - 2026-11-03
 
