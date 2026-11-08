@@ -95,11 +95,15 @@ The `document_engine` setting controls document processing. When set to `auto` (
 
 - File: `document/docx.py`
 - Extracts text from Word documents using python-docx
+- Headings, lists and bold/italic runs become markdown; hyperlinks in body paragraphs become `[text](url)`
+- Tables become markdown tables (first row as header) in their place in the document
 
 ### PPTX
 
 - File: `document/pptx.py`
-- Extracts text from PowerPoint slides
+- Extracts text from PowerPoint slides: one block per slide (`# Slide N`, the title as `## ...`)
+- Reads the text inside group shapes, nested groups included
+- Slide tables become markdown tables (first row as header)
 
 ### XLSX
 
