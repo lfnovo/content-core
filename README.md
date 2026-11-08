@@ -240,6 +240,7 @@ Content Core uses `ContentCoreConfig` powered by pydantic-settings. Settings are
 | `CCORE_YOUTUBE_LANGUAGES` | Preferred YouTube transcript languages | - |
 | `CCORE_YOUTUBE_COOKIES_FILE` | Path to a Netscape `cookies.txt` for YouTube transcripts (missing file raises `ConfigurationError`) | - |
 | `CCORE_YOUTUBE_PROXY` | Proxy URL for YouTube transcripts, e.g. `http://user:pass@host:port` | - |
+| `CCORE_DOCLING_VISION_URL` | OpenAI-compatible endpoint (vLLM, Ollama, LM Studio...) for Docling image descriptions; unset keeps Docling's inline model. Related: `CCORE_DOCLING_VISION_MODEL`, `_API_KEY`, `_PROMPT`, `_MAX_TOKENS`, `_TIMEOUT`, `_TOKEN_PARAM` ([details](docs/usage.md#image-descriptions-via-an-openai-compatible-endpoint)) | - |
 
 API keys for external services are set via their standard environment variables (e.g., `OPENAI_API_KEY`, `FIRECRAWL_API_KEY`, `JINA_API_KEY`).
 

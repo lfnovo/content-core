@@ -476,6 +476,37 @@ extract_content(file_path="paper.pdf", engine="docling", formulas=true, pictures
 
 > **Note:** Enrichment flags are only applied when `document_engine="docling"`. A warning is logged if flags are set without the Docling engine.
 
+### Image descriptions via an OpenAI-compatible endpoint
+
+By default, `docling_vision` describes images with Docling's small inline model, which often produces vague descriptions. You can send image descriptions to any OpenAI-compatible `/v1/chat/completions` endpoint instead (vLLM, Ollama, LM Studio, MLX servers, a hosted API...). Setting `docling_vision_url` is the switch: without it, nothing leaves the machine and the other settings below are ignored. `docling_vision` must still be on.
+
+| Setting | Env var | What it does | Default |
+|---------|---------|-------------|---------|
+| `docling_vision_url` | `CCORE_DOCLING_VISION_URL` | Chat completions endpoint | — (inline model) |
+| `docling_vision_model` | `CCORE_DOCLING_VISION_MODEL` | Model name sent in the request | — (server default) |
+| `docling_vision_api_key` | `CCORE_DOCLING_VISION_API_KEY` | Bearer token; no `Authorization` header when unset | — |
+| `docling_vision_prompt` | `CCORE_DOCLING_VISION_PROMPT` | Prompt sent with each image, e.g. to describe in another language | Docling's prompt |
+| `docling_vision_max_tokens` | `CCORE_DOCLING_VISION_MAX_TOKENS` | Token limit per image | `400` |
+| `docling_vision_timeout` | `CCORE_DOCLING_VISION_TIMEOUT` | Request timeout in seconds | `20` |
+| `docling_vision_token_param` | `CCORE_DOCLING_VISION_TOKEN_PARAM` | Name of the token limit field: `max_completion_tokens`, or `max_tokens` for servers that don't accept the newer field | `max_completion_tokens` |
+
+```bash
+export CCORE_DOCLING_VISION_URL=http://localhost:11434/v1/chat/completions
+export CCORE_DOCLING_VISION_MODEL=qwen2.5vl:7b
+content-core extract --engine docling --pictures report.pdf
+```
+
+```python
+config = ContentCoreConfig(
+    document_engine="docling",
+    docling_vision=True,
+    docling_vision_url="http://localhost:11434/v1/chat/completions",
+    docling_vision_model="qwen2.5vl:7b",
+)
+```
+
+Only image descriptions go to the endpoint. Chart data extraction keeps using Docling's own model, because it depends on special output tokens that a general-purpose vision model does not produce.
+
 ## Proxy Configuration
 
 Content Core uses standard HTTP proxy environment variables:

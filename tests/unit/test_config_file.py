@@ -54,6 +54,24 @@ class TestConfigSet:
         config_set("stt_timeout", "1800")
         assert config_list()["stt_timeout"] == 1800
 
+    def test_set_float_value(self, config_dir):
+        config_set("docling_vision_timeout", "45.5")
+        assert config_list()["docling_vision_timeout"] == 45.5
+        assert ContentCoreConfig().docling_vision_timeout == 45.5
+
+    def test_set_docling_vision_endpoint(self, config_dir):
+        config_set("docling_vision_url", "http://localhost:1234/v1/chat/completions")
+        config_set("docling_vision_max_tokens", "800")
+        config_set("docling_vision_token_param", "max_tokens")
+        config = ContentCoreConfig()
+        assert config.docling_vision_url == "http://localhost:1234/v1/chat/completions"
+        assert config.docling_vision_max_tokens == 800
+        assert config.docling_vision_token_param == "max_tokens"
+
+    def test_set_invalid_token_param_raises(self, config_dir):
+        with pytest.raises(ValueError, match="max_completion_tokens"):
+            config_set("docling_vision_token_param", "max_length")
+
     def test_set_list_value(self, config_dir):
         config_set("youtube_languages", "en,pt,fr")
         assert config_list()["youtube_languages"] == ["en", "pt", "fr"]

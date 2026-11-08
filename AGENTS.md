@@ -134,6 +134,8 @@ Key settings: `url_engine`, `document_engine`, `audio_provider`, `audio_model`, 
 
 Docling enrichment flags (`docling_ocr`, `docling_formulas`, `docling_vision`) control OCR, formula extraction, and image/chart processing when `document_engine="docling"`. These are also exposed as CLI flags (`--formulas`, `--pictures`, `--no-ocr`) and MCP parameters.
 
+`docling_vision_url` (plus `docling_vision_model`, `_api_key`, `_prompt`, `_max_tokens`, `_timeout`, `_token_param`) sends Docling's image descriptions to an OpenAI-compatible endpoint instead of the inline model. It only applies when `docling_vision` is on; without the URL, nothing is sent over the network.
+
 Priority: constructor args > env vars (`CCORE_*`) > config file (`~/.content-core/config.toml`) > defaults
 
 ## Code Style

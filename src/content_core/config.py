@@ -94,6 +94,19 @@ class ContentCoreConfig(BaseSettings):
     docling_formulas: bool = False
     docling_vision: bool = False
 
+    # Docling picture description via an OpenAI-compatible endpoint (vLLM,
+    # LM Studio, Ollama, ...). Only used when docling_vision is on; with no
+    # URL, docling's inline default model describes the pictures.
+    docling_vision_url: Optional[str] = None
+    docling_vision_model: Optional[str] = None
+    docling_vision_api_key: Optional[str] = None
+    docling_vision_prompt: Optional[str] = None  # None keeps docling's prompt
+    docling_vision_max_tokens: int = Field(default=400, ge=1)
+    docling_vision_timeout: float = Field(default=20.0, gt=0)
+    docling_vision_token_param: Literal["max_completion_tokens", "max_tokens"] = (
+        "max_completion_tokens"
+    )
+
     @classmethod
     def settings_customise_sources(
         cls,
@@ -155,7 +168,7 @@ def _write_config_file(data: dict) -> None:
     for key, value in sorted(data.items()):
         if isinstance(value, bool):
             lines.append(f"{key} = {str(value).lower()}")
-        elif isinstance(value, int):
+        elif isinstance(value, (int, float)):
             lines.append(f"{key} = {value}")
         elif isinstance(value, list):
             items = ", ".join(f'"{_escape_toml_string(str(v))}"' for v in value)
@@ -206,6 +219,8 @@ def config_set(key: str, value: str) -> None:
     annotation = field.annotation
     if annotation is int or (hasattr(annotation, "__origin__") and annotation is int):
         data[key] = int(value)
+    elif annotation is float:
+        data[key] = float(value)
     elif annotation is bool:
         token = value.lower()
         if token not in _TRUE_TOKENS | _FALSE_TOKENS:
