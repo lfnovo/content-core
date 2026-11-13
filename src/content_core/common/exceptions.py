@@ -78,3 +78,7 @@ class AudioTranscriptionError(ExternalServiceError):
             f"Audio chunk {chunk}/{total} failed ({detail}); {saved} chunks saved. "
             "Check provider status before retrying this source; saved chunks will be reused."
         )
+
+    def __reduce__(self):
+        """Preserve structured progress when copied or sent between processes."""
+        return (self.__class__, (self.chunk, self.total, self.saved, self.status))

@@ -27,7 +27,7 @@ async def test_timeout_not_retried():
     model = SimpleNamespace(atranscribe=AsyncMock(side_effect=TimeoutError("timeout")))
     with pytest.raises(ExternalServiceError, match="already have been billed"):
         await audio.transcribe_audio_segment(
-            "unused.wav", model, asyncio.Semaphore(1), max_attempts=1
+            "unused.wav", model, asyncio.Semaphore(1)
         )
     assert model.atranscribe.await_count == 1
 

@@ -381,8 +381,10 @@ segment, a long file can exceed the provider's upload limit and the
 transcription fails.
 
 For a provider with a strict byte limit, set `CCORE_AUDIO_MAX_UPLOAD_BYTES`.
-Content Core then recursively creates chronological, decodable chunks below
-that limit even when duration splitting is disabled. This is useful for
+Content Core then recursively creates chronological chunks at or below that
+limit by duration-halving oversized chunks, even when duration splitting is
+disabled. A file that cannot be split below the limit fails with
+`FileOperationError` before upload. This is useful for
 Fonada's 25 MB limit: applications commonly set a 24,000,000-byte safety
 ceiling and `CCORE_AUDIO_SEGMENT_MINUTES=0`.
 

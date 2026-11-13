@@ -195,9 +195,12 @@ async def transcribe_audio_segment(
     async with semaphore:
         try:
             transcribe = _transcribe_segment
-            if max_attempts is not None and max_attempts != 3:
+            # STT calls can be billed even when their response is lost. Never
+            # replay one implicitly; applications may opt in explicitly.
+            attempts = 1 if max_attempts is None else max_attempts
+            if attempts != 3:
                 transcribe = _transcribe_segment.retry_with(
-                    stop=stop_after_attempt(max_attempts)
+                    stop=stop_after_attempt(attempts)
                 )
             if language:
                 return await transcribe(audio_file, model, language)
@@ -437,6 +440,9 @@ async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> Extract
             try:
                 if isinstance(sync_client, httpx.Client):
                     sync_client.close()
+            except Exception:
+                logger.warning("Could not close an audio provider client")
+            try:
                 if isinstance(async_client, httpx.AsyncClient):
                     await async_client.aclose()
             except Exception:

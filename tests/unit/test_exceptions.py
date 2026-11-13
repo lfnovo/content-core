@@ -1,6 +1,8 @@
 """Tests for the exception taxonomy and its public surface (#52)."""
 
+import copy
 import inspect
+import pickle
 
 import pytest
 
@@ -68,6 +70,12 @@ def test_base_docstring_does_not_mention_open_notebook():
 def test_catching_the_base_catches_a_subtype():
     with pytest.raises(content_core.ContentCoreError):
         raise content_core.ConfigurationError("docling not installed")
+
+
+def test_audio_transcription_error_can_be_copied_and_pickled():
+    error = content_core.AudioTranscriptionError(2, 4, 1, 502)
+    for restored in (copy.copy(error), pickle.loads(pickle.dumps(error))):
+        assert (restored.chunk, restored.total, restored.saved, restored.status) == (2, 4, 1, 502)
 
 
 def test_extract_content_documents_what_it_raises():

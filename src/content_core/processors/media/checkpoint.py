@@ -80,6 +80,13 @@ class AudioCheckpoint:
                 stream.flush()
                 os.fsync(stream.fileno())
             os.replace(temporary, self.directory / f"{key}.json")
+            # Durably record the rename as well as its file contents. Without
+            # this, a power loss could lose a successful, already-billed chunk.
+            directory_fd = os.open(self.directory, os.O_RDONLY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
         finally:
             if os.path.exists(temporary):
                 os.unlink(temporary)
