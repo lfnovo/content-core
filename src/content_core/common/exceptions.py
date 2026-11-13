@@ -63,3 +63,18 @@ class FileOperationError(ContentCoreError):
     """Raised when a routed file exists but parsing or processing failed."""
 
     pass
+
+
+class AudioTranscriptionError(ExternalServiceError):
+    """Safe progress information for a checkpointed transcription failure."""
+
+    def __init__(self, chunk: int, total: int, saved: int, status: int | None = None):
+        self.chunk = chunk
+        self.total = total
+        self.saved = saved
+        self.status = status
+        detail = f"HTTP {status}" if status else "provider request failed"
+        super().__init__(
+            f"Audio chunk {chunk}/{total} failed ({detail}); {saved} chunks saved. "
+            "Check provider status before retrying this source; saved chunks will be reused."
+        )

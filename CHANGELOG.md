@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Checkpointed audio failures expose safe chunk progress and optional HTTP status through `AudioTranscriptionError`, a subtype of `ExternalServiceError`.
+- Optional private audio checkpoints retain successful chunks across manual retries, isolate recordings and provider settings, and prevent concurrent replay of the same job. Queued uploads stop after a failure while in-flight results are saved.
+- Audio extraction accepts per-request STT configuration (including credentials and endpoint), an optional language, a segment upload limit, and a configurable attempt count. Set `audio_transcription_attempts=1` for billed providers that must not be retried automatically. STT configuration is excluded from configuration representations and serialization.
+
 ### Fixed
+- Audio extraction validates saved checkpoints before uploads, closes provider clients, retains correct saved counts after partial failure, and treats checkpoint write failures as permanent to prevent automatic billed replay.
 - DOCX extraction keeps tables, as markdown tables in their place in the document, and the text of hyperlinks, written as `[text](url)`. Tables were left out entirely, and a linked phrase disappeared from its paragraph.
 - PPTX extraction keeps the text of grouped shapes, nested groups included, and of slide tables, written as markdown tables. Only shapes with text of their own were read, so both were lost.
 

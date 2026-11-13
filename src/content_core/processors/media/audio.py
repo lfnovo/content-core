@@ -5,17 +5,23 @@ import os
 import shutil
 import subprocess
 import tempfile
-import traceback
 from functools import partial
+from pathlib import Path
+
+import httpx
+
+from tenacity import stop_after_attempt
 
 from content_core.common.exceptions import (
     ConfigurationError,
     ContentCoreError,
     ExternalServiceError,
+    AudioTranscriptionError,
     FileOperationError,
 )
 from content_core.common.retry import retry_audio_transcription
 from content_core.config import ContentCoreConfig
+from content_core.processors.media.checkpoint import AudioCheckpoint
 from content_core.logging import logger
 from content_core.common.state import ExtractionOutput
 
@@ -173,24 +179,35 @@ def extract_audio(
 
 
 @retry_audio_transcription()
-async def _transcribe_segment(audio_file, model):
+async def _transcribe_segment(audio_file, model, language=None):
     """Internal function to transcribe a single segment - wrapped with retry logic."""
-    return (await model.atranscribe(audio_file)).text
+    kwargs = {"language": language} if language else {}
+    return (await model.atranscribe(audio_file, **kwargs)).text
 
 
-async def transcribe_audio_segment(audio_file, model, semaphore):
+async def transcribe_audio_segment(
+    audio_file, model, semaphore, *, max_attempts=None, language=None
+):
     """Transcribe a single audio segment with concurrency control and retry logic.
 
     Raises ExternalServiceError once the provider still fails after retries.
     """
     async with semaphore:
         try:
-            return await _transcribe_segment(audio_file, model)
+            transcribe = _transcribe_segment
+            if max_attempts is not None and max_attempts != 3:
+                transcribe = _transcribe_segment.retry_with(
+                    stop=stop_after_attempt(max_attempts)
+                )
+            if language:
+                return await transcribe(audio_file, model, language)
+            return await transcribe(audio_file, model)
         except ContentCoreError:
             raise
         except Exception as e:
             raise ExternalServiceError(
-                f"Speech-to-text failed for {os.path.basename(audio_file)}: {e!r}"
+                "Speech-to-text failed. Check the provider before resubmitting; "
+                "the request may already have been billed."
             ) from e
 
 
@@ -201,7 +218,8 @@ def _create_stt_model(provider: str, model: str, stt_config: dict):
         return AIFactory.create_speech_to_text(provider, model, stt_config)
     except Exception as e:
         raise ConfigurationError(
-            f"Could not create speech-to-text model '{provider}/{model}': {e}"
+            f"Could not create speech-to-text model {provider}/{model}. "
+            "Check its credentials and endpoint."
         ) from e
 
 
@@ -213,6 +231,8 @@ async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> Extract
         ConfigurationError: the STT model could not be created.
         ExternalServiceError: the STT provider failed after retries.
     """
+    checkpoint = None
+    speech_to_text_model = None
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
             output_prefix = os.path.splitext(os.path.basename(file_path))[0]
@@ -252,7 +272,39 @@ async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> Extract
 
             # Determine STT model from config. An explicit audio model is
             # honored or raises: no silent fallback to the default model.
-            stt_config = {"timeout": config.stt_timeout} if config.stt_timeout else {}
+            # Split oversized chunks again before any potentially billed call.
+            # Recursion retains chronological left/right order and works for
+            # variable-bit-rate recordings without guessing duration from bytes.
+            async def fit_upload(path, depth=0):
+                limit = config.audio_max_upload_bytes
+                if limit is None or os.path.getsize(path) <= limit:
+                    return [path]
+                duration = await get_audio_duration(path)
+                if depth >= 20 or duration <= 0.1:
+                    raise FileOperationError(
+                        "Cannot split audio below the upload limit; re-encode the recording."
+                    )
+                parts = []
+                for index, (start, end) in enumerate(
+                    ((0, duration / 2), (duration / 2, duration))
+                ):
+                    output = os.path.join(
+                        temp_dir, f"{Path(path).stem}_part{index}{source_ext}"
+                    )
+                    await asyncio.get_running_loop().run_in_executor(
+                        None, partial(extract_audio, path, output, start, end)
+                    )
+                    parts.extend(await fit_upload(output, depth + 1))
+                return parts
+
+            bounded_files = []
+            for path in output_files:
+                bounded_files.extend(await fit_upload(path))
+            output_files = bounded_files
+
+            stt_config = dict(config.stt_config)
+            if config.stt_timeout:
+                stt_config.setdefault("timeout", config.stt_timeout)
             if config.audio_provider and config.audio_model:
                 logger.info(
                     f"Using custom audio model: {config.audio_provider}/{config.audio_model}"
@@ -265,6 +317,29 @@ async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> Extract
                     config.stt_provider, config.stt_model, stt_config
                 )
 
+            if config.audio_checkpoint_dir:
+                # Never store credentials: they participate only in the digest.
+                # Different source bytes, language, endpoint or key cannot reuse
+                # another transcription's text.
+                checkpoint = AudioCheckpoint(
+                    config.audio_checkpoint_dir, file_path,
+                    {"version": 1, "provider": config.audio_provider,
+                     "model": config.audio_model, "fallback_provider": config.stt_provider,
+                     "fallback_model": config.stt_model, "language": config.audio_language,
+                     "segment_minutes": config.audio_segment_minutes,
+                     "upload_limit": config.audio_max_upload_bytes,
+                     "stt_config": config.stt_config,
+                     "effective_key": getattr(speech_to_text_model, "api_key", None),
+                     "effective_endpoint": getattr(speech_to_text_model, "base_url", None)},
+                )
+
+            # Validate all saved entries before making any paid requests.
+            cached_chunks = [
+                checkpoint.read(index, path) if checkpoint is not None else (None, None)
+                for index, path in enumerate(output_files)
+            ]
+            saved_before_run = sum(text is not None for _, text in cached_chunks)
+
             concurrency = config.audio_concurrency
             semaphore = asyncio.Semaphore(concurrency)
 
@@ -272,20 +347,97 @@ async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> Extract
                 f"Transcribing {len(output_files)} audio segments with concurrency limit of {concurrency}"
             )
 
+            stopped = asyncio.Event()
+            reused = 0
+            newly_saved = 0
+            request_lock = asyncio.Lock()
+            next_request_at = 0.0
+
+            async def process_segment(index, audio_file):
+                nonlocal reused, newly_saved, next_request_at
+                async with semaphore:
+                    key, cached = cached_chunks[index]
+                    if cached is not None:
+                        reused += 1
+                        logger.info(f"Reusing saved audio chunk {index + 1}/{len(output_files)}")
+                        return cached
+                    if stopped.is_set():
+                        return None
+                    try:
+                        # Pace request starts, independently of concurrency.
+                        # Cached chunks do not consume a slot or add a delay.
+                        async with request_lock:
+                            loop = asyncio.get_running_loop()
+                            delay = next_request_at - loop.time()
+                            if delay > 0:
+                                await asyncio.sleep(delay)
+                            if stopped.is_set():
+                                return None
+                            next_request_at = loop.time() + config.audio_request_interval_seconds
+                        text = await transcribe_audio_segment(
+                            audio_file, speech_to_text_model, asyncio.Semaphore(1),
+                            max_attempts=config.audio_transcription_attempts,
+                            language=config.audio_language,
+                        )
+                        if checkpoint is not None:
+                            checkpoint.save(key, text)
+                            newly_saved += 1
+                            logger.info(f"Saved audio chunk {index + 1}/{len(output_files)}")
+                        return text
+                    except BaseException:
+                        stopped.set()
+                        raise
+
             transcription_tasks = [
-                transcribe_audio_segment(audio_file, speech_to_text_model, semaphore)
-                for audio_file in output_files
+                process_segment(index, audio_file)
+                for index, audio_file in enumerate(output_files)
             ]
 
-            transcriptions = await asyncio.gather(*transcription_tasks)
+            # Drain in-flight work before temporary files are removed. gather
+            # preserves input order even when later segments finish first.
+            transcriptions = await asyncio.gather(
+                *transcription_tasks, return_exceptions=True
+            )
+            for index, result in enumerate(transcriptions):
+                if isinstance(result, BaseException):
+                    if checkpoint is not None and isinstance(result, ExternalServiceError):
+                        status = None
+                        cause = result
+                        # Inspect only numeric status, never expose upstream text.
+                        for _ in range(8):
+                            candidate = getattr(cause, "status_code", None)
+                            if isinstance(candidate, int) and 400 <= candidate <= 599:
+                                status = candidate
+                                break
+                            cause = cause.__cause__
+                            if cause is None:
+                                break
+                        raise AudioTranscriptionError(
+                            index + 1, len(output_files), saved_before_run + newly_saved, status
+                        ) from result
+                    raise result
 
+            logger.info(f"Audio transcription complete: {len(output_files)} chunks, {reused} reused")
             return ExtractionOutput(
                 content=" ".join(transcriptions),
                 source_type="file",
                 identified_type="audio/*",
-                metadata={"segments_count": len(output_files)},
+                metadata={"segments_count": len(output_files), "segments_reused": reused},
             )
-    except Exception as e:
-        logger.error(f"Error processing audio: {str(e)}")
-        logger.error(traceback.format_exc())
+    except Exception:
+        logger.error("Audio extraction failed; no partial transcript returned")
         raise
+    finally:
+        if checkpoint is not None:
+            checkpoint.close()
+        # Provider instances own both clients, including checkpoint-only runs.
+        if speech_to_text_model is not None:
+            sync_client = getattr(speech_to_text_model, "client", None)
+            async_client = getattr(speech_to_text_model, "async_client", None)
+            try:
+                if isinstance(sync_client, httpx.Client):
+                    sync_client.close()
+                if isinstance(async_client, httpx.AsyncClient):
+                    await async_client.aclose()
+            except Exception:
+                logger.warning("Could not close an audio provider client")

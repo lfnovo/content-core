@@ -18,6 +18,7 @@ PUBLIC_EXCEPTIONS = (
     "NoTranscriptFound",
     "NetworkError",
     "ExternalServiceError",
+    "AudioTranscriptionError",
     "FileOperationError",
 )
 

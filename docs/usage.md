@@ -380,6 +380,12 @@ Keep the default when using a cloud provider: with splitting off or a long
 segment, a long file can exceed the provider's upload limit and the
 transcription fails.
 
+For a provider with a strict byte limit, set `CCORE_AUDIO_MAX_UPLOAD_BYTES`.
+Content Core then recursively creates chronological, decodable chunks below
+that limit even when duration splitting is disabled. This is useful for
+Fonada's 25 MB limit: applications commonly set a 24,000,000-byte safety
+ceiling and `CCORE_AUDIO_SEGMENT_MINUTES=0`.
+
 ### Custom STT Models
 
 Override the speech-to-text provider and model per call:
