@@ -38,6 +38,20 @@ Or with zero install:
 uvx content-core extract "https://example.com"
 ```
 
+## Speech-to-text upload controls
+
+Pass saved provider credentials per extraction using `ContentCoreConfig(stt_config={"api_key": customer_key, "base_url": adapter_url})`. The dictionary is copied before model construction and excluded from configuration representations and serialization. Do not print or persist its raw contents.
+
+For billed transcription services, the default `audio_transcription_attempts=1` avoids replaying uncertain requests. Raising it is an explicit opt-in. Optional `audio_language` is forwarded to the provider; chunks above `audio_max_upload_bytes` are halved by duration before upload. `audio_segment_minutes` controls normal duration splitting and `audio_concurrency` bounds simultaneous requests. Environment equivalents use the `CCORE_` prefix, e.g. `CCORE_AUDIO_MAX_UPLOAD_BYTES=25000000`.
+
+FFmpeg/FFprobe must be installed. Segment transcripts are joined in recording order, regardless of completion order. Failed extraction raises rather than returning a partial transcript; in-flight calls finish before temporary files are removed. This produces plain text, without inventing timestamps or speaker labels. A deliberate retry can bill previously completed chunks again.
+
+### Resuming audio transcription
+
+Set `audio_checkpoint_dir` to an application-owned, per-source directory to retain successful chunk text for a later manual retry. Without this opt-in, no transcripts are persisted. Checkpoints are keyed by source bytes, chunk index/bytes and STT configuration; credentials are hashed into the identity, never written in plaintext. Concurrent jobs sharing an identity are rejected using an OS-released SQLite lock. Writes are atomic and transcript files are private (0600).
+
+After a failed chunk, queued uploads stop and in-flight results are drained and saved. Retry the same source/configuration explicitly to reuse successful chunks in chronological order. Uncertain requests may already have been billed; a crash before saving a successful response cannot guarantee exactly-once billing. Callers own checkpoint retention and deletion, and should not silently retry on errors.
+
 ## CLI Usage
 
 Content Core provides a unified `content-core` command with subcommands for extraction, summarization, and MCP server.
@@ -226,7 +240,12 @@ Content Core uses `ContentCoreConfig` powered by pydantic-settings. Settings are
 | `CCORE_URL_ENGINE` | URL extraction engine (`auto`, `simple`, `firecrawl`, `jina`, `crawl4ai`) | `auto` |
 | `CCORE_DOCUMENT_ENGINE` | Document extraction engine (`auto`, `simple`, `docling`) — `docling` raises `ConfigurationError` if the extra is not installed; `auto` falls back silently | `auto` |
 | `CCORE_AUDIO_CONCURRENCY` | Concurrent audio transcriptions (1-10) | `3` |
-| `CCORE_AUDIO_SEGMENT_MINUTES` | Length of the segments long audio is split into; `0` sends the file whole | `10` |
+| `CCORE_AUDIO_SEGMENT_MINUTES` | Length of the segments long audio is split into; `0` sends the file whole, and chunks above `CCORE_AUDIO_MAX_UPLOAD_BYTES` are halved by duration before upload | `10` |
+| `CCORE_AUDIO_MAX_UPLOAD_BYTES` | Optional per-request byte ceiling; oversized media is split before upload | - |
+| `CCORE_AUDIO_LANGUAGE` | Optional language code forwarded to the STT provider | - |
+| `CCORE_AUDIO_REQUEST_INTERVAL_SECONDS` | Minimum spacing between consecutive requests for one recording | `0` |
+| `CCORE_AUDIO_TRANSCRIPTION_ATTEMPTS` | Extraction-layer attempts per chunk; requests are not replayed by default | `1` |
+| `CCORE_AUDIO_CHECKPOINT_DIR` | Optional private directory for successful transcription checkpoints | - |
 | `CRAWL4AI_API_URL` | Crawl4AI Docker API URL (omit for local browser mode) | - |
 | `CRAWL4AI_API_TOKEN` | Bearer token for the Crawl4AI Docker API (required by Crawl4AI >= 0.9.0) | - |
 | `FIRECRAWL_API_URL` | Custom Firecrawl API URL for self-hosted instances or Firecrawl-compatible backends (e.g. fastCRW) | - |

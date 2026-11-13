@@ -63,6 +63,15 @@ class ContentCoreConfig(BaseSettings):
     audio_model: Optional[str] = None
     audio_concurrency: int = Field(default=3, ge=1, le=10)
     audio_segment_minutes: int = Field(default=10, ge=0)
+    # A timeout can follow successful billed work, so callers must opt in to
+    # replaying an STT request rather than doing so by default.
+    audio_transcription_attempts: int = Field(default=1, ge=1, le=10)
+    audio_language: Optional[str] = None
+    audio_checkpoint_dir: Optional[str] = None
+    audio_request_interval_seconds: float = Field(default=0, ge=0, le=3600)
+    audio_max_upload_bytes: Optional[int] = Field(default=None, gt=0)
+    # Caller-supplied credentials/options must not appear in repr or config dumps.
+    stt_config: dict[str, Any] = Field(default_factory=dict, repr=False, exclude=True)
 
     # Crawl4AI
     crawl4ai_api_url: Optional[str] = None
