@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Checkpointed audio failures expose safe chunk progress and optional HTTP status through `AudioTranscriptionError`, a subtype of `ExternalServiceError`.
 - Optional private audio checkpoints (`audio_checkpoint_dir`) retain successful chunks across manual retries, isolate recordings and provider settings, and prevent concurrent replay of the same job. Queued uploads stop after a failure while in-flight results are saved.
-- Audio extraction accepts per-request STT configuration (including credentials and endpoint), an optional language (`audio_language`), a segment upload limit (`audio_max_upload_bytes`), and a configurable attempt count. `audio_transcription_attempts` defaults to `1` for billed providers. STT configuration is excluded from configuration representations and serialization.
+- Audio extraction accepts per-request STT configuration (including credentials and endpoint), an optional language (`audio_language`), a segment upload limit (`audio_max_upload_bytes`), and a configurable attempt count. `audio_transcription_attempts` defaults to `1` for all providers, so uncertain requests are not replayed automatically. STT configuration is excluded from configuration representations and serialization.
 
 ### Fixed
 - Audio extraction validates saved checkpoints before uploads, closes provider clients, retains correct saved counts after partial failure, and treats checkpoint write failures as permanent to prevent automatic billed replay.

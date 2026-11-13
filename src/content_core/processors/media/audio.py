@@ -10,8 +10,6 @@ from pathlib import Path
 
 import httpx
 
-from tenacity import stop_after_attempt
-
 from content_core.common.exceptions import (
     ConfigurationError,
     ContentCoreError,
@@ -178,9 +176,8 @@ def extract_audio(
     run_ffmpeg_tool(cmd, "ffmpeg extract")
 
 
-@retry_audio_transcription()
 async def _transcribe_segment(audio_file, model, language=None):
-    """Internal function to transcribe a single segment - wrapped with retry logic."""
+    """Transcribe once; retry policy is selected by the caller."""
     kwargs = {"language": language} if language else {}
     return (await model.atranscribe(audio_file, **kwargs)).text
 
@@ -194,14 +191,14 @@ async def transcribe_audio_segment(
     """
     async with semaphore:
         try:
-            transcribe = _transcribe_segment
             # STT calls can be billed even when their response is lost. Never
             # replay one implicitly; applications may opt in explicitly.
             attempts = 1 if max_attempts is None else max_attempts
-            if attempts != 3:
-                transcribe = _transcribe_segment.retry_with(
-                    stop=stop_after_attempt(attempts)
-                )
+            transcribe = (
+                _transcribe_segment
+                if attempts == 1
+                else retry_audio_transcription(max_attempts=attempts)(_transcribe_segment)
+            )
             if language:
                 return await transcribe(audio_file, model, language)
             return await transcribe(audio_file, model)

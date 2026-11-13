@@ -244,7 +244,8 @@ Content Core uses `ContentCoreConfig` powered by pydantic-settings. Settings are
 | `CCORE_AUDIO_MAX_UPLOAD_BYTES` | Optional per-request byte ceiling; oversized media is split before upload | - |
 | `CCORE_AUDIO_LANGUAGE` | Optional language code forwarded to the STT provider | - |
 | `CCORE_AUDIO_REQUEST_INTERVAL_SECONDS` | Minimum spacing between consecutive requests for one recording | `0` |
-| `CCORE_AUDIO_TRANSCRIPTION_ATTEMPTS` | Extraction-layer attempts per chunk; use `1` for billed APIs | `3` |
+| `CCORE_AUDIO_TRANSCRIPTION_ATTEMPTS` | Extraction-layer attempts per chunk; requests are not replayed by default | `1` |
+| `CCORE_AUDIO_CHECKPOINT_DIR` | Optional private directory for successful transcription checkpoints | - |
 | `CRAWL4AI_API_URL` | Crawl4AI Docker API URL (omit for local browser mode) | - |
 | `CRAWL4AI_API_TOKEN` | Bearer token for the Crawl4AI Docker API (required by Crawl4AI >= 0.9.0) | - |
 | `FIRECRAWL_API_URL` | Custom Firecrawl API URL for self-hosted instances or Firecrawl-compatible backends (e.g. fastCRW) | - |
