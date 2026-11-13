@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+from tenacity import retry, stop_after_attempt, wait_none
 
 from content_core.common.exceptions import ExternalServiceError
 from content_core.config import ContentCoreConfig
@@ -30,6 +31,26 @@ async def test_timeout_not_retried():
             "unused.wav", model, asyncio.Semaphore(1)
         )
     assert model.atranscribe.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_explicit_retry_succeeds_on_second_attempt(monkeypatch):
+    model = SimpleNamespace(
+        atranscribe=AsyncMock(
+            side_effect=[TimeoutError("temporary"), SimpleNamespace(text="recovered")]
+        )
+    )
+    monkeypatch.setattr(
+        audio,
+        "retry_audio_transcription",
+        lambda max_attempts: retry(
+            stop=stop_after_attempt(max_attempts), wait=wait_none(), reraise=True
+        ),
+    )
+    assert await audio.transcribe_audio_segment(
+        "unused.wav", model, asyncio.Semaphore(1), max_attempts=3
+    ) == "recovered"
+    assert model.atranscribe.await_count == 2
 
 
 @pytest.mark.asyncio

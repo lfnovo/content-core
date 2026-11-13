@@ -183,7 +183,7 @@ async def _transcribe_segment(audio_file, model, language=None):
 
 
 async def transcribe_audio_segment(
-    audio_file, model, semaphore, *, max_attempts=None, language=None
+    audio_file, model, semaphore, *, max_attempts=None, language=None, before_attempt=None
 ):
     """Transcribe a single audio segment with concurrency control and retry logic.
 
@@ -194,14 +194,16 @@ async def transcribe_audio_segment(
             # STT calls can be billed even when their response is lost. Never
             # replay one implicitly; applications may opt in explicitly.
             attempts = 1 if max_attempts is None else max_attempts
-            transcribe = (
-                _transcribe_segment
-                if attempts == 1
-                else retry_audio_transcription(max_attempts=attempts)(_transcribe_segment)
-            )
-            if language:
-                return await transcribe(audio_file, model, language)
-            return await transcribe(audio_file, model)
+            async def transcribe():
+                if before_attempt is not None:
+                    await before_attempt()
+                if language:
+                    return await _transcribe_segment(audio_file, model, language)
+                return await _transcribe_segment(audio_file, model)
+
+            if attempts == 1:
+                return await transcribe()
+            return await retry_audio_transcription(max_attempts=attempts)(transcribe)()
         except ContentCoreError:
             raise
         except Exception as e:
@@ -364,20 +366,33 @@ async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> Extract
                     if stopped.is_set():
                         return None
                     try:
-                        # Pace request starts, independently of concurrency.
-                        # Cached chunks do not consume a slot or add a delay.
-                        async with request_lock:
-                            loop = asyncio.get_running_loop()
-                            delay = next_request_at - loop.time()
-                            if delay > 0:
-                                await asyncio.sleep(delay)
+                        async def pace_request():
+                            """Gate every billed attempt, including opt-in retries."""
+                            nonlocal next_request_at
                             if stopped.is_set():
-                                return None
-                            next_request_at = loop.time() + config.audio_request_interval_seconds
+                                raise ExternalServiceError(
+                                    "Audio transcription stopped after another chunk failed."
+                                )
+                            # Pace request starts, independently of concurrency.
+                            # Cached chunks do not consume a slot or add a delay.
+                            async with request_lock:
+                                loop = asyncio.get_running_loop()
+                                delay = next_request_at - loop.time()
+                                if delay > 0:
+                                    await asyncio.sleep(delay)
+                                if stopped.is_set():
+                                    raise ExternalServiceError(
+                                        "Audio transcription stopped after another chunk failed."
+                                    )
+                                next_request_at = (
+                                    loop.time() + config.audio_request_interval_seconds
+                                )
+
                         text = await transcribe_audio_segment(
                             audio_file, speech_to_text_model, asyncio.Semaphore(1),
                             max_attempts=config.audio_transcription_attempts,
                             language=config.audio_language,
+                            before_attempt=pace_request,
                         )
                         if checkpoint is not None:
                             checkpoint.save(key, text)
