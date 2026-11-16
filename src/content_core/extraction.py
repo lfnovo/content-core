@@ -74,6 +74,8 @@ async def extract_content(
         NotFoundError: a URL answered 404/410.
         NetworkError: a URL (or an engine API) could not be reached --
             connection, timeout, or DNS failure.
+        AudioTranscriptionError: checkpointed audio failed; carries chunk number,
+            total chunks, saved count and optional provider HTTP status.
         ExternalServiceError: an external service failed (URL engine API,
             STT provider, YouTube blocking every transcript path), including
             auth and rate-limit responses.

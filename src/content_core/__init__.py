@@ -8,6 +8,7 @@ from content_core.common.exceptions import (
     ConfigurationError,
     ContentCoreError,
     ExternalServiceError,
+    AudioTranscriptionError,
     FileOperationError,
     InvalidInputError,
     NetworkError,
@@ -48,5 +49,6 @@ __all__ = [
     "NoTranscriptFound",
     "NetworkError",
     "ExternalServiceError",
+    "AudioTranscriptionError",
     "FileOperationError",
 ]
