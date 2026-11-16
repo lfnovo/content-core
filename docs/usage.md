@@ -546,12 +546,9 @@ When a prompt template is requested, Content Core checks your custom directory f
 
 Content Core automatically retries transient failures (network timeouts, API rate limits, connection errors) with exponential backoff and jitter for URL extraction, YouTube fetching and LLM calls. Audio transcription uses one attempt by default because a timeout can follow a billed request.
 
-Retries are configured with sensible defaults and require no setup. If you need to tune retry behavior for specific scenarios (e.g., aggressive rate limits), you can override settings via environment variables:
+Retries are configured with sensible defaults and require no setup. Audio replay is the only retry count exposed as an environment setting:
 
 ```bash
-# Pattern: CCORE_{OPERATION}_{PARAM}
-CCORE_YOUTUBE_MAX_RETRIES=10
-CCORE_URL_API_MAX_RETRIES=5
 CCORE_AUDIO_TRANSCRIPTION_ATTEMPTS=3  # explicit opt-in for STT replay
 ```
 

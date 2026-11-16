@@ -31,6 +31,12 @@ from content_core.common.state import ExtractionOutput
 UPLOAD_EXTENSION_ALIASES = {".opus": ".ogg"}
 
 
+class _AudioTranscriptionStopped(ContentCoreError):
+    """Internal signal used to drain work after a different chunk failed."""
+
+    pass
+
+
 def upload_extension(path: str) -> str:
     """Return the extension a provider will accept for this file."""
     ext = os.path.splitext(path)[1].lower()
@@ -370,7 +376,7 @@ async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> Extract
                             """Gate every billed attempt, including opt-in retries."""
                             nonlocal next_request_at
                             if stopped.is_set():
-                                raise ExternalServiceError(
+                                raise _AudioTranscriptionStopped(
                                     "Audio transcription stopped after another chunk failed."
                                 )
                             # Pace request starts, independently of concurrency.
@@ -381,7 +387,7 @@ async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> Extract
                                 if delay > 0:
                                     await asyncio.sleep(delay)
                                 if stopped.is_set():
-                                    raise ExternalServiceError(
+                                    raise _AudioTranscriptionStopped(
                                         "Audio transcription stopped after another chunk failed."
                                     )
                                 next_request_at = (
@@ -399,6 +405,10 @@ async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> Extract
                             newly_saved += 1
                             logger.info(f"Saved audio chunk {index + 1}/{len(output_files)}")
                         return text
+                    except _AudioTranscriptionStopped:
+                        # This chunk was never sent. Preserve the actual
+                        # provider failure for ordered error reporting.
+                        return None
                     except BaseException:
                         stopped.set()
                         raise
@@ -434,7 +444,7 @@ async def transcribe_audio(file_path: str, config: ContentCoreConfig) -> Extract
 
             logger.info(f"Audio transcription complete: {len(output_files)} chunks, {reused} reused")
             return ExtractionOutput(
-                content=" ".join(transcriptions),
+                content=" ".join(text for text in transcriptions if text is not None),
                 source_type="file",
                 identified_type="audio/*",
                 metadata={"segments_count": len(output_files), "segments_reused": reused},

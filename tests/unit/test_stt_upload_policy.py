@@ -8,8 +8,6 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-from tenacity import retry, stop_after_attempt, wait_none
-
 from content_core.common.exceptions import ExternalServiceError
 from content_core.config import ContentCoreConfig
 from content_core.processors.media import audio
@@ -40,11 +38,12 @@ async def test_explicit_retry_succeeds_on_second_attempt(monkeypatch):
             side_effect=[TimeoutError("temporary"), SimpleNamespace(text="recovered")]
         )
     )
+    production_retry = audio.retry_audio_transcription
     monkeypatch.setattr(
         audio,
         "retry_audio_transcription",
-        lambda max_attempts: retry(
-            stop=stop_after_attempt(max_attempts), wait=wait_none(), reraise=True
+        lambda max_attempts: production_retry(
+            max_attempts=max_attempts, base_delay=0.01, max_delay=0.02
         ),
     )
     assert await audio.transcribe_audio_segment(
