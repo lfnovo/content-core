@@ -73,6 +73,10 @@ class ContentCoreConfig(BaseSettings):
     firecrawl_proxy: Optional[str] = "auto"
     firecrawl_wait_for: int = 3000
 
+    # SpecStream
+    specstream_api_url: str = "https://api.specstream.ai"
+    specstream_api_key: Optional[str] = None
+
     # LLM models (for summarize)
     llm_provider: str = "openai"
     llm_model: str = "gpt-4o-mini"

@@ -12,4 +12,5 @@ UrlEngine = Literal[
     "firecrawl",
     "jina",
     "crawl4ai",
+    "specstream",
 ]

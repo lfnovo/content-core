@@ -41,7 +41,7 @@ def cli(ctx, debug):
 @click.option(
     "--engine",
     default=None,
-    help="Override extraction engine (URL: firecrawl, jina, crawl4ai, simple; Document: docling, simple)",
+    help="Override extraction engine (URL: firecrawl, jina, crawl4ai, specstream, simple; Document: docling, simple)",
 )
 @click.option("--formulas", is_flag=True, default=False, help="Enable formula extraction (Docling only)")
 @click.option("--pictures", is_flag=True, default=False, help="Enable image description + chart extraction (Docling only)")
