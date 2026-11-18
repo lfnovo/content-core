@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- With `document_engine="auto"`, PDFs with a usable text layer skip Docling and route directly to the lightweight `pdf` processor, while scanned PDFs continue to route to Docling for OCR ({{PR_NUMBER}}).
+
 ### Fixed
 - DOCX extraction keeps tables, as markdown tables in their place in the document, and the text of hyperlinks, written as `[text](url)`. Tables were left out entirely, and a linked phrase disappeared from its paragraph.
 - PPTX extraction keeps the text of grouped shapes, nested groups included, and of slide tables, written as markdown tables. Only shapes with text of their own were read, so both were lost.

@@ -56,6 +56,30 @@ def convert_table_to_markdown(table):
     return "\n".join(markdown_lines) + "\n"
 
 SUPPORTED_PDF_TYPES = ["application/pdf"]
+DEFAULT_MIN_CHARS_PER_PAGE: int = 50
+
+
+def pdf_has_usable_text(
+    pdf_path: str, min_chars_per_page: int = DEFAULT_MIN_CHARS_PER_PAGE
+) -> bool:
+    """Check if a PDF has a usable text layer using pdfplumber character count.
+
+    Heuristic: calculates average characters per page across the document.
+    PDFs with embedded OCR or born-digital text will exceed the threshold,
+    while scanned PDFs (images without OCR) will have 0 or near-0 characters.
+    Sampling up to the first 10 pages ensures millisecond response times.
+    """
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            if not pdf.pages:
+                return False
+            sample_pages = pdf.pages[:10]
+            total_chars = sum(len(p.chars) for p in sample_pages)
+            avg_chars = total_chars / len(sample_pages)
+            return avg_chars >= min_chars_per_page
+    except Exception as e:
+        logger.debug(f"Failed to inspect PDF text layer for {pdf_path}: {e}")
+        return False
 
 
 def clean_pdf_text(text):
