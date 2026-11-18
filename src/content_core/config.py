@@ -57,6 +57,7 @@ class ContentCoreConfig(BaseSettings):
     # Engine selection
     document_engine: DocumentEngine = "auto"
     url_engine: UrlEngine = "auto"
+    pdf_min_chars_per_page: int = Field(default=50, ge=0)
 
     # Audio
     audio_provider: str = "openai"

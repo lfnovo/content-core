@@ -696,3 +696,93 @@ async def test_file_odf_calls_extract_office(mime):
         result = await extract_content(file_path="/tmp/test.odf", config=cfg)
         mock.assert_awaited_once_with("/tmp/test.odf", mime, cfg)
         assert result is expected
+
+
+# ---------------------------------------------------------------------------
+# 19. Auto document_engine: skip Docling for PDFs with usable text layer
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def scanned_pdf_path(tmp_path):
+    from PIL import Image
+
+    pdf_path = tmp_path / "scanned_doc.pdf"
+    img = Image.new("RGB", (200, 200), color="white")
+    img.save(pdf_path, format="PDF")
+    return str(pdf_path)
+
+
+@pytest.fixture
+def text_pdf_path(fixtures_dir):
+    return str(fixtures_dir / "file.pdf")
+
+
+def test_pdf_has_usable_text(text_pdf_path, scanned_pdf_path):
+    from content_core.processors.document.pdf import pdf_has_usable_text
+
+    assert pdf_has_usable_text(text_pdf_path) is True
+    assert pdf_has_usable_text(scanned_pdf_path) is False
+    assert pdf_has_usable_text("/nonexistent/path.pdf") is False
+
+
+def test_route_for_mime_auto_docling_installed_text_pdf_routes_to_pdf(text_pdf_path):
+    cfg = ContentCoreConfig(document_engine="auto")
+    with _docling_installed(AsyncMock()), patch(
+        "content_core.extraction.DOCLING_SUPPORTED", {"application/pdf"}
+    ):
+        assert _route_for_mime("application/pdf", cfg, file_path=text_pdf_path) == "pdf"
+
+
+def test_route_for_mime_auto_docling_installed_scanned_pdf_routes_to_docling(scanned_pdf_path):
+    cfg = ContentCoreConfig(document_engine="auto")
+    with _docling_installed(AsyncMock()), patch(
+        "content_core.extraction.DOCLING_SUPPORTED", {"application/pdf"}
+    ):
+        assert _route_for_mime("application/pdf", cfg, file_path=scanned_pdf_path) == "docling"
+
+
+def test_route_for_mime_explicit_docling_with_text_pdf_still_routes_to_docling(text_pdf_path):
+    cfg = ContentCoreConfig(document_engine="docling")
+    with _docling_installed(AsyncMock()), patch(
+        "content_core.extraction.DOCLING_SUPPORTED", {"application/pdf"}
+    ):
+        assert _route_for_mime("application/pdf", cfg, file_path=text_pdf_path) == "docling"
+
+
+@pytest.mark.asyncio
+async def test_extract_file_auto_routes_text_pdf_to_pdf_processor(text_pdf_path):
+    cfg = ContentCoreConfig(document_engine="auto")
+    expected = _make_output(identified_type="application/pdf")
+    with _docling_installed(AsyncMock()), patch(
+        "content_core.extraction.DOCLING_SUPPORTED", {"application/pdf"}
+    ), patch(
+        "content_core.extraction.extract_pdf_file",
+        new_callable=AsyncMock,
+        return_value=expected,
+    ) as mock_pdf, patch(
+        "content_core.extraction.extract_docling",
+        new_callable=AsyncMock,
+    ) as mock_docling:
+        result = await extract_content(file_path=text_pdf_path, config=cfg)
+        mock_pdf.assert_awaited_once_with(text_pdf_path, cfg)
+        mock_docling.assert_not_awaited()
+        assert result is expected
+
+
+@pytest.mark.asyncio
+async def test_extract_file_auto_routes_scanned_pdf_to_docling_processor(scanned_pdf_path):
+    cfg = ContentCoreConfig(document_engine="auto")
+    expected = _make_output(identified_type="application/pdf")
+    with _docling_installed(AsyncMock()), patch(
+        "content_core.extraction.DOCLING_SUPPORTED", {"application/pdf"}
+    ), patch(
+        "content_core.extraction.extract_pdf_file",
+        new_callable=AsyncMock,
+    ) as mock_pdf, patch(
+        "content_core.extraction.extract_docling",
+        new_callable=AsyncMock,
+        return_value=expected,
+    ) as mock_docling:
+        result = await extract_content(file_path=scanned_pdf_path, config=cfg)
+        mock_docling.assert_awaited_once_with(scanned_pdf_path, cfg)
+        mock_pdf.assert_not_awaited()
+        assert result is expected

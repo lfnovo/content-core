@@ -22,7 +22,11 @@ from content_core.common.state import ExtractionOutput, FileSupport
 # Import processor v2 functions
 from content_core.processors.media.audio import transcribe_audio
 from content_core.processors.document import SUPPORTED_OFFICE_TYPES, extract_office
-from content_core.processors.document.pdf import SUPPORTED_PDF_TYPES, extract_pdf_file
+from content_core.processors.document.pdf import (
+    SUPPORTED_PDF_TYPES,
+    extract_pdf_file,
+    pdf_has_usable_text,
+)
 from content_core.processors.document.epub import SUPPORTED_EPUB_TYPES, extract_epub_file
 from content_core.processors.text import extract_text_file, process_text
 from content_core.processors.url import (
@@ -139,7 +143,9 @@ async def _extract_url(url: str, cfg: ContentCoreConfig) -> ExtractionOutput:
     return await extract_from_url(url, cfg)
 
 
-def _route_for_mime(mime: str, cfg: ContentCoreConfig) -> str | None:
+def _route_for_mime(
+    mime: str, cfg: ContentCoreConfig, file_path: str | None = None
+) -> str | None:
     """Return the processor that would handle a file of this MIME type.
 
     Single source of truth for file-support routing, shared by ``_extract_file``
@@ -164,6 +170,17 @@ def _route_for_mime(mime: str, cfg: ContentCoreConfig) -> str | None:
         return "docling"
 
     if engine == "auto" and docling_usable and mime in DOCLING_SUPPORTED:
+        if mime in SUPPORTED_PDF_TYPES and file_path and os.path.isfile(file_path):
+            threshold = getattr(cfg, "pdf_min_chars_per_page", 50)
+            if pdf_has_usable_text(file_path, min_chars_per_page=threshold):
+                logger.debug(
+                    f"Routing PDF '{file_path}' to 'pdf' processor (usable text layer found)"
+                )
+                return "pdf"
+            logger.debug(
+                f"Routing PDF '{file_path}' to 'docling' processor (insufficient text layer, OCR needed)"
+            )
+            return "docling"
         return "docling"
 
     if mime in SUPPORTED_PDF_TYPES:
@@ -225,7 +242,7 @@ async def check_file_support(
     # but not installed) raises from routing. Here it is a verdict, not an
     # error: pre-flight answers "no, and here is why" instead of raising.
     try:
-        processor = _route_for_mime(mime, cfg)
+        processor = _route_for_mime(mime, cfg, file_path=file_path)
     except ConfigurationError as exc:
         return FileSupport(
             supported=False,
@@ -258,7 +275,7 @@ async def _extract_file(
 
     used_docling = False
     try:
-        route = _route_for_mime(mime, cfg)
+        route = _route_for_mime(mime, cfg, file_path=path)
 
         # Docling routing (if enabled and supported)
         if route == "docling":
