@@ -259,8 +259,11 @@ The `url_engine` setting controls how web pages are extracted:
 | `firecrawl` | Firecrawl API | `FIRECRAWL_API_KEY` |
 | `jina` | Jina Reader API | Optional `JINA_API_KEY` |
 | `crawl4ai` | Local browser-based extraction | `pip install content-core[crawl4ai]` + Playwright |
+| `specstream` | SpecStream Extract API | `SPECSTREAM_API_KEY` |
 
 For self-hosted Firecrawl, set `FIRECRAWL_API_URL` to your instance URL.
+
+For SpecStream, set `SPECSTREAM_API_KEY` (or `specstream_api_key` in the config file). `SPECSTREAM_API_URL` (or `specstream_api_url`) changes the API address, which defaults to `https://api.specstream.ai`. The `specstream` engine is used only when selected; `auto` does not try it.
 
 The same setting works for Firecrawl-compatible backends such as [fastCRW](https://github.com/us/crw): point `FIRECRAWL_API_URL` at the instance root and keep `url_engine=firecrawl`. `FIRECRAWL_API_KEY` can be any non-empty value when the backend has authentication disabled.
 

@@ -66,6 +66,15 @@ The `url_engine` setting controls which processor handles web URLs. When set to 
 - No third-party API keys needed; all processing happens locally or on your server
 - Handles JavaScript-heavy sites well
 
+### SpecStream (`specstream`)
+
+- File: `specstream.py`
+- Uses the SpecStream Extract API (`POST /v1/extract`) and returns the page's main text as markdown
+- Requires `SPECSTREAM_API_KEY` (or `specstream_api_key` in the config file), sent as `Authorization: Bearer <key>`
+- `SPECSTREAM_API_URL` (or `specstream_api_url`) changes the API address; default `https://api.specstream.ai`
+- Used only when selected with `url_engine=specstream`; not part of the `auto` chain
+- Honors `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`
+
 ## Document Processors
 
 Located in `src/content_core/processors/document/`.

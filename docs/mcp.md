@@ -112,7 +112,7 @@ Extracts content from a URL or file. **Does not require an API key** for most so
 - `url` (string, optional) -- URL to extract content from
 - `file_path` (string, optional) -- local file path to extract content from
 - `engine` (string, optional) -- extraction engine override, routed by input type:
-  - with `url`: `auto`, `simple`, `firecrawl`, `jina`, `crawl4ai`
+  - with `url`: `auto`, `simple`, `firecrawl`, `jina`, `crawl4ai`, `specstream`
   - with `file_path`: `auto`, `simple`, `docling`
   An engine outside the list for that input type is rejected with an error
   naming the accepted values. `docling` requires the optional extra

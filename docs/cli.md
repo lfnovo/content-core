@@ -173,13 +173,15 @@ content-core config delete llm_provider
 | `firecrawl_api_url` | Firecrawl API URL | `https://api.firecrawl.dev` |
 | `firecrawl_proxy` | Firecrawl proxy mode (`auto`, `basic`, `stealth`) | `auto` |
 | `firecrawl_wait_for` | Wait time in ms before extraction | `3000` |
+| `specstream_api_url` | SpecStream API URL | `https://api.specstream.ai` |
+| `specstream_api_key` | SpecStream API key (required by the `specstream` engine) | — |
 | `llm_model` | LLM model for summarization | `gpt-4o-mini` |
 | `llm_provider` | LLM provider | `openai` |
 | `stt_model` | Speech-to-text model | `whisper-1` |
 | `stt_provider` | Speech-to-text provider | `openai` |
 | `stt_timeout` | STT API timeout in seconds | `3600` |
 | `summary_model` | Override LLM model for summarization | — |
-| `url_engine` | URL extraction engine (`auto`, `simple`, `firecrawl`, `jina`, `crawl4ai`) | `auto` |
+| `url_engine` | URL extraction engine (`auto`, `simple`, `firecrawl`, `jina`, `crawl4ai`, `specstream`) | `auto` |
 | `youtube_languages` | Transcript languages, comma-separated | `en,es,pt` |
 
 Run `content-core config --help` to see this list in the terminal.
@@ -212,7 +214,7 @@ content-core config set url_engine firecrawl
 ```
 
 `config set` rejects a value that the setting does not accept — `url_engine`
-takes `auto`, `simple`, `firecrawl`, `jina` or `crawl4ai`, and
+takes `auto`, `simple`, `firecrawl`, `jina`, `crawl4ai` or `specstream`, and
 `document_engine` takes `auto`, `simple` or `docling` — and writes nothing to
 the file when it does.
 The same closed vocabulary is enforced on constructor arguments, `CCORE_*`
@@ -239,7 +241,7 @@ export OPENAI_API_KEY=sk-...
 ### Engine flag
 
 The `--engine` flag is routed automatically based on input type:
-- **URLs** → overrides `url_engine` (options: `auto`, `firecrawl`, `jina`, `crawl4ai`, `simple`)
+- **URLs** → overrides `url_engine` (options: `auto`, `firecrawl`, `jina`, `crawl4ai`, `specstream`, `simple`)
 - **Files** → overrides `document_engine` (options: `auto`, `docling`, `simple`). `--engine docling`
   requires `pip install content-core[docling]`; without it the command fails instead of
   falling back to the simple engine
