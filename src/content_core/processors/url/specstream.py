@@ -7,7 +7,6 @@ from content_core.common.retry import retry_url_api
 from content_core.config import ContentCoreConfig, get_default_config
 from content_core.logging import logger
 
-
 # Pages SpecStream processed: "empty" is a page with no main text, returned as content="".
 _READ_STATUSES = frozenset({"ok", "empty"})
 

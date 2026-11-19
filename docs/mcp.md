@@ -74,8 +74,7 @@ For best results with URL extraction, add web crawling API keys:
       "env": {
         "OPENAI_API_KEY": "sk-your-key-here",
         "FIRECRAWL_API_KEY": "fc-your-key-here",
-        "JINA_API_KEY": "jina-your-key-here",
-        "SPECSTREAM_API_KEY": "your-specstream-key"
+        "JINA_API_KEY": "jina-your-key-here"
       }
     }
   }
@@ -171,6 +170,8 @@ Engine selection and other settings can be passed through the `env` block in the
   }
 }
 ```
+
+To use SpecStream for URLs, set `CCORE_URL_ENGINE` to `specstream` and add `SPECSTREAM_API_KEY` to the same block (`SPECSTREAM_API_URL` too, for another base address). `auto` never picks SpecStream on its own.
 
 See the [usage guide](usage.md) for the full list of `CCORE_` environment variables.
 
