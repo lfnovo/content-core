@@ -64,7 +64,7 @@ class TestExtractContent:
     async def test_invalid_url_engine_returns_error(self):
         result = await extract_content_fn(url="https://example.com", engine="jinaa")
         assert "Error" in result
-        for valid in ("auto", "simple", "firecrawl", "jina", "crawl4ai"):
+        for valid in ("auto", "simple", "firecrawl", "jina", "crawl4ai", "specstream"):
             assert valid in result
 
     @pytest.mark.asyncio

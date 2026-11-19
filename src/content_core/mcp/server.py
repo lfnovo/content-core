@@ -37,7 +37,8 @@ async def extract_content(
         url: URL to extract content from (web page, YouTube video, PDF link, etc.)
         file_path: Local file path to extract content from
         engine: Optional extraction engine override, routed by input type.
-            With `url`: auto, simple, firecrawl, jina, crawl4ai.
+            With `url`: auto, simple, firecrawl, jina, crawl4ai, specstream
+            (`specstream` needs SPECSTREAM_API_KEY).
             With `file_path`: auto, simple, docling — `docling` requires
             `pip install "content-core[docling]"` and fails with a
             configuration error when the extra is missing, in which case use

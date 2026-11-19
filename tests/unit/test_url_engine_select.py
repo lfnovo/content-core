@@ -131,6 +131,22 @@ async def test_jina_engine():
 
 
 # ---------------------------------------------------------------------------
+# SpecStream engine -> uses specstream directly
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_specstream_engine():
+    cfg = ContentCoreConfig(url_engine="specstream")
+    with patch(
+        "content_core.processors.url.extract_url_specstream",
+        new_callable=AsyncMock,
+        return_value={"title": "SS", "content": "SS Content"},
+    ) as mock_ss:
+        result = await extract_from_url("https://example.com", cfg)
+        mock_ss.assert_awaited_once_with("https://example.com", cfg)
+        assert result.content == "SS Content"
+
+
+# ---------------------------------------------------------------------------
 # 6. firecrawl passes config (proxy + wait_for) through
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio

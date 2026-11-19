@@ -106,13 +106,13 @@ The MCP server provides two tools. Both return plain text responses.
 
 ### extract_content
 
-Extracts content from a URL or file. **Does not require an API key** for most sources (web pages, PDFs, documents, YouTube transcripts). An API key is only needed for audio/video transcription.
+Extracts content from a URL or file. **Does not require an API key** for most sources (web pages, PDFs, documents, YouTube transcripts). An API key is only needed for audio/video transcription, and for the `specstream` engine, which needs `SPECSTREAM_API_KEY`.
 
 **Parameters:**
 - `url` (string, optional) -- URL to extract content from
 - `file_path` (string, optional) -- local file path to extract content from
 - `engine` (string, optional) -- extraction engine override, routed by input type:
-  - with `url`: `auto`, `simple`, `firecrawl`, `jina`, `crawl4ai`
+  - with `url`: `auto`, `simple`, `firecrawl`, `jina`, `crawl4ai`, `specstream` (needs `SPECSTREAM_API_KEY`)
   - with `file_path`: `auto`, `simple`, `docling`
   An engine outside the list for that input type is rejected with an error
   naming the accepted values. `docling` requires the optional extra
@@ -171,6 +171,8 @@ Engine selection and other settings can be passed through the `env` block in the
 }
 ```
 
+To use SpecStream for URLs, set `CCORE_URL_ENGINE` to `specstream` and add `SPECSTREAM_API_KEY` to the same block (`SPECSTREAM_API_URL` too, for another base address). `auto` never picks SpecStream on its own.
+
 See the [usage guide](usage.md) for the full list of `CCORE_` environment variables.
 
 ## API Keys
@@ -180,13 +182,15 @@ See the [usage guide](usage.md) for the full list of `CCORE_` environment variab
 | An LLM/STT API key (e.g., `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY`) | Audio/video transcription, summarization | **Required** for `summarize_content` and audio/video extraction. **Not needed** for URL, PDF, document, or YouTube extraction. Any provider supported by [Esperanto](https://github.com/lfnovo/esperanto) works. |
 | `FIRECRAWL_API_KEY` | High-quality web extraction | Optional (improves URL extraction) |
 | `JINA_API_KEY` | Alternative web extraction | Optional (avoids Jina rate limits) |
+| `SPECSTREAM_API_KEY` | The `specstream` URL engine | **Required** when `engine` is `specstream`; `auto` never uses it. `SPECSTREAM_API_URL` changes the base address (default `https://api.specstream.ai`) |
 
-**When no API key is configured**, the AI agent should prefer `extract_content` over `summarize_content`. Most extraction sources (URLs, PDFs, Office documents, YouTube transcripts) work without any API key. Only audio/video transcription and summarization require `OPENAI_API_KEY` (or another LLM provider key). Without web crawling API keys, URL extraction falls back to BeautifulSoup.
+**When no API key is configured**, the AI agent should prefer `extract_content` over `summarize_content`. Most extraction sources (URLs, PDFs, Office documents, YouTube transcripts) work without any API key. Only audio/video transcription and summarization require `OPENAI_API_KEY` (or another LLM provider key). The `specstream` URL engine needs `SPECSTREAM_API_KEY` when it is selected. Without web crawling API keys, URL extraction falls back to BeautifulSoup.
 
 **Getting API keys:**
 - OpenAI: [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
 - Firecrawl: [firecrawl.dev](https://www.firecrawl.dev/) or [self-host](https://github.com/mendableai/firecrawl/blob/main/SELF_HOST.md)
 - Jina: [jina.ai](https://jina.ai/)
+- SpecStream: [specstream.ai](https://specstream.ai/)
 
 ## Troubleshooting
 

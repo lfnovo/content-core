@@ -41,7 +41,7 @@ def cli(ctx, debug):
 @click.option(
     "--engine",
     default=None,
-    help="Override extraction engine (URL: firecrawl, jina, crawl4ai, simple; Document: docling, simple)",
+    help="Override extraction engine (URL: firecrawl, jina, crawl4ai, specstream, simple; Document: docling, simple)",
 )
 @click.option("--formulas", is_flag=True, default=False, help="Enable formula extraction (Docling only)")
 @click.option("--pictures", is_flag=True, default=False, help="Enable image description + chart extraction (Docling only)")
@@ -119,13 +119,15 @@ def config():
       firecrawl_api_url    Firecrawl API URL
       firecrawl_proxy      Firecrawl proxy mode: auto, basic, stealth (default: auto)
       firecrawl_wait_for   Firecrawl wait time in ms before extraction (default: 3000)
+      specstream_api_url   SpecStream API URL (default: https://api.specstream.ai)
+      specstream_api_key   SpecStream API key (required by the specstream engine)
       llm_model            LLM model for summarization (default: gpt-4o-mini)
       llm_provider         LLM provider (default: openai)
       stt_model            Speech-to-text model (default: whisper-1)
       stt_provider         Speech-to-text provider (default: openai)
       stt_timeout          STT API timeout in seconds (default: 3600)
       summary_model        Override LLM model for summarization
-      url_engine           URL extraction engine (auto, simple, firecrawl, jina, crawl4ai)
+      url_engine           URL extraction engine (auto, simple, firecrawl, jina, crawl4ai, specstream)
       youtube_languages    Transcript languages, comma-separated (default: en,es,pt)
       docling_formulas     Enable formula extraction (default: false)
       docling_ocr          Enable OCR for scanned PDFs (default: true)

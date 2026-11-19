@@ -223,7 +223,7 @@ Content Core uses `ContentCoreConfig` powered by pydantic-settings. Settings are
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `CCORE_URL_ENGINE` | URL extraction engine (`auto`, `simple`, `firecrawl`, `jina`, `crawl4ai`) | `auto` |
+| `CCORE_URL_ENGINE` | URL extraction engine (`auto`, `simple`, `firecrawl`, `jina`, `crawl4ai`, `specstream`) | `auto` |
 | `CCORE_DOCUMENT_ENGINE` | Document extraction engine (`auto`, `simple`, `docling`) — `docling` raises `ConfigurationError` if the extra is not installed; `auto` falls back silently | `auto` |
 | `CCORE_AUDIO_CONCURRENCY` | Concurrent audio transcriptions (1-10) | `3` |
 | `CCORE_AUDIO_SEGMENT_MINUTES` | Length of the segments long audio is split into; `0` sends the file whole | `10` |
@@ -232,6 +232,8 @@ Content Core uses `ContentCoreConfig` powered by pydantic-settings. Settings are
 | `FIRECRAWL_API_URL` | Custom Firecrawl API URL for self-hosted instances or Firecrawl-compatible backends (e.g. fastCRW) | - |
 | `CCORE_FIRECRAWL_PROXY` | Firecrawl proxy mode (`auto`, `basic`, `stealth`) | `auto` |
 | `CCORE_FIRECRAWL_WAIT_FOR` | Wait time in ms before extraction | `3000` |
+| `SPECSTREAM_API_URL` | Custom SpecStream API URL | `https://api.specstream.ai` |
+| `SPECSTREAM_API_KEY` | API key for SpecStream | - |
 | `CCORE_LLM_PROVIDER` | LLM provider for summarization | - |
 | `CCORE_LLM_MODEL` | LLM model for summarization | - |
 | `CCORE_STT_PROVIDER` | Speech-to-text provider | - |

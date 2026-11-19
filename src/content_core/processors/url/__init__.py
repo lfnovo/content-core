@@ -31,6 +31,7 @@ from content_core.processors.url.firecrawl import (
     extract_url_firecrawl,
 )
 from content_core.processors.url.crawl4ai import extract_url_crawl4ai
+from content_core.processors.url.specstream import extract_url_specstream
 
 
 @retry_url_network()
@@ -116,6 +117,8 @@ async def _run_engine(url: str, engine: str, config: ContentCoreConfig) -> dict:
             return await extract_url_jina(url)
         elif engine == "crawl4ai":
             return await extract_url_crawl4ai(url)
+        elif engine == "specstream":
+            return await extract_url_specstream(url, config)
     except ContentCoreError:
         raise
     except Exception as e:
@@ -206,6 +209,7 @@ __all__ = [
     "extract_url_jina",
     "extract_url_firecrawl",
     "extract_url_crawl4ai",
+    "extract_url_specstream",
     "detect_remote_mime",
     "VALID_URL_ENGINES",
     "_extract_url_with_engine",
